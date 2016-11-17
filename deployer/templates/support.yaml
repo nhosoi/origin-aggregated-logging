@@ -30,6 +30,10 @@ parameters:
   description: 'Set to "true" if the image registry is not secured with a properly-signed certificate.'
   name: INSECURE_REGISTRY
   value: "false"
+-
+  description: 'The port the forward listener uses for incoming connections (targetPort: mux-forward).'
+  name: FORWARD_LISTEN_PORT
+  value: "24284"
 objects:
 - apiVersion: "v1"
   kind: "Template"
@@ -123,6 +127,19 @@ objects:
       selector:
         provider: openshift
         component: "kibana-ops"
+  -
+    apiVersion: "v1"
+    kind: "Service"
+    metadata:
+      name: "logging-mux"
+    spec:
+      ports:
+        -
+          port: ${FORWARD_LISTEN_PORT}
+          targetPort: "mux-forward"
+      selector:
+        provider: openshift
+        component: "mux"
   -
     apiVersion: v1
     kind: OAuthClient

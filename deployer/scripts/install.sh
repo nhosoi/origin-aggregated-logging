@@ -80,6 +80,7 @@ function initialize_install_vars() {
   use_journal=${input_vars[use-journal]:-}
   journal_read_from_head=${input_vars[journal_read_from_head]:-false}
   journal_source=${input_vars[journal_source]:-}
+  mux_hostname=${input_vars[mux_hostname]:-mux.example.com}
 
   # other env vars used:
   # WRITE_KUBECONFIG, KEEP_SUPPORT, ENABLE_OPS_CLUSTER
