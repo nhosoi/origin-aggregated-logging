@@ -81,6 +81,7 @@ function initialize_install_vars() {
   journal_read_from_head=${input_vars[journal_read_from_head]:-false}
   journal_source=${input_vars[journal_source]:-}
   mux_hostname=${input_vars[mux_hostname]:-mux.example.com}
+  forward_listen_port=${input_vars[forward_listen_port]:-24284}
 
   # other env vars used:
   # WRITE_KUBECONFIG, KEEP_SUPPORT, ENABLE_OPS_CLUSTER
@@ -362,6 +363,24 @@ function generate_fluentd_template(){
     --param "$image_params"
 } #generate_fluentd_template()
 
+function generate_mux_template(){
+  es_host=logging-es
+  es_ops_host=${es_host}
+  if [ "${input_vars[enable-ops-cluster]}" == true ]; then
+    es_ops_host=logging-es-ops
+  fi
+
+  create_template_optional_nodeselector "${input_vars[mux-nodeselector]}" mux \
+    --param ES_HOST=${es_host} \
+    --param OPS_HOST=${es_ops_host} \
+    --param MASTER_URL=${master_url} \
+    --param USE_JOURNAL=${use_journal} \
+    --param JOURNAL_READ_FROM_HEAD=${journal_read_from_head} \
+    --param JOURNAL_SOURCE=${journal_source} \
+    --param FORWARD_LISTEN_PORT=${forward_listen_port} \
+    --param "$image_params"
+}
+
 ######################################
 #
 # (re)generate templates needed
@@ -372,6 +391,7 @@ function generate_templates() {
   generate_kibana_template
   generate_curator_template
   generate_fluentd_template
+  generate_mux_template
 } #generate_templates()
 
 function generate_curator() {
@@ -390,6 +410,10 @@ function generate_kibana() {
 
 function generate_fluentd() {
   oc new-app logging-fluentd-template
+}
+
+function generate_mux() {
+  oc new-app logging-mux-template
 }
 
 function generate_es() {
@@ -449,6 +473,7 @@ function generate_objects() {
   generate_kibana
   generate_curator
   generate_fluentd
+  generate_mux
 
   for dc in $(oc get dc -l logging-infra -o name); do
     oc deploy $dc --latest

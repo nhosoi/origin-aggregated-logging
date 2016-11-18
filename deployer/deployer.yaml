@@ -39,6 +39,11 @@ items:
     apiVersion: v1
     kind: ServiceAccount
     metadata:
+      name: aggregated-logging-mux
+  -
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
       name: aggregated-logging-curator
   - apiVersion: v1
     kind: ClusterRole
@@ -319,6 +324,10 @@ items:
     description: "(Deprecated) The nodeSelector used for the Fluentd DaemonSet."
     name: FLUENTD_NODESELECTOR
     value: "logging-infra-fluentd=true"
+  -
+    description: "(Deprecated) The nodeSelector used for the Mux (label=value)."
+    name: MUX_NODESELECTOR
+    value: "logging-infra-mux=true"
   -
     description: "(Deprecated) Node selector Elasticsearch cluster (label=value)."
     name: ES_NODESELECTOR

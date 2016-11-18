@@ -57,7 +57,7 @@ objects:
             component: "mux"
         spec:
           terminationGracePeriodSeconds: 300
-          serviceAccountName: aggregated-logging-fluentd
+          serviceAccountName: aggregated-logging-mux
           containers:
           - name: mux
             image: ${IMAGE_PREFIX}logging-fluentd:${IMAGE_VERSION}
