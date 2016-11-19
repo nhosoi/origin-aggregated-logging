@@ -159,7 +159,7 @@ objects:
               value: ${JOURNAL_READ_FROM_HEAD}
             - name: "FORWARD_LISTEN_PORT"
               value: ${FORWARD_LISTEN_PORT}
-         volumes:
+          volumes:
           - name: runlogjournal
             hostPath:
               path: /run/log/journal
