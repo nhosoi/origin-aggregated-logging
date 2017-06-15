@@ -33,7 +33,7 @@ else
 fi
 
 print_message() {
-    if [ "${VERBOSE:-false}" = true ] ; then
+    if [ "${VERBOSE:-false}" = "true" ] ; then
         query_es_from_es $espod $myproject _search $myfield $mymessage >> $MUXDEBUG
 
         local es_pod=`get_running_pod es`
@@ -95,6 +95,8 @@ SET_CONTAINER_VALS=1
 NO_CONTAINER_VALS=2
 MISMATCH_NAMESPACE_TAG=3
 NO_PROJECT_TAG=4
+NO_TIMESTAMP=5
+NON_EXISTING_NAMESPACE=6
 update_current_fluentd() {
   # this will update it so the current fluentd does not send logs to an ES host
   # but instead forwards to the forwarding fluentd
@@ -107,6 +109,9 @@ update_current_fluentd() {
   oc label node --all logging-infra-fluentd-
 
   wait_for_pod_ACTION stop $fpod
+
+  echo "================ MUX configmap"
+  oc get configmap/logging-mux -o yaml | tee /tmp/mux.configmap.out
 
   # edit so we don't filter or send to ES
   oc get configmap/logging-fluentd -o yaml | sed '/## filters/ a\
@@ -159,7 +164,7 @@ update_current_fluentd() {
         CONTAINER_ID_FULL 0123456789012345678901234567890123456789012345678901234567890123\n\
         </record>\n\
       </filter>"}]'
-  else
+  elif [ $myoption -eq $NO_PROJECT_TAG ]; then
       oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
       <match journal>\n\
         @type rewrite_tag_filter\n\
@@ -167,6 +172,27 @@ update_current_fluentd() {
         rewriterule2 message .+ test.bogus.mux\n\
       </match>\n\
       <filter test.bogus.mux>\n\
+        @type record_transformer\n\
+        enable_ruby\n\
+        <record>\n\
+        @timestamp ${time.strftime(\"%Y-%m-%dT%H:%M:%S%z\")}\n\
+        </record>\n\
+      </filter>"}]'
+  elif [ $myoption -eq $NO_TIMESTAMP ]; then
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      <match journal>\n\
+        @type rewrite_tag_filter\n\
+        rewriterule1 MESSAGE .+ project.testproj.mux\n\
+        rewriterule1 message .+ project.testproj.mux\n\
+      </match>"}]'
+  else # $NON_EXISTING_NAMESPACE
+      oc patch configmap/logging-fluentd --type=json --patch '[{ "op": "replace", "path": "/data/filter-pre-mux-test-client.conf", "value": "\
+      <match journal>\n\
+        @type rewrite_tag_filter\n\
+        rewriterule1 MESSAGE .+ project.bogus.mux\n\
+        rewriterule2 message .+ project.bogus.mux\n\
+      </match>\n\
+      <filter project.bogus.mux>\n\
         @type record_transformer\n\
         enable_ruby\n\
         <record>\n\
@@ -207,12 +233,11 @@ write_and_verify_logs() {
 
     local rc=0
 
-    if [ "${VERBOSE:-false}" = true ] ; then
+    if [ "${VERBOSE:-false}" = "true" ] ; then
         MUXDEBUG=$ARTIFACT_DIR/mux-test-ext.$is_testproj.$no_container_vals.$mismatch_namespace.$no_project_tag.log
     else
         MUXDEBUG="/dev/null"
     fi
-    echo "DEBUG PRINT is_testproj $is_testproj no_container_vals $no_container_vals ====================================" > $MUXDEBUG
 
     espod=$es_pod
     if [ $is_testproj -eq 1 -a $no_container_vals -eq 0 ]; then
@@ -259,29 +284,31 @@ write_and_verify_logs() {
         rc=1
     fi
 
-    local f_pod=`get_running_pod fluentd`
-    local m_pod=`get_running_pod mux`
-    oc projects >> $MUXDEBUG
-    oc get pods >> $MUXDEBUG
-    if [ "$f_pod" != "" ]; then
-        echo "FLUENTD LOG" >> $MUXDEBUG
-        oc logs $f_pod >> $MUXDEBUG
-        echo "FLUENTD CONFIG MAP" >> $MUXDEBUG
-        oc get configmap/logging-fluentd -o yaml >> $MUXDEBUG
-        echo "FLUENTD CONFIG FILES" >> $MUXDEBUG
-        oc exec $f_pod -- ls /etc/fluent/configs.d/openshift >> $MUXDEBUG
-        oc exec $f_pod -- ls /etc/fluent/configs.d/user >> $MUXDEBUG
+    if [ "${VERBOSE:-false}" = "true" ] ; then
+        local f_pod=`get_running_pod fluentd`
+        local m_pod=`get_running_pod mux`
+        oc projects >> $MUXDEBUG
+        oc get pods >> $MUXDEBUG
+        if [ "$f_pod" != "" ]; then
+            echo "FLUENTD LOG" >> $MUXDEBUG
+            oc logs $f_pod >> $MUXDEBUG
+            echo "FLUENTD CONFIG MAP" >> $MUXDEBUG
+            oc get configmap/logging-fluentd -o yaml >> $MUXDEBUG
+            echo "FLUENTD CONFIG FILES" >> $MUXDEBUG
+            oc exec $f_pod -- ls /etc/fluent/configs.d/openshift >> $MUXDEBUG
+            oc exec $f_pod -- ls /etc/fluent/configs.d/user >> $MUXDEBUG
+        fi
+        if [ "$m_pod" != "" ]; then
+            echo "MUX LOG" >> $MUXDEBUG
+            oc logs $m_pod >> $MUXDEBUG
+            echo "MUX CONFIG MAP" >> $MUXDEBUG
+            oc get configmap/logging-mux -o yaml >> $MUXDEBUG
+            echo "MUX CONFIG FILES" >> $MUXDEBUG
+            oc exec $m_pod -- ls /etc/fluent/configs.d/openshift >> $MUXDEBUG
+            oc exec $m_pod -- ls /etc/fluent/configs.d/user >> $MUXDEBUG
+        fi
+        echo "DEBUG PRINT ENDS ===============================================" >> $MUXDEBUG
     fi
-    if [ "$m_pod" != "" ]; then
-        echo "MUX LOG" >> $MUXDEBUG
-        oc logs $m_pod >> $MUXDEBUG
-        echo "MUX CONFIG MAP" >> $MUXDEBUG
-        oc get configmap/logging-mux -o yaml >> $MUXDEBUG
-        echo "MUX CONFIG FILES" >> $MUXDEBUG
-        oc exec $m_pod -- ls /etc/fluent/configs.d/openshift >> $MUXDEBUG
-        oc exec $m_pod -- ls /etc/fluent/configs.d/user >> $MUXDEBUG
-    fi
-    echo "DEBUG PRINT ENDS ===============================================" >> $MUXDEBUG
 
     return $rc
 }
@@ -398,6 +425,31 @@ fi
 update_current_fluentd $NO_PROJECT_TAG
 
 write_and_verify_logs 1 0 0 1 1
+
+cleanup
+
+echo "------- Test case $NO_TIMESTAMP -------"
+echo "fluentd compensate missing @timestamp.  Same result as Test case $NO_CONTAINER_VALS"
+
+update_current_fluentd $NO_CONTAINER_VALS
+
+write_and_verify_logs 1 1 1
+
+cleanup
+
+echo "------- Test case $NON_EXISTING_NAMESPACE -------"
+echo "fluentd issues an error in <label @ERROR>."
+#
+# results: ???
+#
+
+update_current_fluentd $NON_EXISTING_NAMESPACE
+
+logger -i -p local6.info -t "mux-test-tag" "mux-test-message_1"
+sleep 10
+
+m_pod=`get_running_pod mux`
+oc logs $m_pod
 
 cleanup
 

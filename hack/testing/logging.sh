@@ -104,6 +104,8 @@ else
 fi
 
 SERVER_CONFIG_DIR=/etc/origin
+export PATH=/data/src/github.com/openshift/origin/_output/local/bin/linux/amd64:$PATH
+echo "PATH -- $PATH"
 source $OS_O_A_L_DIR/hack/testing/prep-host
 
 os::util::ensure::iptables_privileges_exist
