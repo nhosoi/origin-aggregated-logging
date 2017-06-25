@@ -96,8 +96,8 @@ NO_CONTAINER_VALS=2
 MISMATCH_NAMESPACE_TAG=3
 NO_PROJECT_TAG=4
 NO_TIMESTAMP=5
-NESTED_LOG=6
-NO_LOG_NO_MESSAGE=7
+NO_LOG_NO_MESSAGE=6
+NESTED_LOG=7
 NON_EXISTING_NAMESPACE=8
 update_current_fluentd() {
   # this will update it so the current fluentd does not send logs to an ES host
@@ -475,6 +475,33 @@ trap "cleanup" INT TERM EXIT
 # 
 # cleanup
 
+echo "------- Test case $NO_LOG_NO_MESSAGE -------"
+echo "Testing no log & no message"
+#
+# results: ???
+# 
+update_current_fluentd $NO_LOG_NO_MESSAGE
+
+TESTTAG="mux-no_log_no_message-test-tag"
+logger -i -p local6.info -t $TESTTAG  "mux-test-message-no_log_no_message"
+sleep 30
+
+f_pod=`get_running_pod fluentd`
+echo "fluentd log"
+oc logs $f_pod
+m_pod=`get_running_pod mux`
+echo "mux log"
+oc logs $m_pod
+
+es_pod=`get_running_pod es`
+RVAL=$(oc exec $es_pod -- curl --connect-timeout 1 -s -k \
+  --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
+  "https://localhost:9200/project.testproj.**/_search?q=SYSLOG_IDENTIFIER:$TESTTAG" | jq)
+
+echo $RVAL
+
+cleanup
+
 echo "------- Test case $NESTED_LOG -------"
 echo "Testing log {"foo":"bar"}"
 #
@@ -484,7 +511,7 @@ update_current_fluentd $NESTED_LOG
 
 TESTTAG="mux-nested_log-test-tag"
 logger -i -p local6.info -t $TESTTAG  "mux-test-message-nested_log"
-sleep 10
+sleep 30
 
 f_pod=`get_running_pod fluentd`
 echo "fluentd log"
@@ -519,33 +546,6 @@ fi
 
 cleanup
 
-echo "------- Test case $NO_LOG_NO_MESSAGE -------"
-echo "Testing no log & no message"
-#
-# results: ???
-# 
-update_current_fluentd $NO_LOG_NO_MESSAGE
-
-TESTTAG="mux-no_log_no_message-test-tag"
-logger -i -p local6.info -t $TESTTAG  "mux-test-message-no_log_no_message"
-sleep 10
-
-f_pod=`get_running_pod fluentd`
-echo "fluentd log"
-oc logs $f_pod
-m_pod=`get_running_pod mux`
-echo "mux log"
-oc logs $m_pod
-
-es_pod=`get_running_pod es`
-RVAL=$(oc exec $es_pod -- curl --connect-timeout 1 -s -k \
-  --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key \
-  "https://localhost:9200/project.testproj.**/_search?q=SYSLOG_IDENTIFIER:$TESTTAG" | jq)
-
-echo $RVAL
-
-cleanup
-
 echo "------- Test case $NON_EXISTING_NAMESPACE -------"
 echo "fluentd issues an error in <label @ERROR>."
 #
@@ -556,7 +556,7 @@ update_current_fluentd $NON_EXISTING_NAMESPACE
 
 TESTTAG="mux-non_existing_namespace-test-tag"
 logger -i -p local6.info -t $TESTTAG "mux-test-message-non_existing_namespace"
-sleep 10
+sleep 30
 
 f_pod=`get_running_pod fluentd`
 echo "fluentd log"
