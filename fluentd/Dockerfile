@@ -29,12 +29,14 @@ RUN mkdir -p ${HOME} && \
     gem install -N --conservative --minimal-deps \
       fluentd:${FLUENTD_VERSION} \
       'activesupport:<5' \
+      'public_suffix:<3' \
       fluent-plugin-kubernetes_metadata_filter \
       fluent-plugin-elasticsearch \
       'fluent-plugin-systemd:<0.1.0' \
       systemd-journal \
       fluent-plugin-rewrite-tag-filter \
-      fluent-plugin-secure-forward
+      fluent-plugin-secure-forward \
+      excon
 
 ADD configs.d/ /etc/fluent/configs.d/
 ADD run.sh generate_throttle_configs.rb ${HOME}/
