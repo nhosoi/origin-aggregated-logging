@@ -308,10 +308,7 @@ restart_fluentd() {
 reset_ES_HOST() {
     es_host=${1:-"bogus"}
 
-    MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
-
     oc set env dc logging-mux ES_HOST="$es_host" OPS_HOST="$es_host"
-    MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
 
     wait_for_pod_ACTION start mux
 
@@ -369,7 +366,6 @@ cleanup() {
 }
 trap "cleanup" INT TERM EXIT
 
-MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
 if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" = "hostmount" ]; then
     echo "------- Test case FILE_BUFFER_STORAGE_TYPE: $MUX_FILE_BUFFER_STORAGE_TYPE -------"
 
@@ -386,9 +382,10 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
     add_test_message $uuid_es
 
+    # wait long enough to make the test messages are in the buffer
     sleep 10
-    MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
 
+    MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
     oc exec $MPOD -- ls -l /var/log/mux/filebufferstorage
     oc logs $MPOD >> $MUXDEBUG
 
@@ -408,7 +405,6 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
     fi
 
     myproject=.operations
-    espod=`get_running_pod es-ops`
     mymessage=$uuid_es_ops
     if wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
         echo good - found 1 record project $myproject for $uuid_es_ops
