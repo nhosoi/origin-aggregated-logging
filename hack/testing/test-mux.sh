@@ -377,14 +377,14 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
 
     ES_HOST_BAK=${ES_HOST:-"logging-es"}
 
+    # set ES_HOST and OPS_HOST to bogus
     reset_ES_HOST
-    MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
 
     uuid_es=`uuidgen`
     uuid_es_ops=`uuidgen`
 
-    add_test_message $uuid_es
     logger -i -p local6.info -t $uuid_es_ops $uuid_es_ops
+    add_test_message $uuid_es
 
     sleep 10
     MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
@@ -392,6 +392,7 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
     oc exec $MPOD -- ls -l /var/log/mux/filebufferstorage
     oc logs $MPOD >> $MUXDEBUG
 
+    # set ES_HOST and OPS_HOST to original
     reset_ES_HOST $ES_HOST_BAK
 
     expected=1
