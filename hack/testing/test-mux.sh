@@ -373,12 +373,12 @@ write_and_verify_logs 1 0 0 || {
 echo $?
 }
 
-# cleanup() {
-#     # put back original configuration
-#     cleanup_forward
-#     oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
-# }
-# trap "cleanup" INT TERM EXIT
+cleanup() {
+    # put back original configuration
+    cleanup_forward
+    oc get events -o yaml > $ARTIFACT_DIR/all-events.yaml 2>&1
+}
+trap "cleanup" INT TERM EXIT
 
 MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
 if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" = "hostmount" ]; then
