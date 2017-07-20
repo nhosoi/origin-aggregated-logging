@@ -424,83 +424,82 @@ oc logs $FPOD
     myproject=.operations
     espod=`get_running_pod es-ops`
     mymessage=$uuid_es_ops
-echo "PVC test: myproject=$myproject, espod=$espod, mymessage=$mymessage, myfield=$myfield"
-#    if wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
-#        echo good - found 1 record project $myproject for $uuid_es_ops
-#    else
-#        echo failed - not found 1 record project $myproject for $uuid_es_ops
-#        rc=1
-#    fi
+    if wait_until_cmd_or_err test_count_expected test_count_err 600 ; then
+        echo good - found 1 record project $myproject for $uuid_es_ops
+    else
+        echo failed - not found 1 record project $myproject for $uuid_es_ops
+        rc=1
+    fi
 fi
 
-# echo "------- Test case $SET_CONTAINER_VALS -------"
-# echo "fluentd forwards kibana and system logs with tag project.testproj.mux and CONTAINER values."
-# #
-# # prerequisite: project testproj
-# # results: logs are stored in project.testproj.*
-# #              with k8s.namespace_name: testproj
-# #                   k8s.container_name: mux
-# #                   k8s.pod_name: logging-mux
-# #                   (set in update_current_fluentd)
-# #
-# update_current_fluentd $SET_CONTAINER_VALS
-# 
-# write_and_verify_logs 1 1 0
-# 
-# cleanup
-# 
-# echo "------- Test case $NO_CONTAINER_VALS -------"
-# echo "fluentd forwards kibana and system logs with tag project.testproj.mux without CONTAINER values."
-# #
-# # prerequisite: project testproj
-# # results: kibana logs are stored in the default index project.logging with kibana container/pod info.
-# #          system logs are stored in project.testproj
-# #                with k8s.namespace_name: testproj
-# #                     k8s.container_name: mux-mux
-# #                     k8s.pod_name: mux
-# #                     (set in mux-post-input-filter-tag.conf)
-# #
-# update_current_fluentd $NO_CONTAINER_VALS
-# 
-# write_and_verify_logs 1 1 1
-# 
-# cleanup
-# 
-# echo "------- Test case $MISMATCH_NAMESPACE_TAG -------"
-# echo "fluentd forwards kibana and system logs with tag project.testproj.mux and CONTAINER values, which namespace names do not match."
-# #
-# # prerequisite: project testproj
-# # results: logs are stored in project.testproj.*
-# #              with k8s.namespace_name: testproj
-# #                   k8s.container_name: mux
-# #                   k8s.pod_name: logging-mux
-# #                   (set in update_current_fluentd)
-# #
-# update_current_fluentd $MISMATCH_NAMESPACE_TAG
-# 
-# write_and_verify_logs 1 1 0 1
-# 
-# cleanup
-# 
-# echo "------- Test case $NO_PROJECT_TAG -------"
-# echo "fluentd forwards kibana and system logs with tag test.bogus.mux and no CONTAINER values, which will use a namespace of mux-undefined."
-# #
-# # results: system logs are stored in project.mux-undefined.*
-# #
-# 
-# if oc get project mux-undefined > /dev/null 2>&1 ; then
-#     echo using existing project mux-undefined
-# else
-#     oadm new-project mux-undefined --node-selector=''
-# fi
-# 
-# update_current_fluentd $NO_PROJECT_TAG
-# 
-# write_and_verify_logs 1 0 0 1 1
-# 
-# cleanup
-# 
-# echo "------- Verify cleaned up -------"
-# write_and_verify_logs 1 0 0
+echo "------- Test case $SET_CONTAINER_VALS -------"
+echo "fluentd forwards kibana and system logs with tag project.testproj.mux and CONTAINER values."
+#
+# prerequisite: project testproj
+# results: logs are stored in project.testproj.*
+#              with k8s.namespace_name: testproj
+#                   k8s.container_name: mux
+#                   k8s.pod_name: logging-mux
+#                   (set in update_current_fluentd)
+#
+update_current_fluentd $SET_CONTAINER_VALS
+
+write_and_verify_logs 1 1 0
+
+cleanup
+
+echo "------- Test case $NO_CONTAINER_VALS -------"
+echo "fluentd forwards kibana and system logs with tag project.testproj.mux without CONTAINER values."
+#
+# prerequisite: project testproj
+# results: kibana logs are stored in the default index project.logging with kibana container/pod info.
+#          system logs are stored in project.testproj
+#                with k8s.namespace_name: testproj
+#                     k8s.container_name: mux-mux
+#                     k8s.pod_name: mux
+#                     (set in mux-post-input-filter-tag.conf)
+#
+update_current_fluentd $NO_CONTAINER_VALS
+
+write_and_verify_logs 1 1 1
+
+cleanup
+
+echo "------- Test case $MISMATCH_NAMESPACE_TAG -------"
+echo "fluentd forwards kibana and system logs with tag project.testproj.mux and CONTAINER values, which namespace names do not match."
+#
+# prerequisite: project testproj
+# results: logs are stored in project.testproj.*
+#              with k8s.namespace_name: testproj
+#                   k8s.container_name: mux
+#                   k8s.pod_name: logging-mux
+#                   (set in update_current_fluentd)
+#
+update_current_fluentd $MISMATCH_NAMESPACE_TAG
+
+write_and_verify_logs 1 1 0 1
+
+cleanup
+
+echo "------- Test case $NO_PROJECT_TAG -------"
+echo "fluentd forwards kibana and system logs with tag test.bogus.mux and no CONTAINER values, which will use a namespace of mux-undefined."
+#
+# results: system logs are stored in project.mux-undefined.*
+#
+
+if oc get project mux-undefined > /dev/null 2>&1 ; then
+    echo using existing project mux-undefined
+else
+    oadm new-project mux-undefined --node-selector=''
+fi
+
+update_current_fluentd $NO_PROJECT_TAG
+
+write_and_verify_logs 1 0 0 1 1
+
+cleanup
+
+echo "------- Verify cleaned up -------"
+write_and_verify_logs 1 0 0
 
 oc delete project testproj
