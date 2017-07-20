@@ -308,33 +308,22 @@ restart_fluentd() {
 reset_ES_HOST() {
     es_host=${1:-"bogus"}
 
-FPOD=`oc get pods -l component=fluentd -o name | awk -F'/' '{print $2}'`
-echo 1...
-oc logs $FPOD
+    MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
 
     oc set env dc logging-mux ES_HOST="$es_host" OPS_HOST="$es_host"
-echo 2...
-oc logs $FPOD
+    MPOD=`oc get pods -l component=mux -o name | awk -F'/' '{print $2}'`
 
     wait_for_pod_ACTION start mux
 
-echo 3...
-oc logs $FPOD
     sleep 10
 
-echo 4...
-oc logs $FPOD
     while terminating=$(oc get pods | egrep Terminating) || :
     do
         if [ "$terminating" = "" ]; then
             break
         fi
-echo 5...
-oc logs $FPOD
         sleep 2
     done
-echo 6...
-oc logs $FPOD
 }
 
 TEST_DIVIDER="------------------------------------------"
@@ -417,9 +406,6 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
         echo failed - not found 1 record project $myproject for $uuid_es
         rc=1
     fi
-FPOD=`oc get pods -l component=fluentd -o name | awk -F'/' '{print $2}'`
-echo 7...
-oc logs $FPOD
 
     myproject=.operations
     espod=`get_running_pod es-ops`
