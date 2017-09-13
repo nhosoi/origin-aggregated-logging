@@ -224,6 +224,7 @@ if [ $NOSETUP = 1 ] ; then
         }
     fi
 
+	which oc
     os::cmd::expect_success "oc process -o yaml \
        -f $OS_O_A_L_DIR/hack/templates/dev-builds.yaml \
        -v LOGGING_FORK_URL=$GIT_URL -v LOGGING_FORK_BRANCH=$GIT_BRANCH \

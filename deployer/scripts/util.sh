@@ -247,6 +247,7 @@ function wait_for_new_builds_complete() {
 
 function wait_for_builds_complete()
 {
+    set -x
     waittime=3600 # seconds - 1 hour
     interval=60
     complete=0
