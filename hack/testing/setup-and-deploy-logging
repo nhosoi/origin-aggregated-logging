@@ -66,6 +66,9 @@ if [ -n "${KIBANA_OPS_HOST:-}" ] ; then
                    --from-file=kibana-ops.ca.crt=$MASTER_CONFIG_DIR/ca.crt"
 fi
 os::cmd::expect_success "oc create configmap logging-deployer $deployer_args"
+echo "NYA"
+which oc
+set -x
 
 if [ -n "$USE_LOGGING_DEPLOYER" ] ; then
     imageprefix="docker.io/openshift/origin-"
