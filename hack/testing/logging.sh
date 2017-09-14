@@ -37,7 +37,7 @@ USE_LOCAL_SOURCE=${USE_LOCAL_SOURCE:-false}
 TEST_PERF=${TEST_PERF:-false}
 ES_VOLUME=${ES_VOLUME:-/var/lib/es}
 ES_OPS_VOLUME=${ES_OPS_VOLUME:-/var/lib/es-ops}
-NOSETUP=
+NOSETUP=0
 if [ "${1:-}" = NOSETUP ] ; then
     NOSETUP=1
 fi
