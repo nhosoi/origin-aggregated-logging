@@ -144,7 +144,10 @@ if [ "$ENABLE_OPS_CLUSTER" = "true" ] ; then
     # update the ES_OPS DC to be in the privileged context.
     # TODO: should not have to do that - should work the same as regular hostmount
     os::cmd::try_until_text "oc get dc -o name -l component=es-ops" "ops"
+    echo NYA
+    oc get dc -o name -l component=es-ops
     ops_dc=$(oc get dc -o name -l component=es-ops) || exit 1
+    echo "ops_dc: $ops_dc"
     os::cmd::expect_success "oc patch $ops_dc \
        -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"elasticsearch\",\"securityContext\":{\"privileged\": true}}]}}}}'"
 
