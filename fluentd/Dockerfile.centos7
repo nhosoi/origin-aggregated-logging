@@ -16,7 +16,6 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
       io.openshift.expose-services="9200:http, 9300:http" \
       io.openshift.tags="logging,elk,fluentd"
 
-RUN wget https://kojipkgs.fedoraproject.org//packages/jemalloc/3.6.0/1.el7/x86_64/jemalloc-3.6.0-1.el7.x86_64.rpm && rpm -ivh jemalloc-3.6.0-1.el7.x86_64.rpm
 # activesupport version 5.x requires ruby 2.2
 # iproute needed for ip command to get ip addresses
 RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
@@ -53,6 +52,8 @@ RUN curl -L -s https://github.com/ViaQ/fluent-plugin-elasticsearch/releases/down
 ADD configs.d/ /etc/fluent/configs.d/
 ADD filter_k8s_meta_for_mux_client.rb /etc/fluent/plugin/
 ADD run.sh generate_throttle_configs.rb generate_syslog_config.rb ${HOME}/
+ADD https://kojipkgs.fedoraproject.org//packages/jemalloc/3.6.0/1.el7/x86_64/jemalloc-3.6.0-1.el7.x86_64.rpm /tmp/
+RUN rpm -ivh /tmp/jemalloc-3.6.0-1.el7.x86_64.rpm
 COPY lib/fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem /tmp/
 RUN gem install -N --conservative --minimal-deps --no-ri --no-doc \
        /tmp/fluent-plugin-viaq_docker_audit_log_parser-${FLUENTD_AUDIT_LOG_PARSER_VERSION}.gem && \
