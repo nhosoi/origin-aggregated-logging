@@ -21,17 +21,13 @@ LABEL io.k8s.description="Fluentd container for collecting of docker container l
 RUN rpmkeys --import file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7 && \
     yum install -y --setopt=tsflags=nodocs \
       gcc-c++ \
+      ruby \
+      ruby-devel \
       libcurl-devel \
       make \
       bc \
-      libyaml \
-      openssl \
       iproute && \
     yum clean all
-
-ADD https://github.com/feedforce/ruby-rpm/releases/download/2.4.2/ruby-2.4.2-1.el7.centos.x86_64.rpm /tmp/
-RUN rpm -ivh /tmp/ruby-2.4.2-1.el7.centos.x86_64.rpm
-
 RUN mkdir -p ${HOME} && mkdir -p /etc/fluent/plugin && \
     gem install -N --conservative --minimal-deps --no-ri --no-doc \
      'activesupport:<5' \
