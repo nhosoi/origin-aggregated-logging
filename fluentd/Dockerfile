@@ -51,6 +51,7 @@ RUN mkdir -p /etc/fluent/configs.d/{dynamic,user} && \
 
 RUN mkdir -p /etc/fluent/plugin/
 ADD filter_viaq_level_field.rb /etc/fluent/plugin/
+ADD filter_kubernetes_metadata.rb kubernetes_metadata_common.rb kubernetes_metadata_watch_namespaces.rb kubernetes_metadata_cache_strategy.rb kubernetes_metadata_stats.rb kubernetes_metadata_watch_pods.rb /etc/fluent/plugin/
 
 WORKDIR ${HOME}
 USER 0
