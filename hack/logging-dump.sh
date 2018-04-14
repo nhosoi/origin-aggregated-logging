@@ -46,11 +46,11 @@ then
     components=( "kibana" "fluentd" "curator" "elasticsearch" "project_info" )
 fi
 
-if [ -z "${NAMESPACE:-''}" ] && oc get project logging > /dev/null ; then
-  NAMESPACE=logging
-fi
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
 
-NAMESPACE=${NAMESPACE:-openshift-logging}
+if [ -z "${NAMESPACE:-''}" ] && oc get project ${LOGGING_NS} > /dev/null ; then
+  NAMESPACE=${LOGGING_NS}
+fi
 
 DATE=`date +%Y%m%d_%H%M%S`
 target=${target:-"logging-$DATE"}

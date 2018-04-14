@@ -4,7 +4,7 @@ if ! type -t os::log::info > /dev/null ; then
     source "${OS_O_A_L_DIR:-..}/hack/lib/init.sh"
 fi
 
-LOGGING_NS=${LOGGING_NS:-logging}
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
 
 function get_es_dcs() {
     oc get dc --selector logging-infra=elasticsearch -o name
@@ -126,7 +126,7 @@ function curl_es_with_token_and_input() {
 }
 
 # $1 - es pod name
-# $2 - index name (e.g. project.logging, project.test, .operations, etc.)
+# $2 - index name (e.g. project.${LOGGING_NS}, project.test, .operations, etc.)
 # $3 - _count or _search
 # $4 - field to search
 # $5 - search string
@@ -195,7 +195,7 @@ function wait_for_fluentd_to_catch_up() {
     local uuid_es_ops=$( uuidgen | sed 's/[-]//g' )
     local expected=${3:-1}
     local timeout=${TIMEOUT:-600}
-    local project=${4:-logging}
+    local project=${4:-${LOGGING_NS}}
     local priority=${TEST_REC_PRIORITY:-info}
 
     wait_for_fluentd_ready
@@ -232,11 +232,11 @@ function wait_for_fluentd_to_catch_up() {
 
     # poll for logs to show up
     local qs='{"query":{"match_phrase":{"message":"'"${fullmsg}"'"}}}'
-    if os::cmd::try_until_text "curl_es ${es_pod} /project.logging.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
-        os::log::debug good - $FUNCNAME: found $expected record project logging for \'$fullmsg\'
+    if os::cmd::try_until_text "curl_es ${es_pod} /project.${LOGGING_NS}.*/_count -X POST -d '$qs' | get_count_from_json" $expected $(( timeout * second )); then
+        os::log::debug good - $FUNCNAME: found $expected record project ${LOGGING_NS} for \'$fullmsg\'
     else
-        os::log::error $FUNCNAME: not found $expected record project logging for \'$fullmsg\' after $timeout seconds
-        os::log::debug "$( curl_es ${es_pod} /project.logging.*/_search -X POST -d "$qs" )"
+        os::log::error $FUNCNAME: not found $expected record project ${LOGGING_NS} for \'$fullmsg\' after $timeout seconds
+        os::log::debug "$( curl_es ${es_pod} /project.${LOGGING_NS}.*/_search -X POST -d "$qs" )"
         if [ -s $ARTIFACT_DIR/es_out.txt ] ; then
             os::log::error "$( cat $ARTIFACT_DIR/es_out.txt )"
         else

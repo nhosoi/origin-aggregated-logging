@@ -7,6 +7,8 @@ source "$(dirname "${BASH_SOURCE[0]}" )/../hack/lib/init.sh"
 source "${OS_O_A_L_DIR}/hack/testing/util.sh"
 os::util::environment::use_sudo
 
+LOGGING_NS=${LOGGING_NS:-openshift-logging}
+
 # only works if there is a mux dc
 if oc get dc/logging-mux > /dev/null 2>&1 ; then
     os::log::debug "$( oc get dc/logging-mux )"
@@ -15,6 +17,8 @@ else
     os::log::info dc/logging-mux is not present - skipping test
     exit 0
 fi
+
+os::log::info LOGGING_NS is ${LOGGING_NS}
 
 FLUENTD_WAIT_TIME=${FLUENTD_WAIT_TIME:-$(( 2 * minute ))}
 
@@ -244,7 +248,7 @@ write_and_verify_logs() {
         os::cmd::try_until_success "oc get project testproj" 2>&1 | artifact_out
     else
         # kibana logs with kibana container/pod values
-        local myproject=project.logging
+        local myproject=project.${LOGGING_NS}
     fi
     # could be different fields depending on the container log driver - so just
     # search for the exact phrase in all fields
@@ -471,7 +475,7 @@ if [ "$MUX_FILE_BUFFER_STORAGE_TYPE" = "pvc" -o "$MUX_FILE_BUFFER_STORAGE_TYPE" 
     os::log::debug "$( oc logs $muxpod )"
 
     # kibana logs with kibana container/pod values
-    myproject=project.logging
+    myproject=project.${LOGGING_NS}
     mymessage="GET /${uuid_es} 404 "
     qs='{"query":{"match_phrase":{"message":"'"${mymessage}"'"}}}'
     os::log::debug "Check kibana log - message \"${mymessage}\""
@@ -502,7 +506,7 @@ os::log::info "------- Test case $NO_CONTAINER_VALS -------"
 os::log::info "fluentd forwards kibana and system logs with tag project.testproj.external without CONTAINER values."
 #
 # prerequisite: project testproj
-# results: kibana logs are stored in the default index project.logging with kibana container/pod info.
+# results: kibana logs are stored in the default index project.${LOGGING_NS} with kibana container/pod info.
 #          system logs are stored in project.testproj
 #                with k8s.namespace_name: testproj
 #                     k8s.container_name: mux-mux
