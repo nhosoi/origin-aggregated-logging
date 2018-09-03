@@ -168,7 +168,7 @@ def create_default_docker(input_conf_file, excluded, log, options={})
   path "#{cont_logs_path}"
   <parse>
     @type regexp
-    expression /^(?<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z) (?<output>\w+) (?<partial_flag>[FP]) (?<message>.+)$/
+    expression /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>[FP]))? (?<message>.*)$/
   </parse>
   pos_file "#{cont_pos_file}"
   time_format #{use_crio == 'true' ? '%Y-%m-%dT%H:%M:%S.%N%:z' : '%Y-%m-%dT%H:%M:%S.%N%Z'}
@@ -184,7 +184,9 @@ def create_default_docker(input_conf_file, excluded, log, options={})
   <filter k8s>
     @type concat
     key message
-    partial_key partial_flag
+    multiline_start_regexp /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>P))? (?<message>.*)$/
+    multiline_end_regexp /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>F))? (?<message>.*)$/
+    partial_key logtag
     partial_value P
   </filter>
   <match k8s>
