@@ -21,6 +21,12 @@ else
     extra_ansible_evars="-e use_rsyslog_image=True"
 fi
 
+rsyslog_config_dir="/etc/rsyslog.d"
+
+# clear the journal
+sudo journalctl --vacuum-size=$( expr 1024 \* 1024 \* 2 ) 2>&1 | artifact_out
+sudo systemctl restart systemd-journald 2>&1 | artifact_out
+
 cleanup() {
     local return_code="$?"
     set +e
@@ -29,8 +35,9 @@ cleanup() {
     fi
     sudo journalctl -u $rsyslog_service --since="-1hour" > $ARTIFACT_DIR/rsyslog-rsyslog.log 2>&1
     if [ -n "${rsyslog_save}" -a -d "${rsyslog_save}" ] ; then
-        sudo rm -rf /etc/rsyslog.d/*
-        sudo cp -p ${rsyslog_save}/* /etc/rsyslog.d
+        sudo systemctl status $rsyslog_service -l > $ARTIFACT_DIR/rsyslog-final status.log 2>&1
+        sudo rm -rf ${rsyslog_config_dir}/*
+        sudo cp -p ${rsyslog_save}/* ${rsyslog_config_dir} || :
         rm -rf ${rsyslog_save}
         sudo systemctl restart $rsyslog_service
     fi
@@ -49,25 +56,83 @@ trap "cleanup" EXIT
 oc label node --all logging-infra-fluentd- 2>&1 | artifact_out || :
 os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $((second * 120))
 
-if [ $es_pod = $es_ops_pod ] ; then
-    use_es_ops=False
-else
-    use_es_ops=True
-fi
 rsyslog_save=$( mktemp -d )
-sudo cp -p /etc/rsyslog.d/* $rsyslog_save
+sudo cp -p ${rsyslog_config_dir}/* ${rsyslog_save} || :
 pushd $OS_O_A_L_DIR/hack/testing/rsyslog > /dev/null
 tmpinv=$( mktemp )
 cat > $tmpinv <<EOF
 [masters]
-localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_logging_use_ops=$use_es_ops
+localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user}
 
 [nodes]
-localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user} openshift_logging_use_ops=$use_es_ops
+localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user}
 EOF
-os::cmd::expect_success "ansible-playbook -vvv --become --become-user root --connection local \
+
+tmpvars=$( mktemp )
+if [ $es_pod = $es_ops_pod ] ; then
+cat > $tmpvars <<EOF
+rsyslog_enabled: true
+# install viaq packages & config files
+rsyslog_viaq: true
+rsyslog_capabilities: [ 'viaq', 'viaq-k8s' ]
+rsyslog_group: root
+rsyslog_user: root
+# to share rsyslog_config_dir with roles/openshift_logging_rsyslog
+rsyslog_config_dir: /etc/rsyslog.d
+rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}/viaq"
+rsyslog_system_log_dir: /var/log
+rsyslog_work_dir: /var/lib/rsyslog
+rsyslog_purge_original_conf: true
+use_omelasticsearch_cert: True
+logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
+logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
+EOF
+else
+cat > $tmpvars <<EOF
+rsyslog_enabled: true
+# install viaq packages & config files
+rsyslog_viaq: true
+rsyslog_capabilities: [ 'viaq', 'viaq-k8s' ]
+rsyslog_group: root
+rsyslog_user: root
+# to share rsyslog_config_dir with roles/openshift_logging_rsyslog
+rsyslog_config_dir: /etc/rsyslog.d
+rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}/viaq"
+rsyslog_system_log_dir: /var/log
+rsyslog_work_dir: /var/lib/rsyslog
+rsyslog_purge_original_conf: true
+use_omelasticsearch_cert: True
+logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
+logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
+
+openshift_logging_use_ops: True
+rsyslog_elasticsearch_viaq:
+  - name: viaq-elasticsearch
+    server_host: logging-es
+    server_port: 9200
+    index_prefix: project.
+    ca_cert: "{{rsyslog_viaq_config_dir}}/es-ca.crt"
+    cert: "{{rsyslog_viaq_config_dir}}/es-cert.pem"
+    key: "{{rsyslog_viaq_config_dir}}/es-key.pem"
+  - name: viaq-elasticsearch-ops
+    server_host: logging-es-ops
+    server_port: 9200
+    index_prefix: .operations.
+    ca_cert: "{{rsyslog_viaq_config_dir}}/es-ca.crt"
+    cert: "{{rsyslog_viaq_config_dir}}/es-cert.pem"
+    key: "{{rsyslog_viaq_config_dir}}/es-key.pem"
+EOF
+fi
+
+os::cmd::expect_success "ansible-playbook -vvv -e@$tmpvars --become --become-user root --connection local \
     $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
-rm -f $tmpinv
+mv $tmpinv $ARTIFACT_DIR/inventory_file
+mv $tmpvars $ARTIFACT_DIR/vars_file
+
+popd > /dev/null
+
+pushd /etc
+sudo tar cf - rsyslog.conf rsyslog.d | (cd $ARTIFACT_DIR; tar xf -)
 popd > /dev/null
 
 get_logmessage() {
@@ -82,7 +147,13 @@ sudo systemctl stop $rsyslog_service
 # make test run faster by resetting journal cursor to "now"
 sudo journalctl -n 1 --show-cursor | awk '/^-- cursor/ {printf("%s",$3)}' | sudo tee /var/lib/rsyslog/imjournal.state > /dev/null
 sudo systemctl start $rsyslog_service
+
+sudo ls -lR /etc/rsyslog.*
+
+sudo systemctl status $rsyslog_service -l
+
 sleep 10
+TIMEOUT=120
 wait_for_fluentd_to_catch_up get_logmessage get_logmessage2
 proj=$ARTIFACT_DIR/zzz-rsyslog-record.json
 ops=$ARTIFACT_DIR/zzz-rsyslog-record-ops.json
