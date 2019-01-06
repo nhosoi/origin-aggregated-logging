@@ -1,0 +1,62 @@
+---
+- block:
+  # This block collect certificates from local location and copies them to /etc/rsyslog.d directory
+    - name: Copy local Elasticsearch ca_certs to /etc/rsyslog.d directory in Rsyslog
+      copy:
+        src: '{{ item.ca_cert_src }}'
+        dest: '{{ rsyslog_config_dir }}'
+      with_items:
+        - '{{ rsyslog_elasticsearch }}'
+      when:
+        - item.ca_cert_src is defined
+        - item.ca_cert_src != ""
+
+    - name: Copy local Elasticsearch certs to /etc/rsyslog.d directory in Rsyslog
+      copy:
+        src: '{{ item.cert_src }}'
+        dest: '{{ rsyslog_config_dir }}'
+      with_items:
+        - '{{ rsyslog_elasticsearch }}'
+      when:
+        - item.cert_src is defined
+        - item.cert_src != ""
+
+    - name: Copy local Elasticsearch keys to /etc/rsyslog.d directory in Rsyslog
+      copy:
+        src: '{{ item.key_src }}'
+        dest: '{{ rsyslog_config_dir }}'
+      with_items:
+        - '{{ rsyslog_elasticsearch }}'
+      when:
+        - item.key_src is defined
+        - item.key_src != ""
+
+    - name: Update ca_cert path to /etc/rsyslog.d directory in Rsyslog
+      set_fact:
+        rsyslog_elasticsearch_temp: "{{ rsyslog_elasticsearch_temp|d([]) }} + {{ [  item | combine( { 'ca_cert': item.ca_cert_src| basename , 'cert': item.cert_src| basename, 'key': item.key_src| basename } ) ] }}"
+      with_items:
+        - '{{ rsyslog_elasticsearch }}'
+      when:
+        - item.ca_cert_src is defined
+        - item.ca_cert_src != ""
+      register: result
+
+    - name: Set updated rsyslog_elasticsearch
+      set_fact:
+        rsyslog_elasticsearch: "{{ rsyslog_elasticsearch_temp }}"
+
+  when:
+    - rsyslog_elasticsearch is defined
+    - rsyslog_elasticsearch != []
+    - use_local_omelasticsearch_cert|default(False)|bool
+
+# Deploy configuration files
+- name: Set Elasticsearch facts
+  set_fact:
+    rsyslog_role_packages: "{{rsyslog_elasticsearch_packages|flatten([])}}"
+    rsyslog_role_rules: "{{ rsyslog_elasticsearch_rules }}"
+
+- name: Install/Update role packages and generate role configuration files to role subdir
+  include_role:
+    name: "{{ logging_role_path|d('logging') }}/roles/rsyslog"
+    tasks_from: deploy.yaml

@@ -1,0 +1,9 @@
+---
+- name: Set oVirt facts
+  set_fact:
+    rsyslog_role_rules: "{{ rsyslog_ovirt_rules }}"
+
+- name: Remove oVirt configs
+  include_role:
+    name: "{{ logging_role_path|d('logging') }}/roles/rsyslog"
+    tasks_from: cleanup.yaml

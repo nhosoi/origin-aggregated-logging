@@ -1,0 +1,9 @@
+---
+- name: Set Viaq facts
+  set_fact:
+    rsyslog_role_rules: "{{ rsyslog_viaq_rules }}"
+
+- name: Remove viaq configs
+  include_role:
+    name: "{{ logging_role_path|d('logging') }}/roles/rsyslog"
+    tasks_from: cleanup.yaml

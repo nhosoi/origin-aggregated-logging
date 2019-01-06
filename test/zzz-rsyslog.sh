@@ -71,43 +71,37 @@ EOF
 tmpvars=$( mktemp )
 if [ $es_pod = $es_ops_pod ] ; then
 cat > $tmpvars <<EOF
-rsyslog_enabled: true
-# install viaq packages & config files
-rsyslog_viaq: true
-rsyslog_capabilities: [ 'viaq', 'viaq-k8s' ]
-rsyslog_group: root
-rsyslog_user: root
-# to share rsyslog_config_dir with roles/openshift_logging_rsyslog
-rsyslog_config_dir: /etc/rsyslog.d
-rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}/viaq"
-rsyslog_system_log_dir: /var/log
-rsyslog_work_dir: /var/lib/rsyslog
+logging_enabled: true
 rsyslog_purge_original_conf: true
-use_omelasticsearch_cert: True
 logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
+logging_outputs:
+  - name: viaq-elasticsearch
+    type: elasticsearch
+    logs_collections:
+      - name: 'viaq'
+      - name: 'viaq-k8s'
+    # 'state' is not a mandatory field. Defaults to 'present'.
+    server_host: logging-es
+    server_port: 9200
+    index_prefix: project.
+    ca_cert: "{{rsyslog_viaq_config_dir}}/es-ca.crt"
+    cert: "{{rsyslog_viaq_config_dir}}/es-cert.pem"
+    key: "{{rsyslog_viaq_config_dir}}/es-key.pem"
 EOF
 else
 cat > $tmpvars <<EOF
-rsyslog_enabled: true
-# install viaq packages & config files
-rsyslog_viaq: true
-rsyslog_capabilities: [ 'viaq', 'viaq-k8s' ]
-rsyslog_group: root
-rsyslog_user: root
-# to share rsyslog_config_dir with roles/openshift_logging_rsyslog
-rsyslog_config_dir: /etc/rsyslog.d
-rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}/viaq"
-rsyslog_system_log_dir: /var/log
-rsyslog_work_dir: /var/lib/rsyslog
+logging_enabled: true
 rsyslog_purge_original_conf: true
-use_omelasticsearch_cert: True
 logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
-
-openshift_logging_use_ops: True
-rsyslog_elasticsearch_viaq:
+logging_outputs:
   - name: viaq-elasticsearch
+    type: elasticsearch
+    logs_collections:
+      - name: 'viaq'
+      - name: 'viaq-k8s'
+    # 'state' is not a mandatory field. Defaults to 'present'.
     server_host: logging-es
     server_port: 9200
     index_prefix: project.
@@ -115,6 +109,11 @@ rsyslog_elasticsearch_viaq:
     cert: "{{rsyslog_viaq_config_dir}}/es-cert.pem"
     key: "{{rsyslog_viaq_config_dir}}/es-key.pem"
   - name: viaq-elasticsearch-ops
+    type: elasticsearch
+    logs_collections:
+      - name: 'viaq'
+      - name: 'viaq-k8s'
+    # 'state' is not a mandatory field. Defaults to 'present'.
     server_host: logging-es-ops
     server_port: 9200
     index_prefix: .operations.
