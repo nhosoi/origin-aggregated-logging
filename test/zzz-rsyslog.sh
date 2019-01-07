@@ -59,7 +59,8 @@ os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status
 rsyslog_save=$( mktemp -d )
 sudo cp -p ${rsyslog_config_dir}/* ${rsyslog_save} || :
 pushd $OS_O_A_L_DIR/hack/testing/rsyslog > /dev/null
-tmpinv=$( mktemp )
+#tmpinv=$( mktemp )
+tmpinv="/tmp/myinventory"
 cat > $tmpinv <<EOF
 [masters]
 localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user}
@@ -71,8 +72,9 @@ EOF
 tmpvars=$( mktemp )
 if [ $es_pod = $es_ops_pod ] ; then
 cat > $tmpvars <<EOF
-logging_enabled: true
-rsyslog_purge_original_conf: true
+rsyslog_enabled: true
+rsyslog_config_dir: "/etc/rsyslog.d"
+rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}"
 logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
 logging_outputs:
@@ -91,8 +93,9 @@ logging_outputs:
 EOF
 else
 cat > $tmpvars <<EOF
-logging_enabled: true
-rsyslog_purge_original_conf: true
+rsyslog_enabled: true
+rsyslog_config_dir: "/etc/rsyslog.d"
+rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}"
 logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
 logging_outputs:
@@ -123,7 +126,7 @@ logging_outputs:
 EOF
 fi
 
-os::cmd::expect_success "ansible-playbook -vvv -e@$tmpvars --become --become-user root --connection local \
+os::cmd::expect_success "ansible-playbook -vvvv -e@$tmpvars --become --become-user root --connection local \
     $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
 mv $tmpinv $ARTIFACT_DIR/inventory_file
 mv $tmpvars $ARTIFACT_DIR/vars_file
