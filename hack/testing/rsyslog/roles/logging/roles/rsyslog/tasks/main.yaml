@@ -21,12 +21,6 @@
   when: rsyslog_version.results|selectattr('yumstate','match','installed')|list|first is defined
   ignore_errors: true
 
-- name: Set rsyslog version
-  set_fact:
-    rsyslog_version: "{{ rsyslog_version.results|selectattr('yumstate','match','available')|map(attribute='version')|list|first }}-{{ rsyslog_version.results|selectattr('yumstate','match','available')|map(attribute='release')|list|first }}"
-  when: rsyslog_version.results|selectattr('yumstate','match','available')|list|first is defined
-  ignore_errors: true
-
 - debug:
     msg: "Rsyslog_version is {{ rsyslog_version }}"
 

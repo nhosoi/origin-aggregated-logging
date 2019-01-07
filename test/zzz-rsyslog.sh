@@ -37,7 +37,8 @@ cleanup() {
     if [ -n "${rsyslog_save}" -a -d "${rsyslog_save}" ] ; then
         sudo systemctl status $rsyslog_service -l > $ARTIFACT_DIR/rsyslog-final status.log 2>&1
         sudo rm -rf ${rsyslog_config_dir}/*
-        sudo cp -p ${rsyslog_save}/* ${rsyslog_config_dir} || :
+        sudo mv ${rsyslog_save}/rsyslog.conf /etc || :
+        sudo mv ${rsyslog_save}/* ${rsyslog_config_dir} || :
         rm -rf ${rsyslog_save}
         sudo systemctl restart $rsyslog_service
     fi
@@ -57,10 +58,10 @@ oc label node --all logging-infra-fluentd- 2>&1 | artifact_out || :
 os::cmd::try_until_text "oc get daemonset logging-fluentd -o jsonpath='{ .status.numberReady }'" "0" $((second * 120))
 
 rsyslog_save=$( mktemp -d )
-sudo cp -p ${rsyslog_config_dir}/* ${rsyslog_save} || :
+sudo mv /etc/rsyslog.conf ${rsyslog_save} || :
+sudo mv ${rsyslog_config_dir}/* ${rsyslog_save} || :
 pushd $OS_O_A_L_DIR/hack/testing/rsyslog > /dev/null
-#tmpinv=$( mktemp )
-tmpinv="/tmp/myinventory"
+tmpinv=$( mktemp )
 cat > $tmpinv <<EOF
 [masters]
 localhost ansible_ssh_user=${RSYSLOG_ANSIBLE_SSH_USER:-ec2-user}
@@ -73,8 +74,10 @@ tmpvars=$( mktemp )
 if [ $es_pod = $es_ops_pod ] ; then
 cat > $tmpvars <<EOF
 rsyslog_enabled: true
+rsyslog_viaq: true
 rsyslog_config_dir: "/etc/rsyslog.d"
 rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}"
+rsyslog_purge_original_conf: no
 logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
 logging_outputs:
@@ -94,8 +97,11 @@ EOF
 else
 cat > $tmpvars <<EOF
 rsyslog_enabled: true
+rsyslog_viaq: true
 rsyslog_config_dir: "/etc/rsyslog.d"
 rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}"
+rsyslog_purge_original_conf: no
+openshift_logging_use_ops
 logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
 logging_outputs:
@@ -125,6 +131,9 @@ logging_outputs:
     key: "{{rsyslog_viaq_config_dir}}/es-key.pem"
 EOF
 fi
+
+cat $tmpinv > $ARTIFACT_DIR/inventory_file
+cat $tmpvars > $ARTIFACT_DIR/vars.yaml
 
 os::cmd::expect_success "ansible-playbook -vvvv -e@$tmpvars --become --become-user root --connection local \
     $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"

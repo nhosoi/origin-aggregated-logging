@@ -78,21 +78,6 @@
     done
 # Set by System policy ???
 
-- name: disable rsyslog
-  systemd:
-    name: rsyslog.service
-    enabled: no
-    state: stopped
-  when: use_rsyslog_image | default(False)
-
-- name: reload and restart rsyslog.service
-  systemd:
-    name: rsyslog.service
-    daemon_reload: yes
-    enabled: yes
-    state: restarted
-  when: not use_rsyslog_image | default(False)
-
 - name: install rsyslog container systemd service
   template: src=rsyslog-container.service.j2 dest=/usr/lib/systemd/system/rsyslog-container.service mode=0400
   when: use_rsyslog_image | default(False)
@@ -101,21 +86,3 @@
   stat:
     path: /usr/lib/systemd/system/rsyslog-container.service
   register: rsyslog_container
-
-- name: enable and run rsyslog-container.service
-  systemd:
-    name: rsyslog-container.service
-    daemon_reload: yes
-    enabled: yes
-    state: started
-  when: use_rsyslog_image | default(False)
-
-- name: stop and disable rsyslog-container.service
-  systemd:
-    name: rsyslog-container.service
-    daemon_reload: no
-    enabled: no
-    state: stopped
-  register: task_result
-  when: ((not use_rsyslog_image | default(False)) and (rsyslog_container.stat.exists == True))
-

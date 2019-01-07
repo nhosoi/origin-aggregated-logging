@@ -45,16 +45,16 @@
       command: docker pull {{ rsyslog_image_prefix }}rsyslog:{{ rsyslog_image_version }}
       when: use_rsyslog_image | default(False)
 
-  roles:
-    - role: logging
-
-  post_tasks:
     - name: Run tasks/setup_certs.yaml instead of 'main'
       import_role:
         name: openshift_logging_rsyslog
         tasks_from: setup_certs.yaml
       when: rsyslog_enabled|bool and (rsyslog_viaq is defined and rsyslog_viaq|bool)
 
+  roles:
+    - role: logging
+
+  post_tasks:
     - name: Restart rsyslogd
       service:
         name: 'rsyslog'
