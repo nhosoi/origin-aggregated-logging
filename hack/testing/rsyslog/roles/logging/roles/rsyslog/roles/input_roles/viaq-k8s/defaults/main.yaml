@@ -37,7 +37,8 @@ logging_mmk8s_token: ''
 
 rsyslog_conf_viaq_mmk8s:
 
-  - name: '11-mmk8s.conf'
+  - name: 'mmk8s'
+    filename: '11-mmk8s.conf'
     path: '{{rsyslog_config_dir }}'
     sections:
 
