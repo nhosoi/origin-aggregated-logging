@@ -24,7 +24,8 @@ rsyslog_viaq_k8s_packages: [ 'rsyslog-mmjsonparse', 'rsyslog-mmkubernetes' ]
 
 rsyslog_viaq_k8s_rules:
 
-  - '{{ rsyslog_conf_viaq_mmk8s }}'
+  - '{{ rsyslog_conf_viaq_mmk8s_module }}'
+  - '{{ rsyslog_conf_viaq_mmk8s_input }}'
   - '{{ rsyslog_rulebase_viaq_k8s_filename }}'
   - '{{ rsyslog_rulebase_viaq_k8s_container_name }}'
   - '{{ rsyslog_rulebase_viaq_crio }}'
@@ -35,11 +36,11 @@ rsyslog_viaq_k8s_rules:
 logging_mmk8s_ca_cert: ''
 logging_mmk8s_token: ''
 
-rsyslog_conf_viaq_mmk8s:
+rsyslog_conf_viaq_mmk8s_module:
 
   - name: 'mmk8s'
-    filename: '11-mmk8s.conf'
-    path: '{{rsyslog_config_dir }}'
+    type: 'modules'
+    path: '{{rsyslog_config_dir}}'
     sections:
 
       - options: |-
@@ -49,6 +50,14 @@ rsyslog_conf_viaq_mmk8s:
           # Parse logs to JSON
           module(load="mmjsonparse")
 
+rsyslog_conf_viaq_mmk8s_input:
+
+  - name: 'mmk8s'
+    type: 'templates'
+    path: '{{rsyslog_config_dir}}'
+    sections:
+
+      - options: |-
           input(type="imfile" file="{{ rsyslog_viaq_log_dir }}/*.log" tag="kubernetes" addmetadata="on" reopenOnTruncate="on")
           
           if ((strlen($!CONTAINER_NAME) > 0) and (strlen($!CONTAINER_ID_FULL) > 0)) or
@@ -95,6 +104,7 @@ rsyslog_rulebase_viaq_k8s_container_name:
           rule=:%container_name:rest%
 
 rsyslog_rulebase_viaq_crio:
+
   - name: 'crio'
     filename: 'crio.rulebase'
     nocomment: 'true'
