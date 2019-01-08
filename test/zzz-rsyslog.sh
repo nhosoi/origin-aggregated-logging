@@ -101,7 +101,7 @@ rsyslog_viaq: true
 rsyslog_config_dir: "/etc/rsyslog.d"
 rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}"
 rsyslog_purge_original_conf: no
-openshift_logging_use_ops
+openshift_logging_use_ops: true
 logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
 logging_outputs:
