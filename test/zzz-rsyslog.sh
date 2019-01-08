@@ -80,6 +80,7 @@ rsyslog_viaq_config_dir: "{{rsyslog_config_dir}}"
 rsyslog_purge_original_conf: no
 logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
+use_omelasticsearch_cert: true
 logging_outputs:
   - name: viaq-elasticsearch
     type: elasticsearch
@@ -90,6 +91,18 @@ logging_outputs:
     server_host: logging-es
     server_port: 9200
     index_prefix: project.
+    ca_cert: "{{rsyslog_viaq_config_dir}}/es-ca.crt"
+    cert: "{{rsyslog_viaq_config_dir}}/es-cert.pem"
+    key: "{{rsyslog_viaq_config_dir}}/es-key.pem"
+  - name: viaq-elasticsearch-ops
+    type: elasticsearch
+    logs_collections:
+      - name: 'viaq'
+      - name: 'viaq-k8s'
+    # 'state' is not a mandatory field. Defaults to 'present'.
+    server_host: logging-es
+    server_port: 9200
+    index_prefix: .operations.
     ca_cert: "{{rsyslog_viaq_config_dir}}/es-ca.crt"
     cert: "{{rsyslog_viaq_config_dir}}/es-cert.pem"
     key: "{{rsyslog_viaq_config_dir}}/es-key.pem"
@@ -104,6 +117,7 @@ rsyslog_purge_original_conf: no
 openshift_logging_use_ops: true
 logging_mmk8s_token: "{{rsyslog_viaq_config_dir}}/mmk8s.token"
 logging_mmk8s_ca_cert: "{{rsyslog_viaq_config_dir}}/mmk8s.ca.crt"
+use_omelasticsearch_cert: true
 logging_outputs:
   - name: viaq-elasticsearch
     type: elasticsearch
@@ -134,6 +148,7 @@ fi
 
 cat $tmpinv > $ARTIFACT_DIR/inventory_file
 cat $tmpvars > $ARTIFACT_DIR/vars.yaml
+rm -rf ${rsyslog_config_dir}/*
 
 os::cmd::expect_success "ansible-playbook -vvvv -e@$tmpvars --become --become-user root --connection local \
     $extra_ansible_evars -i $tmpinv playbook.yaml > $ARTIFACT_DIR/zzz-rsyslog-ansible.log 2>&1"
