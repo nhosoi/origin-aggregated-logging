@@ -130,9 +130,9 @@ rsyslog_conf_es_elasticsearch:
                   server=`echo $ES_HOST`
                   serverport=`echo $ES_PORT`
           {% else %}
-                  name={{ res.name | default('viaq-elasticsearch') }}
-                  server={{ res.server_host | default('logging-es') }}
-                  serverport='{{ res.server_port | default(9200) | int }}'
+                  name="{{ res.name | default('viaq-elasticsearch') }}"
+                  server="{{ res.server_host | default('logging-es') }}"
+                  serverport="{{ res.server_port | default(9200) | int }}"
           {% endif %}
                   template="{{ res.template | default("es_template") }}"
                   searchIndex="{{ res.searchIndex | default("index_template") }}"
@@ -147,9 +147,15 @@ rsyslog_conf_es_elasticsearch:
                   retryruleset="{{ res.retryruleset | default("try_es") }}"
                   usehttps="{{ res.usehttps | default("on") }}"
           {% if use_omelasticsearch_cert | default(true) %}
-                  tls.cacert={{ res.ca_cert|default("/etc/rsyslog.d/elasticsearch/es-ca.crt") }}
-                  tls.mycert={{ res.cert|default("/etc/rsyslog.d/elasticsearch/es-cert.pem") }}
-                  tls.myprivkey={{ res.key|default("/etc/rsyslog.d/elasticsearch/es-key.pem") }}
+          {% if use_rsyslog_image|bool %}
+                  tls.cacert=`echo $ES_CA`
+                  tls.mycert=`echo $ES_CLIENT_CERT`
+                  tls.myprivkey=`echo $ES_CLIENT_KEY`
+          {% else %}
+                  tls.cacert="{{ res.ca_cert|default('/etc/rsyslog.d/elasticsearch/es-ca.crt') }}"
+                  tls.mycert="{{ res.cert|default('/etc/rsyslog.d/elasticsearch/es-cert.pem') }}"
+                  tls.myprivkey="{{ res.key|default('/etc/rsyslog.d/elasticsearch/es-key.pem') }}"
+          {% endif %}
           {% endif %}
           {% if use_rsyslog_image | default(true) %}
                   queue.filename="es-app"
@@ -163,11 +169,11 @@ rsyslog_conf_es_elasticsearch:
               )
           {% else %}
           {% if loop.first %}
-              if ( $.logs_collection == "{{ res.logs_collections_name }}" ) and ($.index_prefix startswith "{{ res.index_prefix }}")
           {% if use_rsyslog_image|bool %}
+              if ( $.logs_collection == "{{ res.logs_collections_name }}" ) and ($.index_prefix startswith "{{ res.index_prefix }}")
                  or ((`echo $ES_HOST` == `echo $OPS_HOST`) and (`echo $ES_PORT` == `echo $OPS_PORT`)) then {
           {% else %}
-                 then {
+              if ( $.logs_collection == "{{ res.logs_collections_name }}" ) and ($.index_prefix startswith "{{ res.index_prefix }}") then {
           {% endif %}
                 action(
                     type="omelasticsearch"
@@ -176,9 +182,9 @@ rsyslog_conf_es_elasticsearch:
                     server=`echo $ES_HOST`
                     serverport=`echo $ES_PORT`
           {% else %}
-                    name={{ res.name | default('viaq-elasticsearch') }}
-                    server={{ res.server_host | default('logging-es') }}
-                    serverport='{{ res.server_port | default(9200) | int }}'
+                    name="{{ res.name | default('viaq-elasticsearch') }}"
+                    server="{{ res.server_host | default('logging-es') }}"
+                    serverport="{{ res.server_port | default(9200) | int }}"
           {% endif %}
                     template="{{ res.template | default("es_template") }}"
                     searchIndex="{{ res.searchIndex | default("index_template") }}"
@@ -198,9 +204,9 @@ rsyslog_conf_es_elasticsearch:
                     tls.mycert=`echo $ES_CLIENT_CERT`
                     tls.myprivkey=`echo $ES_CLIENT_KEY`
           {% else %}
-                    tls.cacert={{ res.ca_cert|default("/etc/rsyslog.d/elasticsearch/es-ca.crt") }}
-                    tls.mycert={{ res.cert|default("/etc/rsyslog.d/elasticsearch/es-cert.pem") }}
-                    tls.myprivkey={{ res.key|default("/etc/rsyslog.d/elasticsearch/es-key.pem") }}
+                    tls.cacert="{{ res.ca_cert|default('/etc/rsyslog.d/elasticsearch/es-ca.crt') }}"
+                    tls.mycert="{{ res.cert|default('/etc/rsyslog.d/elasticsearch/es-cert.pem') }}"
+                    tls.myprivkey="{{ res.key|default('/etc/rsyslog.d/elasticsearch/es-key.pem') }}"
           {% endif %}
           {% endif %}
           {% if use_rsyslog_image | default(true) %}
@@ -222,9 +228,9 @@ rsyslog_conf_es_elasticsearch:
                     server=`echo $OPS_HOST`
                     serverport=`echo $OPS_PORT`
           {% else %}
-                    name={{ res.name | default('viaq-elasticsearch') }}
-                    server={{ res.server_host | default('logging-es') }}
-                    serverport='{{ res.server_port | default(9200) | int }}'
+                    name="{{ res.name | default('viaq-elasticsearch') }}"
+                    server="{{ res.server_host | default('logging-es') }}"
+                    serverport="{{ res.server_port | default(9200) | int }}"
           {% endif %}
                     template="{{ res.template | default("es_template") }}"
                     searchIndex="{{ res.searchIndex | default("index_template") }}"
@@ -246,9 +252,9 @@ rsyslog_conf_es_elasticsearch:
                     tls.mycert=`echo $OPS_CLIENT_CERT`
                     tls.myprivkey=`echo $OPS_CLIENT_KEY`
           {% else %}
-                    tls.cacert={{ res.ca_cert|default("/etc/rsyslog.d/elasticsearch/es-ca.crt") }}
-                    tls.mycert={{ res.cert|default("/etc/rsyslog.d/elasticsearch/es-cert.pem") }}
-                    tls.myprivkey={{ res.key|default("/etc/rsyslog.d/elasticsearch/es-key.pem") }}
+                    tls.cacert="{{ res.ca_cert|default('/etc/rsyslog.d/elasticsearch/es-ca.crt') }}"
+                    tls.mycert="{{ res.cert|default('/etc/rsyslog.d/elasticsearch/es-cert.pem') }}"
+                    tls.myprivkey="{{ res.key|default('/etc/rsyslog.d/elasticsearch/es-key.pem') }}"
           {% endif %}
           {% endif %}
           {% if use_rsyslog_image|bool %}
@@ -262,11 +268,11 @@ rsyslog_conf_es_elasticsearch:
           {% endif %}
                 )
           {% else %}
-              else if ( $.logs_collection == "{{ res.logs_collections_name }}" ) and ($.index_prefix startswith "{{ res.index_prefix }}")
           {% if use_rsyslog_image|bool %}
+              else if ( $.logs_collection == "{{ res.logs_collections_name }}" ) and ($.index_prefix startswith "{{ res.index_prefix }}")
                  or ((`echo $ES_HOST` == `echo $OPS_HOST`) and (`echo $ES_PORT` == `echo $OPS_PORT`)) then {
           {% else %}
-                 then {
+              else if ( $.logs_collection == "{{ res.logs_collections_name }}" ) and ($.index_prefix startswith "{{ res.index_prefix }}") then {
           {% endif %}
                 action(
                     type="omelasticsearch"
@@ -275,9 +281,9 @@ rsyslog_conf_es_elasticsearch:
                     server=`echo $ES_HOST`
                     serverport=`echo $ES_PORT`
           {% else %}
-                    name={{ res.name | default('viaq-elasticsearch') }}
-                    server={{ res.server_host | default('logging-es') }}
-                    serverport='{{ res.server_port | default(9200) | int }}'
+                    name="{{ res.name | default('viaq-elasticsearch') }}"
+                    server="{{ res.server_host | default('logging-es') }}"
+                    serverport="{{ res.server_port | default(9200) | int }}"
           {% endif %}
                     template="{{ res.template | default("es_template") }}"
                     searchIndex="{{ res.searchIndex | default("index_template") }}"
@@ -299,9 +305,9 @@ rsyslog_conf_es_elasticsearch:
                     tls.mycert=`echo $ES_CLIENT_CERT`
                     tls.myprivkey=`echo $ES_CLIENT_KEY`
           {% else %}
-                    tls.cacert={{ res.ca_cert|default("/etc/rsyslog.d/elasticsearch/es-ca.crt") }}
-                    tls.mycert={{ res.cert|default("/etc/rsyslog.d/elasticsearch/es-cert.pem") }}
-                    tls.myprivkey={{ res.key|default("/etc/rsyslog.d/elasticsearch/es-key.pem") }}
+                    tls.cacert="{{ res.ca_cert|default('/etc/rsyslog.d/elasticsearch/es-ca.crt') }}"
+                    tls.mycert="{{ res.cert|default('/etc/rsyslog.d/elasticsearch/es-cert.pem') }}"
+                    tls.myprivkey="{{ res.key|default('/etc/rsyslog.d/elasticsearch/es-key.pem') }}"
           {% endif %}
           {% endif %}
           {% if use_rsyslog_image|bool %}

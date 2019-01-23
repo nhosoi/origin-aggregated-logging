@@ -59,6 +59,8 @@ rsyslog_conf_viaq_mmk8s_input:
     sections:
 
       - options: |-
+          {% if use_rsyslog_image|bool %}
+          # NOTE: endmsg.regex is available in 3.38.0 and newer
           # for crio, the end of message is when the value "F" is in the logtag field
           # for docker json-file, it is when the "log" field value ends with "\n"
           # however, since imfile processing happens _before_ the field parsing, we have to
@@ -70,6 +72,9 @@ rsyslog_conf_viaq_mmk8s_input:
                 tag="kubernetes" addmetadata="on" reopenOnTruncate="on"
                 discardTruncatedMsg="on" msgDiscardingError="off"
                 endmsg.regex="(^[^ ]+ (stdout|stderr) F )|(\\n\"}$)|(\\n\",\")") # "
+          {% else %}
+          input(type="imfile" file="{{ rsyslog_viaq_log_dir }}/*.log" tag="kubernetes" addmetadata="on" reopenOnTruncate="on")
+          {% endif %}
           
           if ((strlen($!CONTAINER_NAME) > 0) and (strlen($!CONTAINER_ID_FULL) > 0)) or
               ((strlen($!metadata) > 0) and (strlen($!metadata!filename) > 0) and ($!metadata!filename startswith "/var/log/containers/")) then {
@@ -109,10 +114,10 @@ rsyslog_conf_viaq_mmk8s_input:
                   }
               }
               action(type="mmkubernetes"
-                 filenamerulebase="/etc/rsyslog.d/k8s_filename.rulebase"
-                 containerrulebase="/etc/rsyslog.d/k8s_container_name.rulebase"
-                 tls.cacert="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-                 tokenfile="/var/run/secrets/kubernetes.io/serviceaccount/token")
+                 filenamerulebase="{{ rsyslog_config_dir }}/k8s_filename.rulebase"
+                 containerrulebase="{{ rsyslog_config_dir }}/k8s_container_name.rulebase"
+                 tls.cacert="{{logging_mmk8s_ca_cert}}"
+                 tokenfile="{{logging_mmk8s_token}}" annotation_match=["."])
           }
 
 
