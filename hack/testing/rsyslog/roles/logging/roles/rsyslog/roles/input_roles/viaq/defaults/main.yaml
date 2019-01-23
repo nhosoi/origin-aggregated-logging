@@ -98,8 +98,8 @@ rsyslog_conf_viaq_formatting:
     path: '{{ rsyslog_file_config_dir }}'
     sections:
 
-  - name: 'viaq-formatting'
-    filename: '65-viaq-formatting.conf'
+  - name: '20-viaq-formatting'
+    type: 'format'
     path: '{{ rsyslog_file_config_dir }}'
     sections:
 
@@ -304,12 +304,13 @@ rsyslog_conf_viaq_formatting:
                   } else {
                       if strlen($!_HOSTNAME) > 0 then {
                           set $!hostname = $!_HOSTNAME;
-                      }
+                      } else {
           {% if use_rsyslog_image|bool %}
-                      else {
                           set $!hostname = `echo $HOSTNAME`;
-                      }
+          {% else %}
+                          set $!hostname = $myhostname;
           {% endif %}
+                      }
                   }
               }
               unset $!_HOSTNAME;

@@ -53,8 +53,8 @@ rsyslog_conf_viaq_mmk8s_module:
 
 rsyslog_conf_viaq_mmk8s_input:
 
-  - name: 'mmk8s'
-    filename: '60-mmk8s.conf'
+  - name: '10-mmk8s'
+    type: 'format'
     path: '{{rsyslog_file_config_dir}}'
     sections:
 

@@ -332,6 +332,7 @@ rsyslog_weight_map:
   'rules':     '50'
   'ruleset':   '50'
   'rulesets':  '50'
+  'format':    '60'
   'input':     '90'
   'inputs':    '90'
 

@@ -76,7 +76,8 @@ rsyslog_conf_es_elasticsearch_templates:
           
 rsyslog_conf_es_elasticsearch:
 
-  - filename: '55-elasticsearch.conf'
+  - name: '00-elasticsearch.conf'
+    type: 'format'
     path: '{{ rsyslog_file_config_dir }}'
     sections:
 
@@ -328,7 +329,8 @@ rsyslog_conf_es_elasticsearch:
 
 rsyslog_conf_es_elasticsearch_call_ruleset:
 
-  - filename: '68-elasticsearch.conf'
+  - name: '30-elasticsearch.conf'
+    type: 'format'
     path: '{{ rsyslog_file_config_dir }}'
     sections:
 

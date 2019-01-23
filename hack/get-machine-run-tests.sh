@@ -245,8 +245,9 @@ fi
 
 #      title: "build an openshift-ansible release"
 #      repository: "openshift-ansible"
-runfile=`mktemp`
-trap "rm -f $runfile" ERR EXIT INT TERM
+#runfile=`mktemp`
+#trap "rm -f $runfile" ERR EXIT INT TERM
+runfile="/tmp/nya_script0"
 cat > $runfile <<EOF
 set -euxo pipefail
 cd $OS_O_A_DIR
@@ -278,6 +279,7 @@ scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
 #      title: "enable ansible 2.6 repo"
+runfile="/tmp/nya_script1"
 cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
@@ -315,6 +317,7 @@ ssh -n openshiftdevel "bash $runfile"
 
 #      title: "install the openshift-ansible release"
 #      repository: "openshift-ansible"
+runfile="/tmp/nya_script2"
 cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
@@ -379,6 +382,7 @@ ssh -n openshiftdevel "bash $runfile"
 
 #      title: "install Ansible plugins"
 #      repository: "origin"
+runfile="/tmp/nya_script3"
 cat > $runfile <<EOF
 set -euxo pipefail
 cd $OS_ROOT
@@ -398,6 +402,7 @@ ssh -n openshiftdevel "bash $runfile"
 
 #      title: "determine the release commit for origin images and version for rpms"
 #      repository: "origin"
+runfile="/tmp/nya_script4"
 cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
@@ -534,6 +539,7 @@ scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
 # make etcd use a ramdisk
+runfile="/tmp/nya_script6"
 cat <<SCRIPT > $runfile
 set -euxo pipefail
 #!/bin/bash
@@ -552,6 +558,7 @@ scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
 # pull and tag service catalog image with build tag
+runfile="/tmp/nya_script7"
 cat <<SCRIPT > $runfile
 set -euxo pipefail
 pushd $OS_A_C_J_DIR > /dev/null
@@ -559,12 +566,22 @@ pushd $OS_A_C_J_DIR > /dev/null
 # for some reason, the service-catalog image is not available
 # docker images|grep service-catalog is empty
 # so, pull the latest and tag it with ${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}
+# NYA: most likely, this is causing the hang at "openshift_service_catalog install -
+#      Wait for API Server rollout success"
 scname=\$( docker images | awk '/service-catalog/ {print \$1}' )
-if [ -z "\${scname:-}" ] ; then
-    docker pull openshift/origin-service-catalog
-fi
+echo \$scname >> /tmp/nya_script7.out
 imgtag="${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}"
-docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag
+echo \$imgtag >> /tmp/nya_script7.out
+if [ -z "\${scname:-}" ] ; then
+    echo "docker pull openshift/origin-service-catalog:\$imgtag" >> /tmp/nya_script7.out
+    docker pull openshift/origin-service-catalog:\$imgtag
+    if [ $? -ne 0 ]; then
+        echo "docker pull openshift/origin-service-catalog" >> /tmp/nya_script7.out
+        docker pull openshift/origin-service-catalog
+        echo "docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag" >> /tmp/nya_script7.out
+        docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag
+    fi
+fi
 popd > /dev/null
 SCRIPT
 scp $runfile openshiftdevel:/tmp
@@ -572,6 +589,7 @@ ssh -n openshiftdevel "bash $runfile"
 
 if [ "$USE_CRIO" = true ] ; then
     #      title: "enable repo with crio"
+    runfile="/tmp/nya_script8"
     cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
@@ -615,6 +633,7 @@ fi
 
 #      title: "install origin"
 #      repository: "aos-cd-jobs"
+runfile="/tmp/nya_script9"
 cat > $runfile <<EOF
 set -euxo pipefail
 cd $OS_A_C_J_DIR
@@ -692,6 +711,7 @@ scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash -x $runfile"
 
 #  title: "expose the kubeconfig"
+runfile="/tmp/nya_script10"
 cat > $runfile <<EOF
 set -euxo pipefail
 sudo chmod a+x /etc/ /etc/origin/ /etc/origin/master/
@@ -707,6 +727,7 @@ ssh -n openshiftdevel "bash $runfile"
 if [ "${USE_LOGGING:-true}" = true ] ; then
     # HACK - create mux pvc
     if [ "${MUX_FILE_BUFFER_STORAGE_TYPE:-}" = pvc ] ; then
+        runfile="/tmp/nya_script11"
         cat > $runfile <<EOF
 apiVersion: "v1"
 kind: "PersistentVolume"
@@ -728,6 +749,7 @@ fi
 #      title: "install origin-aggregated-logging"
 #      repository: "aos-cd-jobs"
 if [ "${USE_LOGGING:-true}" = true ] ; then
+    runfile="/tmp/nya_script12"
     cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
@@ -802,11 +824,18 @@ if [ -n "${PRESERVE:-}" ] ; then
     sed -i -e "s/${INSTNAME}/${INSTNAME}-preserve/" $HOME/.config/origin-ci-tool/inventory/ec2.ini
 fi
 
+# NYA!!!! scp newer rsyslog
+scp /home/nhosoi/Downloads/rsyslog_pkgs.rhlog1/*.rpm openshiftdevel:/tmp
+# NYA!!!! scp newer rsyslog
+
 #      title: "run logging tests"
 #      repository: "origin-aggregated-logging"
 if [ "${USE_LOGGING:-true}" = true ] ; then
+    runfile="/tmp/nya_script13"
     cat > $runfile <<EOF
 sudo wget -O /usr/local/bin/stern https://github.com/wercker/stern/releases/download/1.5.1/stern_linux_amd64 && sudo chmod +x /usr/local/bin/stern
+(cd /tmp; sudo rpm -Uvh rsyslog-*8.37.0-7*.rpm liblognorm-2.0.5-*.rpm libfastjson-0.99.8-*.rpm)
+systemctl restart rsyslog
 cd $OS_O_A_L_DIR
 ${EXTRA_ENV:-}
 KUBECONFIG=/etc/origin/master/admin.kubeconfig TEST_ONLY=${TEST_ONLY:-true} \
