@@ -497,12 +497,18 @@ pushd $OS_A_C_J_DIR > /dev/null
 # for some reason, the service-catalog image is not available
 # docker images|grep service-catalog is empty
 # so, pull the latest and tag it with ${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}
+# Note: It could hang with "openshift_service_catalog install - Wait for API Server rollout success" on v3.11
+# E.g., see also https://github.com/openshift/openshift-ansible/issues/10935
+# Pulling $imgtag version first.
 scname=\$( docker images | awk '/service-catalog/ {print \$1}' )
-if [ -z "\${scname:-}" ] ; then
-    docker pull openshift/origin-service-catalog
-fi
 imgtag="${OPENSHIFT_IMAGE_TAG:-\$( cat ./ORIGIN_IMAGE_TAG )}"
-docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag
+if [ -z "\${scname:-}" ] ; then
+    docker pull openshift/origin-service-catalog:\$imgtag
+    if [ $? -ne 0 ]; then
+        docker pull openshift/origin-service-catalog
+        docker tag openshift/origin-service-catalog:latest openshift/origin-service-catalog:\$imgtag
+    fi
+fi
 popd > /dev/null
 SCRIPT
 scp $runfile openshiftdevel:/tmp
