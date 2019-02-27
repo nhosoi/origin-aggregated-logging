@@ -62,7 +62,7 @@ if [ "${PUSH_ONLY:-false}" = false ] ; then
   OS_BUILD_IMAGE_ARGS="-f kibana/${dockerfile}" os::build::image "${tag_prefix}logging-kibana${name_suf:-}"               kibana
   OS_BUILD_IMAGE_ARGS="-f curator/${dockerfile}" os::build::image "${tag_prefix}logging-curator${name_suf:-}"             curator
   OS_BUILD_IMAGE_ARGS="-f eventrouter/${dockerfile}" os::build::image "${tag_prefix}logging-eventrouter"     eventrouter
-  OS_BUILD_IMAGE_ARGS="-f rsyslog/${rsyslog_dockerfile}" os::build::image "${tag_prefix}logging-rsyslog"     rsyslog
+  # OS_BUILD_IMAGE_ARGS="-f rsyslog/${rsyslog_dockerfile}" os::build::image "${tag_prefix}logging-rsyslog"     rsyslog
 fi
 
 if [ "${REMOTE_REGISTRY:-false}" = false ] ; then
