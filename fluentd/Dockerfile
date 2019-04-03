@@ -78,7 +78,7 @@ COPY --from=builder /usr/local/bin/** /usr/local/bin/
 
 RUN mkdir -p /etc/fluent/plugin
 ADD configs.d/ /etc/fluent/configs.d/
-ADD out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
+ADD output.rb out_syslog_buffered.rb out_syslog.rb out_rawtcp.rb /etc/fluent/plugin/
 ADD parser_viaq_docker_audit.rb viaq_docker_audit.rb /etc/fluent/plugin/
 ADD run.sh generate_syslog_config.rb ${HOME}/
 ADD lib/generate_throttle_configs/lib/*.rb ${HOME}/
