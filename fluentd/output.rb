@@ -1244,8 +1244,8 @@ module Fluent
                 log.warn msg, retry_time: @retry.steps, next_retry_seconds: @retry.next_time, chunk: chunk_id_hex, error: error
                 log.warn_backtrace error.backtrace
               else
-                msg = "failed to flush the buffer."
-                log.warn msg, retry_time: @retry.steps, next_retry_seconds: @retry.next_time, chunk: chunk_id_hex, error: error
+                msg = "NYA4: failed to flush the buffer."
+                log.warn msg, retry_time: @retry.steps, next_retry_seconds: @retry.next_time, chunk: chunk_id_hex, num_errors: @num_errors, error: error
                 log.warn_backtrace error.backtrace
               end
             end
