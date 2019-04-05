@@ -44,6 +44,11 @@ if [ "${USE_IMAGE_STREAM:-false}" = true ] ; then
         -p LOGGING_FORK_URL=https://github.com/${LOGGING_GITHUB_REPO:-openshift}/origin-aggregated-logging \
         -p LOGGING_FORK_BRANCH=${LOGGING_FORK_BRANCH:-master} \
         -f hack/templates/dev-builds.yaml | \
+      oc -n openshift delete -f -
+    oc -n openshift process \
+        -p LOGGING_FORK_URL=https://github.com/${LOGGING_GITHUB_REPO:-openshift}/origin-aggregated-logging \
+        -p LOGGING_FORK_BRANCH=${LOGGING_FORK_BRANCH:-master} \
+        -f hack/templates/dev-builds.yaml | \
       oc -n openshift create -f -
     # wait for is and bc
     names="elasticsearch${name_suf:-} kibana${name_suf:-} fluentd curator${name_suf:-} eventrouter rsyslog"

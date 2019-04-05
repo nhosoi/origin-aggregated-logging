@@ -1218,7 +1218,7 @@ module Fluent
           unless @retry
             @retry = retry_state(@buffer_config.retry_randomize)
             if error
-              log.warn "failed to flush the buffer.", retry_time: @retry.steps, next_retry_seconds: @retry.next_time, chunk: chunk_id_hex, error: error
+              log.warn "NYA3: failed to flush the buffer.", retry_time: @retry.steps, next_retry_seconds: @retry.next_time, chunk: chunk_id_hex, num_errors: @num_errors, error: error
               log.warn_backtrace error.backtrace
             end
             return
