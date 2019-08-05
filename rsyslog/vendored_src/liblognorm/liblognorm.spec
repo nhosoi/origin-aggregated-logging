@@ -27,6 +27,8 @@ the logs you want to normalize.
 Summary:	Development tools for programs using liblognorm library
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 
+%debug_package
+
 %description devel
 The liblognorm-devel package includes header files, libraries necessary for
 developing programs which use liblognorm library.
@@ -50,9 +52,6 @@ Requires:	%{name}%{?_isa} = %{version}-%{release}
 %description utils
 The lognormalizer is the core of liblognorm, it is a utility for normalizing
 log files.
-
-%prep
-%setup -q
 
 %build
 %configure --enable-regexp --enable-docs --docdir=%{htmldir} --includedir=%{_includedir}/%{name}/

@@ -269,6 +269,7 @@ ENDisCompatibleWithFeature
 
 BEGINfreeInstance
 	int i;
+	instanceConf_t *inst;
 CODESTARTfreeInstance
 	if(pData->fdErrFile != -1)
 		close(pData->fdErrFile);
@@ -294,6 +295,14 @@ CODESTARTfreeInstance
 	free(pData->retryRulesetName);
 	if (pData->ratelimiter != NULL)
 		ratelimitDestruct(pData->ratelimiter);
+	for(inst = loadModConf->root ; inst != NULL ; inst = inst->next) {
+		if (inst->next == pData) {
+			inst->next = pData->next;
+		}
+	}
+	if (loadModConf->tail == pData) {
+		loadModConf->tail = inst;
+	}
 ENDfreeInstance
 
 BEGINfreeWrkrInstance

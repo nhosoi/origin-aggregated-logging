@@ -1,6 +1,6 @@
-# generated automatically by aclocal 1.15 -*- Autoconf -*-
+# generated automatically by aclocal 1.16.1 -*- Autoconf -*-
 
-# Copyright (C) 1996-2014 Free Software Foundation, Inc.
+# Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -20,897 +20,7 @@ You have another version of autoconf.  It may work, but is not guaranteed to.
 If you have problems, you may need to regenerate the build system entirely.
 To do so, use the procedure documented by the package, typically 'autoreconf'.])])
 
-# ===========================================================================
-#  http://www.gnu.org/software/autoconf-archive/ax_append_compile_flags.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_APPEND_COMPILE_FLAGS([FLAG1 FLAG2 ...], [FLAGS-VARIABLE], [EXTRA-FLAGS])
-#
-# DESCRIPTION
-#
-#   For every FLAG1, FLAG2 it is checked whether the compiler works with the
-#   flag.  If it does, the flag is added FLAGS-VARIABLE
-#
-#   If FLAGS-VARIABLE is not specified, the current language's flags (e.g.
-#   CFLAGS) is used.  During the check the flag is always added to the
-#   current language's flags.
-#
-#   If EXTRA-FLAGS is defined, it is added to the current language's default
-#   flags (e.g. CFLAGS) when the check is done.  The check is thus made with
-#   the flags: "CFLAGS EXTRA-FLAGS FLAG".  This can for example be used to
-#   force the compiler to issue an error when a bad flag is given.
-#
-#   NOTE: This macro depends on the AX_APPEND_FLAG and
-#   AX_CHECK_COMPILE_FLAG. Please keep this macro in sync with
-#   AX_APPEND_LINK_FLAGS.
-#
-# LICENSE
-#
-#   Copyright (c) 2011 Maarten Bosmans <mkbosmans@gmail.com>
-#
-#   This program is free software: you can redistribute it and/or modify it
-#   under the terms of the GNU General Public License as published by the
-#   Free Software Foundation, either version 3 of the License, or (at your
-#   option) any later version.
-#
-#   This program is distributed in the hope that it will be useful, but
-#   WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-#   Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License along
-#   with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-#   As a special exception, the respective Autoconf Macro's copyright owner
-#   gives unlimited permission to copy, distribute and modify the configure
-#   scripts that are the output of Autoconf when processing the Macro. You
-#   need not follow the terms of the GNU General Public License when using
-#   or distributing such scripts, even though portions of the text of the
-#   Macro appear in them. The GNU General Public License (GPL) does govern
-#   all other use of the material that constitutes the Autoconf Macro.
-#
-#   This special exception to the GPL applies to versions of the Autoconf
-#   Macro released by the Autoconf Archive. When you make and distribute a
-#   modified version of the Autoconf Macro, you may extend this special
-#   exception to the GPL to apply to your modified version as well.
-
-#serial 4
-
-AC_DEFUN([AX_APPEND_COMPILE_FLAGS],
-[AX_REQUIRE_DEFINED([AX_CHECK_COMPILE_FLAG])
-AX_REQUIRE_DEFINED([AX_APPEND_FLAG])
-for flag in $1; do
-  AX_CHECK_COMPILE_FLAG([$flag], [AX_APPEND_FLAG([$flag], [$2])], [], [$3])
-done
-])dnl AX_APPEND_COMPILE_FLAGS
-
-# ===========================================================================
-#      http://www.gnu.org/software/autoconf-archive/ax_append_flag.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_APPEND_FLAG(FLAG, [FLAGS-VARIABLE])
-#
-# DESCRIPTION
-#
-#   FLAG is appended to the FLAGS-VARIABLE shell variable, with a space
-#   added in between.
-#
-#   If FLAGS-VARIABLE is not specified, the current language's flags (e.g.
-#   CFLAGS) is used.  FLAGS-VARIABLE is not changed if it already contains
-#   FLAG.  If FLAGS-VARIABLE is unset in the shell, it is set to exactly
-#   FLAG.
-#
-#   NOTE: Implementation based on AX_CFLAGS_GCC_OPTION.
-#
-# LICENSE
-#
-#   Copyright (c) 2008 Guido U. Draheim <guidod@gmx.de>
-#   Copyright (c) 2011 Maarten Bosmans <mkbosmans@gmail.com>
-#
-#   This program is free software: you can redistribute it and/or modify it
-#   under the terms of the GNU General Public License as published by the
-#   Free Software Foundation, either version 3 of the License, or (at your
-#   option) any later version.
-#
-#   This program is distributed in the hope that it will be useful, but
-#   WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-#   Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License along
-#   with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-#   As a special exception, the respective Autoconf Macro's copyright owner
-#   gives unlimited permission to copy, distribute and modify the configure
-#   scripts that are the output of Autoconf when processing the Macro. You
-#   need not follow the terms of the GNU General Public License when using
-#   or distributing such scripts, even though portions of the text of the
-#   Macro appear in them. The GNU General Public License (GPL) does govern
-#   all other use of the material that constitutes the Autoconf Macro.
-#
-#   This special exception to the GPL applies to versions of the Autoconf
-#   Macro released by the Autoconf Archive. When you make and distribute a
-#   modified version of the Autoconf Macro, you may extend this special
-#   exception to the GPL to apply to your modified version as well.
-
-#serial 6
-
-AC_DEFUN([AX_APPEND_FLAG],
-[dnl
-AC_PREREQ(2.64)dnl for _AC_LANG_PREFIX and AS_VAR_SET_IF
-AS_VAR_PUSHDEF([FLAGS], [m4_default($2,_AC_LANG_PREFIX[FLAGS])])
-AS_VAR_SET_IF(FLAGS,[
-  AS_CASE([" AS_VAR_GET(FLAGS) "],
-    [*" $1 "*], [AC_RUN_LOG([: FLAGS already contains $1])],
-    [
-     AS_VAR_APPEND(FLAGS,[" $1"])
-     AC_RUN_LOG([: FLAGS="$FLAGS"])
-    ])
-  ],
-  [
-  AS_VAR_SET(FLAGS,[$1])
-  AC_RUN_LOG([: FLAGS="$FLAGS"])
-  ])
-AS_VAR_POPDEF([FLAGS])dnl
-])dnl AX_APPEND_FLAG
-
-# ===========================================================================
-#   http://www.gnu.org/software/autoconf-archive/ax_append_link_flags.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_APPEND_LINK_FLAGS([FLAG1 FLAG2 ...], [FLAGS-VARIABLE], [EXTRA-FLAGS])
-#
-# DESCRIPTION
-#
-#   For every FLAG1, FLAG2 it is checked whether the linker works with the
-#   flag.  If it does, the flag is added FLAGS-VARIABLE
-#
-#   If FLAGS-VARIABLE is not specified, the linker's flags (LDFLAGS) is
-#   used. During the check the flag is always added to the linker's flags.
-#
-#   If EXTRA-FLAGS is defined, it is added to the linker's default flags
-#   when the check is done.  The check is thus made with the flags: "LDFLAGS
-#   EXTRA-FLAGS FLAG".  This can for example be used to force the linker to
-#   issue an error when a bad flag is given.
-#
-#   NOTE: This macro depends on the AX_APPEND_FLAG and AX_CHECK_LINK_FLAG.
-#   Please keep this macro in sync with AX_APPEND_COMPILE_FLAGS.
-#
-# LICENSE
-#
-#   Copyright (c) 2011 Maarten Bosmans <mkbosmans@gmail.com>
-#
-#   This program is free software: you can redistribute it and/or modify it
-#   under the terms of the GNU General Public License as published by the
-#   Free Software Foundation, either version 3 of the License, or (at your
-#   option) any later version.
-#
-#   This program is distributed in the hope that it will be useful, but
-#   WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-#   Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License along
-#   with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-#   As a special exception, the respective Autoconf Macro's copyright owner
-#   gives unlimited permission to copy, distribute and modify the configure
-#   scripts that are the output of Autoconf when processing the Macro. You
-#   need not follow the terms of the GNU General Public License when using
-#   or distributing such scripts, even though portions of the text of the
-#   Macro appear in them. The GNU General Public License (GPL) does govern
-#   all other use of the material that constitutes the Autoconf Macro.
-#
-#   This special exception to the GPL applies to versions of the Autoconf
-#   Macro released by the Autoconf Archive. When you make and distribute a
-#   modified version of the Autoconf Macro, you may extend this special
-#   exception to the GPL to apply to your modified version as well.
-
-#serial 4
-
-AC_DEFUN([AX_APPEND_LINK_FLAGS],
-[AX_REQUIRE_DEFINED([AX_CHECK_LINK_FLAG])
-AX_REQUIRE_DEFINED([AX_APPEND_FLAG])
-for flag in $1; do
-  AX_CHECK_LINK_FLAG([$flag], [AX_APPEND_FLAG([$flag], [m4_default([$2], [LDFLAGS])])], [], [$3])
-done
-])dnl AX_APPEND_LINK_FLAGS
-
-# ===========================================================================
-#   http://www.gnu.org/software/autoconf-archive/ax_check_compile_flag.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_CHECK_COMPILE_FLAG(FLAG, [ACTION-SUCCESS], [ACTION-FAILURE], [EXTRA-FLAGS], [INPUT])
-#
-# DESCRIPTION
-#
-#   Check whether the given FLAG works with the current language's compiler
-#   or gives an error.  (Warnings, however, are ignored)
-#
-#   ACTION-SUCCESS/ACTION-FAILURE are shell commands to execute on
-#   success/failure.
-#
-#   If EXTRA-FLAGS is defined, it is added to the current language's default
-#   flags (e.g. CFLAGS) when the check is done.  The check is thus made with
-#   the flags: "CFLAGS EXTRA-FLAGS FLAG".  This can for example be used to
-#   force the compiler to issue an error when a bad flag is given.
-#
-#   INPUT gives an alternative input source to AC_COMPILE_IFELSE.
-#
-#   NOTE: Implementation based on AX_CFLAGS_GCC_OPTION. Please keep this
-#   macro in sync with AX_CHECK_{PREPROC,LINK}_FLAG.
-#
-# LICENSE
-#
-#   Copyright (c) 2008 Guido U. Draheim <guidod@gmx.de>
-#   Copyright (c) 2011 Maarten Bosmans <mkbosmans@gmail.com>
-#
-#   This program is free software: you can redistribute it and/or modify it
-#   under the terms of the GNU General Public License as published by the
-#   Free Software Foundation, either version 3 of the License, or (at your
-#   option) any later version.
-#
-#   This program is distributed in the hope that it will be useful, but
-#   WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-#   Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License along
-#   with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-#   As a special exception, the respective Autoconf Macro's copyright owner
-#   gives unlimited permission to copy, distribute and modify the configure
-#   scripts that are the output of Autoconf when processing the Macro. You
-#   need not follow the terms of the GNU General Public License when using
-#   or distributing such scripts, even though portions of the text of the
-#   Macro appear in them. The GNU General Public License (GPL) does govern
-#   all other use of the material that constitutes the Autoconf Macro.
-#
-#   This special exception to the GPL applies to versions of the Autoconf
-#   Macro released by the Autoconf Archive. When you make and distribute a
-#   modified version of the Autoconf Macro, you may extend this special
-#   exception to the GPL to apply to your modified version as well.
-
-#serial 4
-
-AC_DEFUN([AX_CHECK_COMPILE_FLAG],
-[AC_PREREQ(2.64)dnl for _AC_LANG_PREFIX and AS_VAR_IF
-AS_VAR_PUSHDEF([CACHEVAR],[ax_cv_check_[]_AC_LANG_ABBREV[]flags_$4_$1])dnl
-AC_CACHE_CHECK([whether _AC_LANG compiler accepts $1], CACHEVAR, [
-  ax_check_save_flags=$[]_AC_LANG_PREFIX[]FLAGS
-  _AC_LANG_PREFIX[]FLAGS="$[]_AC_LANG_PREFIX[]FLAGS $4 $1"
-  AC_COMPILE_IFELSE([m4_default([$5],[AC_LANG_PROGRAM()])],
-    [AS_VAR_SET(CACHEVAR,[yes])],
-    [AS_VAR_SET(CACHEVAR,[no])])
-  _AC_LANG_PREFIX[]FLAGS=$ax_check_save_flags])
-AS_VAR_IF(CACHEVAR,yes,
-  [m4_default([$2], :)],
-  [m4_default([$3], :)])
-AS_VAR_POPDEF([CACHEVAR])dnl
-])dnl AX_CHECK_COMPILE_FLAGS
-
-# ===========================================================================
-#    http://www.gnu.org/software/autoconf-archive/ax_check_link_flag.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_CHECK_LINK_FLAG(FLAG, [ACTION-SUCCESS], [ACTION-FAILURE], [EXTRA-FLAGS], [INPUT])
-#
-# DESCRIPTION
-#
-#   Check whether the given FLAG works with the linker or gives an error.
-#   (Warnings, however, are ignored)
-#
-#   ACTION-SUCCESS/ACTION-FAILURE are shell commands to execute on
-#   success/failure.
-#
-#   If EXTRA-FLAGS is defined, it is added to the linker's default flags
-#   when the check is done.  The check is thus made with the flags: "LDFLAGS
-#   EXTRA-FLAGS FLAG".  This can for example be used to force the linker to
-#   issue an error when a bad flag is given.
-#
-#   INPUT gives an alternative input source to AC_LINK_IFELSE.
-#
-#   NOTE: Implementation based on AX_CFLAGS_GCC_OPTION. Please keep this
-#   macro in sync with AX_CHECK_{PREPROC,COMPILE}_FLAG.
-#
-# LICENSE
-#
-#   Copyright (c) 2008 Guido U. Draheim <guidod@gmx.de>
-#   Copyright (c) 2011 Maarten Bosmans <mkbosmans@gmail.com>
-#
-#   This program is free software: you can redistribute it and/or modify it
-#   under the terms of the GNU General Public License as published by the
-#   Free Software Foundation, either version 3 of the License, or (at your
-#   option) any later version.
-#
-#   This program is distributed in the hope that it will be useful, but
-#   WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-#   Public License for more details.
-#
-#   You should have received a copy of the GNU General Public License along
-#   with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-#   As a special exception, the respective Autoconf Macro's copyright owner
-#   gives unlimited permission to copy, distribute and modify the configure
-#   scripts that are the output of Autoconf when processing the Macro. You
-#   need not follow the terms of the GNU General Public License when using
-#   or distributing such scripts, even though portions of the text of the
-#   Macro appear in them. The GNU General Public License (GPL) does govern
-#   all other use of the material that constitutes the Autoconf Macro.
-#
-#   This special exception to the GPL applies to versions of the Autoconf
-#   Macro released by the Autoconf Archive. When you make and distribute a
-#   modified version of the Autoconf Macro, you may extend this special
-#   exception to the GPL to apply to your modified version as well.
-
-#serial 4
-
-AC_DEFUN([AX_CHECK_LINK_FLAG],
-[AC_PREREQ(2.64)dnl for _AC_LANG_PREFIX and AS_VAR_IF
-AS_VAR_PUSHDEF([CACHEVAR],[ax_cv_check_ldflags_$4_$1])dnl
-AC_CACHE_CHECK([whether the linker accepts $1], CACHEVAR, [
-  ax_check_save_flags=$LDFLAGS
-  LDFLAGS="$LDFLAGS $4 $1"
-  AC_LINK_IFELSE([m4_default([$5],[AC_LANG_PROGRAM()])],
-    [AS_VAR_SET(CACHEVAR,[yes])],
-    [AS_VAR_SET(CACHEVAR,[no])])
-  LDFLAGS=$ax_check_save_flags])
-AS_VAR_IF(CACHEVAR,yes,
-  [m4_default([$2], :)],
-  [m4_default([$3], :)])
-AS_VAR_POPDEF([CACHEVAR])dnl
-])dnl AX_CHECK_LINK_FLAGS
-
-# ===========================================================================
-#     http://www.gnu.org/software/autoconf-archive/ax_compiler_flags.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_COMPILER_FLAGS([CFLAGS-VARIABLE], [LDFLAGS-VARIABLE], [IS-RELEASE], [EXTRA-BASE-CFLAGS], [EXTRA-YES-CFLAGS], [UNUSED], [UNUSED], [UNUSED], [EXTRA-BASE-LDFLAGS], [EXTRA-YES-LDFLAGS], [UNUSED], [UNUSED], [UNUSED])
-#
-# DESCRIPTION
-#
-#   Check for the presence of an --enable-compile-warnings option to
-#   configure, defaulting to "error" in normal operation, or "yes" if
-#   IS-RELEASE is equal to "yes".  Return the value in the variable
-#   $ax_enable_compile_warnings.
-#
-#   Depending on the value of --enable-compile-warnings, different compiler
-#   warnings are checked to see if they work with the current compiler and,
-#   if so, are appended to CFLAGS-VARIABLE and LDFLAGS-VARIABLE.  This
-#   allows a consistent set of baseline compiler warnings to be used across
-#   a code base, irrespective of any warnings enabled locally by individual
-#   developers.  By standardising the warnings used by all developers of a
-#   project, the project can commit to a zero-warnings policy, using -Werror
-#   to prevent compilation if new warnings are introduced.  This makes
-#   catching bugs which are flagged by warnings a lot easier.
-#
-#   By providing a consistent --enable-compile-warnings argument across all
-#   projects using this macro, continuous integration systems can easily be
-#   configured the same for all projects.  Automated systems or build
-#   systems aimed at beginners may want to pass the --disable-Werror
-#   argument to unconditionally prevent warnings being fatal.
-#
-#   --enable-compile-warnings can take the values:
-#
-#    * no:      Base compiler warnings only; not even -Wall.
-#    * yes:     The above, plus a broad range of useful warnings.
-#    * error:   The above, plus -Werror so that all warnings are fatal.
-#               Use --disable-Werror to override this and disable fatal
-#               warnings.
-#
-#   The set of base and enabled flags can be augmented using the
-#   EXTRA-*-CFLAGS and EXTRA-*-LDFLAGS variables, which are tested and
-#   appended to the output variable if --enable-compile-warnings is not
-#   "no". Flags should not be disabled using these arguments, as the entire
-#   point of AX_COMPILER_FLAGS is to enforce a consistent set of useful
-#   compiler warnings on code, using warnings which have been chosen for low
-#   false positive rates.  If a compiler emits false positives for a
-#   warning, a #pragma should be used in the code to disable the warning
-#   locally. See:
-#
-#     https://gcc.gnu.org/onlinedocs/gcc-4.9.2/gcc/Diagnostic-Pragmas.html#Diagnostic-Pragmas
-#
-#   The EXTRA-* variables should only be used to supply extra warning flags,
-#   and not general purpose compiler flags, as they are controlled by
-#   configure options such as --disable-Werror.
-#
-#   IS-RELEASE can be used to disable -Werror when making a release, which
-#   is useful for those hairy moments when you just want to get the release
-#   done as quickly as possible.  Set it to "yes" to disable -Werror. By
-#   default, it uses the value of $ax_is_release, so if you are using the
-#   AX_IS_RELEASE macro, there is no need to pass this parameter. For
-#   example:
-#
-#     AX_IS_RELEASE([git-directory])
-#     AX_COMPILER_FLAGS()
-#
-#   CFLAGS-VARIABLE defaults to WARN_CFLAGS, and LDFLAGS-VARIABLE defaults
-#   to WARN_LDFLAGS.  Both variables are AC_SUBST-ed by this macro, but must
-#   be manually added to the CFLAGS and LDFLAGS variables for each target in
-#   the code base.
-#
-#   If C++ language support is enabled with AC_PROG_CXX, which must occur
-#   before this macro in configure.ac, warning flags for the C++ compiler
-#   are AC_SUBST-ed as WARN_CXXFLAGS, and must be manually added to the
-#   CXXFLAGS variables for each target in the code base.  EXTRA-*-CFLAGS can
-#   be used to augment the base and enabled flags.
-#
-#   Warning flags for g-ir-scanner (from GObject Introspection) are
-#   AC_SUBST-ed as WARN_SCANNERFLAGS.  This variable must be manually added
-#   to the SCANNERFLAGS variable for each GIR target in the code base.  If
-#   extra g-ir-scanner flags need to be enabled, the AX_COMPILER_FLAGS_GIR
-#   macro must be invoked manually.
-#
-#   AX_COMPILER_FLAGS may add support for other tools in future, in addition
-#   to the compiler and linker.  No extra EXTRA-* variables will be added
-#   for those tools, and all extra support will still use the single
-#   --enable-compile-warnings configure option.  For finer grained control
-#   over the flags for individual tools, use AX_COMPILER_FLAGS_CFLAGS,
-#   AX_COMPILER_FLAGS_LDFLAGS and AX_COMPILER_FLAGS_* for new tools.
-#
-#   The UNUSED variables date from a previous version of this macro, and are
-#   automatically appended to the preceding non-UNUSED variable. They should
-#   be left empty in new uses of the macro.
-#
-# LICENSE
-#
-#   Copyright (c) 2014, 2015 Philip Withnall <philip@tecnocode.co.uk>
-#   Copyright (c) 2015 David King <amigadave@amigadave.com>
-#
-#   Copying and distribution of this file, with or without modification, are
-#   permitted in any medium without royalty provided the copyright notice
-#   and this notice are preserved.  This file is offered as-is, without any
-#   warranty.
-
-#serial 13
-
-# _AX_COMPILER_FLAGS_LANG([LANGNAME])
-m4_defun([_AX_COMPILER_FLAGS_LANG],
-[m4_ifdef([_AX_COMPILER_FLAGS_LANG_]$1[_enabled], [],
-          [m4_define([_AX_COMPILER_FLAGS_LANG_]$1[_enabled], [])dnl
-           AX_REQUIRE_DEFINED([AX_COMPILER_FLAGS_]$1[FLAGS])])dnl
-])
-
-AC_DEFUN([AX_COMPILER_FLAGS],[
-    # C support is enabled by default.
-    _AX_COMPILER_FLAGS_LANG([C])
-    # Only enable C++ support if AC_PROG_CXX is called. The redefinition of
-    # AC_PROG_CXX is so that a fatal error is emitted if this macro is called
-    # before AC_PROG_CXX, which would otherwise cause no C++ warnings to be
-    # checked.
-    AC_PROVIDE_IFELSE([AC_PROG_CXX],
-                      [_AX_COMPILER_FLAGS_LANG([CXX])],
-                      [m4_define([AC_PROG_CXX], defn([AC_PROG_CXX])[_AX_COMPILER_FLAGS_LANG([CXX])])])
-    AX_REQUIRE_DEFINED([AX_COMPILER_FLAGS_LDFLAGS])
-
-    # Default value for IS-RELEASE is $ax_is_release
-    ax_compiler_flags_is_release=m4_tolower(m4_normalize(ifelse([$3],,
-                                                                [$ax_is_release],
-                                                                [$3])))
-
-    AC_ARG_ENABLE([compile-warnings],
-                  AS_HELP_STRING([--enable-compile-warnings=@<:@no/yes/error@:>@],
-                                 [Enable compiler warnings and errors]),,
-                  [AS_IF([test "$ax_compiler_flags_is_release" = "yes"],
-                         [enable_compile_warnings="yes"],
-                         [enable_compile_warnings="error"])])
-    AC_ARG_ENABLE([Werror],
-                  AS_HELP_STRING([--disable-Werror],
-                                 [Unconditionally make all compiler warnings non-fatal]),,
-                  [enable_Werror=maybe])
-
-    # Return the user's chosen warning level
-    AS_IF([test "$enable_Werror" = "no" -a \
-                "$enable_compile_warnings" = "error"],[
-        enable_compile_warnings="yes"
-    ])
-
-    ax_enable_compile_warnings=$enable_compile_warnings
-
-    AX_COMPILER_FLAGS_CFLAGS([$1],[$ax_compiler_flags_is_release],
-                             [$4],[$5 $6 $7 $8])
-    m4_ifdef([_AX_COMPILER_FLAGS_LANG_CXX_enabled],
-             [AX_COMPILER_FLAGS_CXXFLAGS([WARN_CXXFLAGS],
-                                         [$ax_compiler_flags_is_release],
-                                         [$4],[$5 $6 $7 $8])])
-    AX_COMPILER_FLAGS_LDFLAGS([$2],[$ax_compiler_flags_is_release],
-                              [$9],[$10 $11 $12 $13])
-    AX_COMPILER_FLAGS_GIR([WARN_SCANNERFLAGS],[$ax_compiler_flags_is_release])
-])dnl AX_COMPILER_FLAGS
-
-# ============================================================================
-#  http://www.gnu.org/software/autoconf-archive/ax_compiler_flags_cflags.html
-# ============================================================================
-#
-# SYNOPSIS
-#
-#   AX_COMPILER_FLAGS_CFLAGS([VARIABLE], [IS-RELEASE], [EXTRA-BASE-FLAGS], [EXTRA-YES-FLAGS])
-#
-# DESCRIPTION
-#
-#   Add warning flags for the C compiler to VARIABLE, which defaults to
-#   WARN_CFLAGS.  VARIABLE is AC_SUBST-ed by this macro, but must be
-#   manually added to the CFLAGS variable for each target in the code base.
-#
-#   This macro depends on the environment set up by AX_COMPILER_FLAGS.
-#   Specifically, it uses the value of $ax_enable_compile_warnings to decide
-#   which flags to enable.
-#
-# LICENSE
-#
-#   Copyright (c) 2014, 2015 Philip Withnall <philip@tecnocode.co.uk>
-#
-#   Copying and distribution of this file, with or without modification, are
-#   permitted in any medium without royalty provided the copyright notice
-#   and this notice are preserved.  This file is offered as-is, without any
-#   warranty.
-
-#serial 11
-
-AC_DEFUN([AX_COMPILER_FLAGS_CFLAGS],[
-    AC_REQUIRE([AC_PROG_SED])
-    AX_REQUIRE_DEFINED([AX_APPEND_COMPILE_FLAGS])
-    AX_REQUIRE_DEFINED([AX_APPEND_FLAG])
-    AX_REQUIRE_DEFINED([AX_CHECK_COMPILE_FLAG])
-
-    # Variable names
-    m4_define(ax_warn_cflags_variable,
-              [m4_normalize(ifelse([$1],,[WARN_CFLAGS],[$1]))])
-
-    AC_LANG_PUSH([C])
-
-    # Always pass -Werror=unknown-warning-option to get Clang to fail on bad
-    # flags, otherwise they are always appended to the warn_cflags variable, and
-    # Clang warns on them for every compilation unit.
-    # If this is passed to GCC, it will explode, so the flag must be enabled
-    # conditionally.
-    AX_CHECK_COMPILE_FLAG([-Werror=unknown-warning-option],[
-        ax_compiler_flags_test="-Werror=unknown-warning-option"
-    ],[
-        ax_compiler_flags_test=""
-    ])
-
-    # Base flags
-    AX_APPEND_COMPILE_FLAGS([ dnl
-        -fno-strict-aliasing dnl
-        $3 dnl
-    ],ax_warn_cflags_variable,[$ax_compiler_flags_test])
-
-    AS_IF([test "$ax_enable_compile_warnings" != "no"],[
-        # "yes" flags
-        AX_APPEND_COMPILE_FLAGS([ dnl
-            -Wall dnl
-            -Wextra dnl
-            -Wundef dnl
-            -Wnested-externs dnl
-            -Wwrite-strings dnl
-            -Wpointer-arith dnl
-            -Wmissing-declarations dnl
-            -Wmissing-prototypes dnl
-            -Wstrict-prototypes dnl
-            -Wredundant-decls dnl
-            -Wno-unused-parameter dnl
-            -Wno-missing-field-initializers dnl
-            -Wdeclaration-after-statement dnl
-            -Wformat=2 dnl
-            -Wold-style-definition dnl
-            -Wcast-align dnl
-            -Wformat-nonliteral dnl
-            -Wformat-security dnl
-            -Wsign-compare dnl
-            -Wstrict-aliasing dnl
-            -Wshadow dnl
-            -Winline dnl
-            -Wpacked dnl
-            -Wmissing-format-attribute dnl
-            -Wmissing-noreturn dnl
-            -Winit-self dnl
-            -Wredundant-decls dnl
-            -Wmissing-include-dirs dnl
-            -Wunused-but-set-variable dnl
-            -Warray-bounds dnl
-            -Wimplicit-function-declaration dnl
-            -Wreturn-type dnl
-            -Wswitch-enum dnl
-            -Wswitch-default dnl
-            $4 dnl
-            $5 dnl
-            $6 dnl
-            $7 dnl
-        ],ax_warn_cflags_variable,[$ax_compiler_flags_test])
-    ])
-    AS_IF([test "$ax_enable_compile_warnings" = "error"],[
-        # "error" flags; -Werror has to be appended unconditionally because
-        # it's not possible to test for
-        #
-        # suggest-attribute=format is disabled because it gives too many false
-        # positives
-        AX_APPEND_FLAG([-Werror],ax_warn_cflags_variable)
-
-        AX_APPEND_COMPILE_FLAGS([ dnl
-            -Wno-suggest-attribute=format dnl
-        ],ax_warn_cflags_variable,[$ax_compiler_flags_test])
-    ])
-
-    # In the flags below, when disabling specific flags, always add *both*
-    # -Wno-foo and -Wno-error=foo. This fixes the situation where (for example)
-    # we enable -Werror, disable a flag, and a build bot passes CFLAGS=-Wall,
-    # which effectively turns that flag back on again as an error.
-    for flag in $ax_warn_cflags_variable; do
-        AS_CASE([$flag],
-                [-Wno-*=*],[],
-                [-Wno-*],[
-                    AX_APPEND_COMPILE_FLAGS([-Wno-error=$(AS_ECHO([$flag]) | $SED 's/^-Wno-//')],
-                                            ax_warn_cflags_variable,
-                                            [$ax_compiler_flags_test])
-                ])
-    done
-
-    AC_LANG_POP([C])
-
-    # Substitute the variables
-    AC_SUBST(ax_warn_cflags_variable)
-])dnl AX_COMPILER_FLAGS
-
-# ===========================================================================
-#   http://www.gnu.org/software/autoconf-archive/ax_compiler_flags_gir.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_COMPILER_FLAGS_GIR([VARIABLE], [IS-RELEASE], [EXTRA-BASE-FLAGS], [EXTRA-YES-FLAGS])
-#
-# DESCRIPTION
-#
-#   Add warning flags for the g-ir-scanner (from GObject Introspection) to
-#   VARIABLE, which defaults to WARN_SCANNERFLAGS.  VARIABLE is AC_SUBST-ed
-#   by this macro, but must be manually added to the SCANNERFLAGS variable
-#   for each GIR target in the code base.
-#
-#   This macro depends on the environment set up by AX_COMPILER_FLAGS.
-#   Specifically, it uses the value of $ax_enable_compile_warnings to decide
-#   which flags to enable.
-#
-# LICENSE
-#
-#   Copyright (c) 2015 Philip Withnall <philip@tecnocode.co.uk>
-#
-#   Copying and distribution of this file, with or without modification, are
-#   permitted in any medium without royalty provided the copyright notice
-#   and this notice are preserved.  This file is offered as-is, without any
-#   warranty.
-
-#serial 4
-
-AC_DEFUN([AX_COMPILER_FLAGS_GIR],[
-    AX_REQUIRE_DEFINED([AX_APPEND_FLAG])
-
-    # Variable names
-    m4_define(ax_warn_scannerflags_variable,
-              [m4_normalize(ifelse([$1],,[WARN_SCANNERFLAGS],[$1]))])
-
-    # Base flags
-    AX_APPEND_FLAG([$3],ax_warn_scannerflags_variable)
-
-    AS_IF([test "$ax_enable_compile_warnings" != "no"],[
-        # "yes" flags
-        AX_APPEND_FLAG([ dnl
-            --warn-all dnl
-            $4 dnl
-            $5 dnl
-            $6 dnl
-            $7 dnl
-        ],ax_warn_scannerflags_variable)
-    ])
-    AS_IF([test "$ax_enable_compile_warnings" = "error"],[
-        # "error" flags
-        AX_APPEND_FLAG([ dnl
-            --warn-error dnl
-        ],ax_warn_scannerflags_variable)
-    ])
-
-    # Substitute the variables
-    AC_SUBST(ax_warn_scannerflags_variable)
-])dnl AX_COMPILER_FLAGS
-
-# =============================================================================
-#  http://www.gnu.org/software/autoconf-archive/ax_compiler_flags_ldflags.html
-# =============================================================================
-#
-# SYNOPSIS
-#
-#   AX_COMPILER_FLAGS_LDFLAGS([VARIABLE], [IS-RELEASE], [EXTRA-BASE-FLAGS], [EXTRA-YES-FLAGS])
-#
-# DESCRIPTION
-#
-#   Add warning flags for the linker to VARIABLE, which defaults to
-#   WARN_LDFLAGS.  VARIABLE is AC_SUBST-ed by this macro, but must be
-#   manually added to the LDFLAGS variable for each target in the code base.
-#
-#   This macro depends on the environment set up by AX_COMPILER_FLAGS.
-#   Specifically, it uses the value of $ax_enable_compile_warnings to decide
-#   which flags to enable.
-#
-# LICENSE
-#
-#   Copyright (c) 2014, 2015 Philip Withnall <philip@tecnocode.co.uk>
-#
-#   Copying and distribution of this file, with or without modification, are
-#   permitted in any medium without royalty provided the copyright notice
-#   and this notice are preserved.  This file is offered as-is, without any
-#   warranty.
-
-#serial 5
-
-AC_DEFUN([AX_COMPILER_FLAGS_LDFLAGS],[
-    AX_REQUIRE_DEFINED([AX_APPEND_LINK_FLAGS])
-    AX_REQUIRE_DEFINED([AX_APPEND_FLAG])
-    AX_REQUIRE_DEFINED([AX_CHECK_COMPILE_FLAG])
-
-    # Variable names
-    m4_define(ax_warn_ldflags_variable,
-              [m4_normalize(ifelse([$1],,[WARN_LDFLAGS],[$1]))])
-
-    # Always pass -Werror=unknown-warning-option to get Clang to fail on bad
-    # flags, otherwise they are always appended to the warn_ldflags variable,
-    # and Clang warns on them for every compilation unit.
-    # If this is passed to GCC, it will explode, so the flag must be enabled
-    # conditionally.
-    AX_CHECK_COMPILE_FLAG([-Werror=unknown-warning-option],[
-        ax_compiler_flags_test="-Werror=unknown-warning-option"
-    ],[
-        ax_compiler_flags_test=""
-    ])
-
-    # Base flags
-    AX_APPEND_LINK_FLAGS([ dnl
-        -Wl,--no-as-needed dnl
-        $3 dnl
-    ],ax_warn_ldflags_variable,[$ax_compiler_flags_test])
-
-    AS_IF([test "$ax_enable_compile_warnings" != "no"],[
-        # "yes" flags
-        AX_APPEND_LINK_FLAGS([$4 $5 $6 $7],
-                                ax_warn_ldflags_variable,
-                                [$ax_compiler_flags_test])
-    ])
-    AS_IF([test "$ax_enable_compile_warnings" = "error"],[
-        # "error" flags; -Werror has to be appended unconditionally because
-        # it's not possible to test for
-        #
-        # suggest-attribute=format is disabled because it gives too many false
-        # positives
-        AX_APPEND_LINK_FLAGS([ dnl
-            -Wl,--fatal-warnings dnl
-        ],ax_warn_ldflags_variable,[$ax_compiler_flags_test])
-    ])
-
-    # Substitute the variables
-    AC_SUBST(ax_warn_ldflags_variable)
-])dnl AX_COMPILER_FLAGS
-
-# ===========================================================================
-#       http://www.gnu.org/software/autoconf-archive/ax_is_release.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_IS_RELEASE(POLICY)
-#
-# DESCRIPTION
-#
-#   Determine whether the code is being configured as a release, or from
-#   git. Set the ax_is_release variable to 'yes' or 'no'.
-#
-#   If building a release version, it is recommended that the configure
-#   script disable compiler errors and debug features, by conditionalising
-#   them on the ax_is_release variable.  If building from git, these
-#   features should be enabled.
-#
-#   The POLICY parameter specifies how ax_is_release is determined. It can
-#   take the following values:
-#
-#    * git-directory:  ax_is_release will be 'no' if a '.git' directory exists
-#    * minor-version:  ax_is_release will be 'no' if the minor version number
-#                      in $PACKAGE_VERSION is odd; this assumes
-#                      $PACKAGE_VERSION follows the 'major.minor.micro' scheme
-#    * micro-version:  ax_is_release will be 'no' if the micro version number
-#                      in $PACKAGE_VERSION is odd; this assumes
-#                      $PACKAGE_VERSION follows the 'major.minor.micro' scheme
-#    * always:         ax_is_release will always be 'yes'
-#    * never:          ax_is_release will always be 'no'
-#
-#   Other policies may be added in future.
-#
-# LICENSE
-#
-#   Copyright (c) 2015 Philip Withnall <philip@tecnocode.co.uk>
-#
-#   Copying and distribution of this file, with or without modification, are
-#   permitted in any medium without royalty provided the copyright notice
-#   and this notice are preserved.
-
-#serial 3
-
-AC_DEFUN([AX_IS_RELEASE],[
-    AC_BEFORE([AC_INIT],[$0])
-
-    m4_case([$1],
-      [git-directory],[
-        # $is_release = (.git directory does not exist)
-        AS_IF([test -d .git],[ax_is_release=no],[ax_is_release=yes])
-      ],
-      [minor-version],[
-        # $is_release = ($minor_version is even)
-        minor_version=`echo "$PACKAGE_VERSION" | sed 's/[[^.]][[^.]]*.\([[^.]][[^.]]*\).*/\1/'`
-        AS_IF([test "$(( $minor_version % 2 ))" -ne 0],
-              [ax_is_release=no],[ax_is_release=yes])
-      ],
-      [micro-version],[
-        # $is_release = ($micro_version is even)
-        micro_version=`echo "$PACKAGE_VERSION" | sed 's/[[^.]]*\.[[^.]]*\.\([[^.]]*\).*/\1/'`
-        AS_IF([test "$(( $micro_version % 2 ))" -ne 0],
-              [ax_is_release=no],[ax_is_release=yes])
-      ],
-      [always],[ax_is_release=yes],
-      [never],[ax_is_release=no],
-      [
-        AC_MSG_ERROR([Invalid policy. Valid policies: git-directory, minor-version.])
-      ])
-])
-
-# ===========================================================================
-#    http://www.gnu.org/software/autoconf-archive/ax_require_defined.html
-# ===========================================================================
-#
-# SYNOPSIS
-#
-#   AX_REQUIRE_DEFINED(MACRO)
-#
-# DESCRIPTION
-#
-#   AX_REQUIRE_DEFINED is a simple helper for making sure other macros have
-#   been defined and thus are available for use.  This avoids random issues
-#   where a macro isn't expanded.  Instead the configure script emits a
-#   non-fatal:
-#
-#     ./configure: line 1673: AX_CFLAGS_WARN_ALL: command not found
-#
-#   It's like AC_REQUIRE except it doesn't expand the required macro.
-#
-#   Here's an example:
-#
-#     AX_REQUIRE_DEFINED([AX_CHECK_LINK_FLAG])
-#
-# LICENSE
-#
-#   Copyright (c) 2014 Mike Frysinger <vapier@gentoo.org>
-#
-#   Copying and distribution of this file, with or without modification, are
-#   permitted in any medium without royalty provided the copyright notice
-#   and this notice are preserved. This file is offered as-is, without any
-#   warranty.
-
-#serial 1
-
-AC_DEFUN([AX_REQUIRE_DEFINED], [dnl
-  m4_ifndef([$1], [m4_fatal([macro ]$1[ is not defined; is a m4 file missing?])])
-])dnl AX_REQUIRE_DEFINED
-
-# Copyright (C) 2002-2014 Free Software Foundation, Inc.
+# Copyright (C) 2002-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -922,10 +32,10 @@ AC_DEFUN([AX_REQUIRE_DEFINED], [dnl
 # generated from the m4 files accompanying Automake X.Y.
 # (This private macro should not be called outside this file.)
 AC_DEFUN([AM_AUTOMAKE_VERSION],
-[am__api_version='1.15'
+[am__api_version='1.16'
 dnl Some users find AM_AUTOMAKE_VERSION and mistake it for a way to
 dnl require some minimum version.  Point them to the right macro.
-m4_if([$1], [1.15], [],
+m4_if([$1], [1.16.1], [],
       [AC_FATAL([Do not call $0, use AM_INIT_AUTOMAKE([$1]).])])dnl
 ])
 
@@ -941,14 +51,14 @@ m4_define([_AM_AUTOCONF_VERSION], [])
 # Call AM_AUTOMAKE_VERSION and AM_AUTOMAKE_VERSION so they can be traced.
 # This function is AC_REQUIREd by AM_INIT_AUTOMAKE.
 AC_DEFUN([AM_SET_CURRENT_AUTOMAKE_VERSION],
-[AM_AUTOMAKE_VERSION([1.15])dnl
+[AM_AUTOMAKE_VERSION([1.16.1])dnl
 m4_ifndef([AC_AUTOCONF_VERSION],
   [m4_copy([m4_PACKAGE_VERSION], [AC_AUTOCONF_VERSION])])dnl
 _AM_AUTOCONF_VERSION(m4_defn([AC_AUTOCONF_VERSION]))])
 
 # AM_AUX_DIR_EXPAND                                         -*- Autoconf -*-
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1000,7 +110,7 @@ am_aux_dir=`cd "$ac_aux_dir" && pwd`
 
 # AM_CONDITIONAL                                            -*- Autoconf -*-
 
-# Copyright (C) 1997-2014 Free Software Foundation, Inc.
+# Copyright (C) 1997-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1031,7 +141,7 @@ AC_CONFIG_COMMANDS_PRE(
 Usually this means the macro was only invoked conditionally.]])
 fi])])
 
-# Copyright (C) 1999-2014 Free Software Foundation, Inc.
+# Copyright (C) 1999-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1222,12 +332,11 @@ _AM_SUBST_NOTMAKE([am__nodep])dnl
 
 # Generate code to set up dependency tracking.              -*- Autoconf -*-
 
-# Copyright (C) 1999-2014 Free Software Foundation, Inc.
+# Copyright (C) 1999-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
-
 
 # _AM_OUTPUT_DEPENDENCY_COMMANDS
 # ------------------------------
@@ -1236,49 +345,41 @@ AC_DEFUN([_AM_OUTPUT_DEPENDENCY_COMMANDS],
   # Older Autoconf quotes --file arguments for eval, but not when files
   # are listed without --file.  Let's play safe and only enable the eval
   # if we detect the quoting.
-  case $CONFIG_FILES in
-  *\'*) eval set x "$CONFIG_FILES" ;;
-  *)   set x $CONFIG_FILES ;;
-  esac
+  # TODO: see whether this extra hack can be removed once we start
+  # requiring Autoconf 2.70 or later.
+  AS_CASE([$CONFIG_FILES],
+          [*\'*], [eval set x "$CONFIG_FILES"],
+          [*], [set x $CONFIG_FILES])
   shift
-  for mf
+  # Used to flag and report bootstrapping failures.
+  am_rc=0
+  for am_mf
   do
     # Strip MF so we end up with the name of the file.
-    mf=`echo "$mf" | sed -e 's/:.*$//'`
-    # Check whether this is an Automake generated Makefile or not.
-    # We used to match only the files named 'Makefile.in', but
-    # some people rename them; so instead we look at the file content.
-    # Grep'ing the first line is not enough: some people post-process
-    # each Makefile.in and add a new line on top of each file to say so.
-    # Grep'ing the whole file is not good either: AIX grep has a line
+    am_mf=`AS_ECHO(["$am_mf"]) | sed -e 's/:.*$//'`
+    # Check whether this is an Automake generated Makefile which includes
+    # dependency-tracking related rules and includes.
+    # Grep'ing the whole file directly is not great: AIX grep has a line
     # limit of 2048, but all sed's we know have understand at least 4000.
-    if sed -n 's,^#.*generated by automake.*,X,p' "$mf" | grep X >/dev/null 2>&1; then
-      dirpart=`AS_DIRNAME("$mf")`
-    else
-      continue
-    fi
-    # Extract the definition of DEPDIR, am__include, and am__quote
-    # from the Makefile without running 'make'.
-    DEPDIR=`sed -n 's/^DEPDIR = //p' < "$mf"`
-    test -z "$DEPDIR" && continue
-    am__include=`sed -n 's/^am__include = //p' < "$mf"`
-    test -z "$am__include" && continue
-    am__quote=`sed -n 's/^am__quote = //p' < "$mf"`
-    # Find all dependency output files, they are included files with
-    # $(DEPDIR) in their names.  We invoke sed twice because it is the
-    # simplest approach to changing $(DEPDIR) to its actual value in the
-    # expansion.
-    for file in `sed -n "
-      s/^$am__include $am__quote\(.*(DEPDIR).*\)$am__quote"'$/\1/p' <"$mf" | \
-	 sed -e 's/\$(DEPDIR)/'"$DEPDIR"'/g'`; do
-      # Make sure the directory exists.
-      test -f "$dirpart/$file" && continue
-      fdir=`AS_DIRNAME(["$file"])`
-      AS_MKDIR_P([$dirpart/$fdir])
-      # echo "creating $dirpart/$file"
-      echo '# dummy' > "$dirpart/$file"
-    done
+    sed -n 's,^am--depfiles:.*,X,p' "$am_mf" | grep X >/dev/null 2>&1 \
+      || continue
+    am_dirpart=`AS_DIRNAME(["$am_mf"])`
+    am_filepart=`AS_BASENAME(["$am_mf"])`
+    AM_RUN_LOG([cd "$am_dirpart" \
+      && sed -e '/# am--include-marker/d' "$am_filepart" \
+        | $MAKE -f - am--depfiles]) || am_rc=$?
   done
+  if test $am_rc -ne 0; then
+    AC_MSG_FAILURE([Something went wrong bootstrapping makefile fragments
+    for automatic dependency tracking.  Try re-running configure with the
+    '--disable-dependency-tracking' option to at least be able to build
+    the package (albeit without support for automatic dependency tracking).])
+  fi
+  AS_UNSET([am_dirpart])
+  AS_UNSET([am_filepart])
+  AS_UNSET([am_mf])
+  AS_UNSET([am_rc])
+  rm -f conftest-deps.mk
 }
 ])# _AM_OUTPUT_DEPENDENCY_COMMANDS
 
@@ -1287,18 +388,17 @@ AC_DEFUN([_AM_OUTPUT_DEPENDENCY_COMMANDS],
 # -----------------------------
 # This macro should only be invoked once -- use via AC_REQUIRE.
 #
-# This code is only required when automatic dependency tracking
-# is enabled.  FIXME.  This creates each '.P' file that we will
-# need in order to bootstrap the dependency handling code.
+# This code is only required when automatic dependency tracking is enabled.
+# This creates each '.Po' and '.Plo' makefile fragment that we'll need in
+# order to bootstrap the dependency handling code.
 AC_DEFUN([AM_OUTPUT_DEPENDENCY_COMMANDS],
 [AC_CONFIG_COMMANDS([depfiles],
      [test x"$AMDEP_TRUE" != x"" || _AM_OUTPUT_DEPENDENCY_COMMANDS],
-     [AMDEP_TRUE="$AMDEP_TRUE" ac_aux_dir="$ac_aux_dir"])
-])
+     [AMDEP_TRUE="$AMDEP_TRUE" MAKE="${MAKE-make}"])])
 
 # Do all the work for Automake.                             -*- Autoconf -*-
 
-# Copyright (C) 1996-2014 Free Software Foundation, Inc.
+# Copyright (C) 1996-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1385,8 +485,8 @@ AC_REQUIRE([AM_PROG_INSTALL_STRIP])dnl
 AC_REQUIRE([AC_PROG_MKDIR_P])dnl
 # For better backward compatibility.  To be removed once Automake 1.9.x
 # dies out for good.  For more background, see:
-# <http://lists.gnu.org/archive/html/automake/2012-07/msg00001.html>
-# <http://lists.gnu.org/archive/html/automake/2012-07/msg00014.html>
+# <https://lists.gnu.org/archive/html/automake/2012-07/msg00001.html>
+# <https://lists.gnu.org/archive/html/automake/2012-07/msg00014.html>
 AC_SUBST([mkdir_p], ['$(MKDIR_P)'])
 # We need awk for the "check" target (and possibly the TAP driver).  The
 # system "awk" is bad on some platforms.
@@ -1453,7 +553,7 @@ END
 Aborting the configuration process, to ensure you take notice of the issue.
 
 You can download and install GNU coreutils to get an 'rm' implementation
-that behaves properly: <http://www.gnu.org/software/coreutils/>.
+that behaves properly: <https://www.gnu.org/software/coreutils/>.
 
 If you want to complete the configuration process using your problematic
 'rm' anyway, export the environment variable ACCEPT_INFERIOR_RM_PROGRAM
@@ -1495,7 +595,7 @@ for _am_header in $config_headers :; do
 done
 echo "timestamp for $_am_arg" >`AS_DIRNAME(["$_am_arg"])`/stamp-h[]$_am_stamp_count])
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1516,7 +616,7 @@ if test x"${install_sh+set}" != xset; then
 fi
 AC_SUBST([install_sh])])
 
-# Copyright (C) 2003-2014 Free Software Foundation, Inc.
+# Copyright (C) 2003-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1537,7 +637,7 @@ AC_SUBST([am__leading_dot])])
 
 # Check to see how 'make' treats includes.	            -*- Autoconf -*-
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1545,49 +645,42 @@ AC_SUBST([am__leading_dot])])
 
 # AM_MAKE_INCLUDE()
 # -----------------
-# Check to see how make treats includes.
+# Check whether make has an 'include' directive that can support all
+# the idioms we need for our automatic dependency tracking code.
 AC_DEFUN([AM_MAKE_INCLUDE],
-[am_make=${MAKE-make}
-cat > confinc << 'END'
+[AC_MSG_CHECKING([whether ${MAKE-make} supports the include directive])
+cat > confinc.mk << 'END'
 am__doit:
-	@echo this is the am__doit target
+	@echo this is the am__doit target >confinc.out
 .PHONY: am__doit
 END
-# If we don't find an include directive, just comment out the code.
-AC_MSG_CHECKING([for style of include used by $am_make])
 am__include="#"
 am__quote=
-_am_result=none
-# First try GNU make style include.
-echo "include confinc" > confmf
-# Ignore all kinds of additional output from 'make'.
-case `$am_make -s -f confmf 2> /dev/null` in #(
-*the\ am__doit\ target*)
-  am__include=include
-  am__quote=
-  _am_result=GNU
-  ;;
-esac
-# Now try BSD make style include.
-if test "$am__include" = "#"; then
-   echo '.include "confinc"' > confmf
-   case `$am_make -s -f confmf 2> /dev/null` in #(
-   *the\ am__doit\ target*)
-     am__include=.include
-     am__quote="\""
-     _am_result=BSD
-     ;;
-   esac
-fi
-AC_SUBST([am__include])
-AC_SUBST([am__quote])
-AC_MSG_RESULT([$_am_result])
-rm -f confinc confmf
-])
+# BSD make does it like this.
+echo '.include "confinc.mk" # ignored' > confmf.BSD
+# Other make implementations (GNU, Solaris 10, AIX) do it like this.
+echo 'include confinc.mk # ignored' > confmf.GNU
+_am_result=no
+for s in GNU BSD; do
+  AM_RUN_LOG([${MAKE-make} -f confmf.$s && cat confinc.out])
+  AS_CASE([$?:`cat confinc.out 2>/dev/null`],
+      ['0:this is the am__doit target'],
+      [AS_CASE([$s],
+          [BSD], [am__include='.include' am__quote='"'],
+          [am__include='include' am__quote=''])])
+  if test "$am__include" != "#"; then
+    _am_result="yes ($s style)"
+    break
+  fi
+done
+rm -f confinc.* confmf.*
+AC_MSG_RESULT([${_am_result}])
+AC_SUBST([am__include])])
+AC_SUBST([am__quote])])
 
 # Fake the existence of programs that GNU maintainers use.  -*- Autoconf -*-
 
-# Copyright (C) 1997-2014 Free Software Foundation, Inc.
+# Copyright (C) 1997-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1626,7 +719,7 @@ fi
 
 # Helper functions for option handling.                     -*- Autoconf -*-
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1655,7 +748,7 @@ AC_DEFUN([_AM_SET_OPTIONS],
 AC_DEFUN([_AM_IF_OPTION],
 [m4_ifset(_AM_MANGLE_OPTION([$1]), [$2], [$3])])
 
-# Copyright (C) 1999-2014 Free Software Foundation, Inc.
+# Copyright (C) 1999-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1702,7 +795,7 @@ AC_LANG_POP([C])])
 # For backward compatibility.
 AC_DEFUN_ONCE([AM_PROG_CC_C_O], [AC_REQUIRE([AC_PROG_CC])])
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1721,7 +814,7 @@ AC_DEFUN([AM_RUN_LOG],
 
 # Check to make sure that the build environment is sane.    -*- Autoconf -*-
 
-# Copyright (C) 1996-2014 Free Software Foundation, Inc.
+# Copyright (C) 1996-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1802,7 +895,7 @@ AC_CONFIG_COMMANDS_PRE(
 rm -f conftest.file
 ])
 
-# Copyright (C) 2009-2014 Free Software Foundation, Inc.
+# Copyright (C) 2009-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1862,7 +955,7 @@ AC_SUBST([AM_BACKSLASH])dnl
 _AM_SUBST_NOTMAKE([AM_BACKSLASH])dnl
 ])
 
-# Copyright (C) 2001-2014 Free Software Foundation, Inc.
+# Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1890,7 +983,7 @@ fi
 INSTALL_STRIP_PROGRAM="\$(install_sh) -c -s"
 AC_SUBST([INSTALL_STRIP_PROGRAM])])
 
-# Copyright (C) 2006-2014 Free Software Foundation, Inc.
+# Copyright (C) 2006-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -1909,7 +1002,7 @@ AC_DEFUN([AM_SUBST_NOTMAKE], [_AM_SUBST_NOTMAKE($@)])
 
 # Check how to create a tarball.                            -*- Autoconf -*-
 
-# Copyright (C) 2004-2014 Free Software Foundation, Inc.
+# Copyright (C) 2004-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,

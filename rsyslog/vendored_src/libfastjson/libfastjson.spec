@@ -19,18 +19,11 @@ Summary:	Development files for libfastjson
 Group:		Development/Libraries
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 
+%debug_package
+
 %description	devel
 This package contains libraries and header files for
 developing applications that use libfastjson.
-
-%prep
-%setup -q
-
-for doc in ChangeLog; do
- iconv -f iso-8859-1 -t utf8 $doc > $doc.new &&
- touch -r $doc $doc.new &&
- mv $doc.new $doc
-done
 
 %build
 autoreconf -iv

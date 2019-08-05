@@ -31,16 +31,13 @@ Summary:	The Apache Kafka C library (Development Environment)
 Group:		Development/Libraries
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 
+%debug_package
+
 %description	devel
 librdkafka is a C/C++ library implementation of the Apache Kafka protocol,
 containing both Producer and Consumer support.
 This package contains headers and libraries required to build applications
 using librdkafka.
-
-%prep
-%setup -q
-
-%patch1 -p1 -b .python3
 
 %build
 %configure --enable-lz4 \
