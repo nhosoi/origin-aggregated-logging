@@ -36,4 +36,4 @@ for pkg in $packages ; do
     done
 #rm -rf BUILDRPMS/*
 done
-sort $contents > /contents
+sort $contents > /tmp/contents
