@@ -116,57 +116,73 @@ sbin_PROGRAMS =
 @ENABLE_OMUDPSPOOF_TRUE@am__append_23 = plugins/omudpspoof
 @ENABLE_OMMONGODB_TRUE@am__append_24 = plugins/ommongodb
 @ENABLE_OMHIREDIS_TRUE@am__append_25 = contrib/omhiredis
-@ENABLE_OMZMQ3_TRUE@am__append_26 = contrib/omzmq3
-@ENABLE_OMCZMQ_TRUE@am__append_27 = contrib/omczmq
-@ENABLE_OMRABBITMQ_TRUE@am__append_28 = contrib/omrabbitmq
-@ENABLE_IMZMQ3_TRUE@am__append_29 = contrib/imzmq3
-@ENABLE_IMCZMQ_TRUE@am__append_30 = contrib/imczmq
-@ENABLE_OMUXSOCK_TRUE@am__append_31 = plugins/omuxsock
-@ENABLE_OMHDFS_TRUE@am__append_32 = plugins/omhdfs
-@ENABLE_OMJOURNAL_TRUE@am__append_33 = plugins/omjournal
-@ENABLE_IMJOURNAL_TRUE@am__append_34 = plugins/imjournal
-@ENABLE_ELASTICSEARCH_TRUE@am__append_35 = plugins/omelasticsearch
+@ENABLE_OMCZMQ_TRUE@am__append_26 = contrib/omczmq
+@ENABLE_OMRABBITMQ_TRUE@am__append_27 = contrib/omrabbitmq
+@ENABLE_IMCZMQ_TRUE@am__append_28 = contrib/imczmq
+@ENABLE_OMUXSOCK_TRUE@am__append_29 = plugins/omuxsock
+@ENABLE_OMHDFS_TRUE@am__append_30 = plugins/omhdfs
+@ENABLE_OMJOURNAL_TRUE@am__append_31 = plugins/omjournal
+@ENABLE_IMJOURNAL_TRUE@am__append_32 = plugins/imjournal
+@ENABLE_ELASTICSEARCH_TRUE@am__append_33 = plugins/omelasticsearch
+@ENABLE_CLICKHOUSE_TRUE@am__append_34 = plugins/omclickhouse
+@ENABLE_OMHTTP_TRUE@am__append_35 = contrib/omhttp
 @ENABLE_MMSNMPTRAPD_TRUE@am__append_36 = plugins/mmsnmptrapd
 @ENABLE_IMFILE_TRUE@am__append_37 = plugins/imfile
-@ENABLE_IMPTCP_TRUE@am__append_38 = plugins/imptcp
-@ENABLE_IMDIAG_TRUE@am__append_39 = plugins/imdiag
-@ENABLE_MAIL_TRUE@am__append_40 = plugins/ommail
-@ENABLE_FMHTTP_TRUE@am__append_41 = plugins/fmhttp
-@ENABLE_FMHASH_TRUE@am__append_42 = contrib/fmhash
-@ENABLE_OMKAFKA_TRUE@am__append_43 = plugins/omkafka 
-@ENABLE_IMKAFKA_TRUE@am__append_44 = plugins/imkafka
-@ENABLE_OMPROG_TRUE@am__append_45 = plugins/omprog
-@ENABLE_RFC3195_TRUE@am__append_46 = plugins/im3195
-@ENABLE_MMNORMALIZE_TRUE@am__append_47 = plugins/mmnormalize
-@ENABLE_MMJSONPARSE_TRUE@am__append_48 = plugins/mmjsonparse
-@ENABLE_MMGROK_TRUE@am__append_49 = contrib/mmgrok
-@ENABLE_MMAUDIT_TRUE@am__append_50 = plugins/mmaudit
-@ENABLE_MMANON_TRUE@am__append_51 = plugins/mmanon
-@ENABLE_MMRM1STSPACE_TRUE@am__append_52 = plugins/mmrm1stspace
-@ENABLE_MMUTF8FIX_TRUE@am__append_53 = plugins/mmutf8fix
-@ENABLE_MMCOUNT_TRUE@am__append_54 = contrib/mmcount
-@ENABLE_MMSEQUENCE_TRUE@am__append_55 = contrib/mmsequence
-@ENABLE_MMDBLOOKUP_TRUE@am__append_56 = plugins/mmdblookup
-@ENABLE_MMFIELDS_TRUE@am__append_57 = plugins/mmfields
-@ENABLE_MMPSTRUCDATA_TRUE@am__append_58 = plugins/mmpstrucdata
-@ENABLE_MMRFC5424ADDHMAC_TRUE@am__append_59 = contrib/mmrfc5424addhmac
+@ENABLE_IMDOCKER_TRUE@am__append_38 = contrib/imdocker
+@ENABLE_IMPTCP_TRUE@am__append_39 = plugins/imptcp
+@ENABLE_IMDIAG_TRUE@am__append_40 = plugins/imdiag
+@ENABLE_MAIL_TRUE@am__append_41 = plugins/ommail
+@ENABLE_FMHTTP_TRUE@am__append_42 = plugins/fmhttp
+@ENABLE_FMHASH_TRUE@am__append_43 = contrib/fmhash
+@ENABLE_OMKAFKA_TRUE@am__append_44 = plugins/omkafka
+@ENABLE_IMKAFKA_TRUE@am__append_45 = plugins/imkafka
+@ENABLE_OMPROG_TRUE@am__append_46 = plugins/omprog
+@ENABLE_RFC3195_TRUE@am__append_47 = plugins/im3195
+@ENABLE_MMNORMALIZE_TRUE@am__append_48 = plugins/mmnormalize
+@ENABLE_MMJSONPARSE_TRUE@am__append_49 = plugins/mmjsonparse
+@ENABLE_MMGROK_TRUE@am__append_50 = contrib/mmgrok
+@ENABLE_MMAUDIT_TRUE@am__append_51 = plugins/mmaudit
+@ENABLE_MMANON_TRUE@am__append_52 = plugins/mmanon
+@ENABLE_MMRM1STSPACE_TRUE@am__append_53 = plugins/mmrm1stspace
+@ENABLE_MMUTF8FIX_TRUE@am__append_54 = plugins/mmutf8fix
+@ENABLE_MMCOUNT_TRUE@am__append_55 = contrib/mmcount
+@ENABLE_MMSEQUENCE_TRUE@am__append_56 = contrib/mmsequence
+@ENABLE_MMDBLOOKUP_TRUE@am__append_57 = plugins/mmdblookup
+@ENABLE_MMDARWIN_TRUE@am__append_58 = contrib/mmdarwin
+@ENABLE_MMFIELDS_TRUE@am__append_59 = plugins/mmfields
+@ENABLE_MMPSTRUCDATA_TRUE@am__append_60 = plugins/mmpstrucdata
+@ENABLE_MMRFC5424ADDHMAC_TRUE@am__append_61 = contrib/mmrfc5424addhmac
 
 # omhttpfs
-@ENABLE_OMHTTPFS_TRUE@am__append_60 = contrib/omhttpfs
+@ENABLE_OMHTTPFS_TRUE@am__append_62 = contrib/omhttpfs
 
 # omamqp1
-@ENABLE_OMAMQP1_TRUE@am__append_61 = contrib/omamqp1
+@ENABLE_OMAMQP1_TRUE@am__append_63 = contrib/omamqp1
+
+# imbatchreport
+@ENABLE_IMBATCHREPORT_TRUE@am__append_64 = contrib/imbatchreport
 
 # omtcl
-@ENABLE_OMTCL_TRUE@am__append_62 = contrib/omtcl
+@ENABLE_OMTCL_TRUE@am__append_65 = contrib/omtcl
 
 # mmkubernetes
-@ENABLE_MMKUBERNETES_TRUE@am__append_63 = contrib/mmkubernetes
+@ENABLE_MMKUBERNETES_TRUE@am__append_66 = contrib/mmkubernetes
+
+# imtuxedoulog
+@ENABLE_IMTUXEDOULOG_TRUE@am__append_67 = contrib/imtuxedoulog
+
+# improg
+@ENABLE_IMPROG_TRUE@am__append_68 = contrib/improg
+
+# mmtaghostname
+@ENABLE_MMTAGHOSTNAME_TRUE@am__append_69 = contrib/mmtaghostname
+
+# imdb2diag
+@ENABLE_PMDB2DIAG_TRUE@am__append_70 = contrib/pmdb2diag
 # currently not supported in make distcheck:
-# --enable-mysql-tests
-# --enable-pgsql-tests 
+# --enable-pgsql-tests
 # --enable-extended-tests --> should probably never be enabled due to runtime
-@ENABLE_DEFAULT_TESTS_TRUE@am__append_64 = \
+@ENABLE_DEFAULT_TESTS_TRUE@am__append_71 = \
 @ENABLE_DEFAULT_TESTS_TRUE@	--enable-diagtools \
 @ENABLE_DEFAULT_TESTS_TRUE@	--enable-impstats \
 @ENABLE_DEFAULT_TESTS_TRUE@	--enable-imptcp \
@@ -192,42 +208,54 @@ sbin_PROGRAMS =
 @ENABLE_DEFAULT_TESTS_TRUE@	--enable-pmsnare \
 @ENABLE_DEFAULT_TESTS_TRUE@	--enable-usertools
 
-@ENABLE_OMPROG_TRUE@am__append_65 = --enable-omprog 
-
-# Note: [io]mzmq3 cannot be built any longer, according to Brian Knox they require an
-# outdated version of the client lib. So we do not bother any longer about them.
-@ENABLE_GSSAPI_TRUE@am__append_66 = --enable-gssapi-krb5
-@ENABLE_PMNORMALIZE_TRUE@am__append_67 = --enable-pmnormalize
-@ENABLE_MMDBLOOKUP_TRUE@am__append_68 = --enable-mmdblookup
-@ENABLE_MMNORMALIZE_TRUE@am__append_69 = --enable-mmnormalize
-@ENABLE_OMMONGODB_TRUE@am__append_70 = --enable-ommongodb
-@ENABLE_OMHIREDIS_TRUE@am__append_71 = --enable-omhiredis
-@ENABLE_MMSNMPTRAPD_TRUE@am__append_72 = --enable-mmsnmptrapd
-@ENABLE_OMLIBDBI_TRUE@am__append_73 = --enable-libdbi
-@ENABLE_LIBGCRYPT_TRUE@am__append_74 = --enable-libgcrypt
-@ENABLE_OMHTTPFS_TRUE@am__append_75 = --enable-omhttpfs
-@ENABLE_OMTCL_TRUE@am__append_76 = --enable-omtcl
-@ENABLE_SNMP_TRUE@am__append_77 = --enable-snmp
-@ENABLE_FMHTTP_TRUE@am__append_78 = --enable-fmhttp
-@ENABLE_OMUDPSPOOF_TRUE@am__append_79 = --enable-omudpspoof
-@ENABLE_PGSQL_TRUE@am__append_80 = --enable-pgsql
-@ENABLE_GNUTLS_TRUE@am__append_81 = --enable-gnutls
-@ENABLE_OPENSSL_TRUE@am__append_82 = --enable-openssl
-@ENABLE_MYSQL_TRUE@am__append_83 = --enable-mysql
-@ENABLE_ELASTICSEARCH_TRUE@am__append_84 = --enable-elasticsearch
-@ENABLE_ELASTICSEARCH_TESTS_TRUE@am__append_85 = --enable-elasticsearch-tests
-@ENABLE_MMGROK_TRUE@am__append_86 = --enable-mmgrok
-@ENABLE_RELP_TRUE@am__append_87 = --enable-relp --enable-omrelp-default-port=13515
-@ENABLE_IMKAFKA_TRUE@am__append_88 = --enable-imkafka
-@ENABLE_OMKAFKA_TRUE@am__append_89 = --enable-omkafka
-@ENABLE_KAFKA_TESTS_TRUE@am__append_90 = --enable-kafka-tests
-@ENABLE_IMJOURNAL_TRUE@am__append_91 = --enable-imjournal
-@ENABLE_OMJOURNAL_TRUE@am__append_92 = --enable-omjournal
-@ENABLE_IMCZMQ_TRUE@am__append_93 = --enable-imczmq
-@ENABLE_OMCZMQ_TRUE@am__append_94 = --enable-omczmq
-@ENABLE_IMFILE_TRUE@am__append_95 = --enable-imfile
-@ENABLE_DISTCHECK_WORKAROUND_TRUE@am__append_96 = --disable-testbench
-@ENABLE_DISTCHECK_WORKAROUND_FALSE@am__append_97 = --enable-testbench
+@ENABLE_IMPROG_TRUE@am__append_72 = --enable-improg
+@ENABLE_OMPROG_TRUE@am__append_73 = --enable-omprog
+@ENABLE_GSSAPI_TRUE@am__append_74 = --enable-gssapi-krb5
+@ENABLE_PMNORMALIZE_TRUE@am__append_75 = --enable-pmnormalize
+@ENABLE_MMDBLOOKUP_TRUE@am__append_76 = --enable-mmdblookup
+@ENABLE_MMDARWIN_TRUE@am__append_77 = --enable-mmdarwin
+@ENABLE_MMNORMALIZE_TRUE@am__append_78 = --enable-mmnormalize
+@ENABLE_OMMONGODB_TRUE@am__append_79 = --enable-ommongodb
+@ENABLE_OMHIREDIS_TRUE@am__append_80 = --enable-omhiredis
+@ENABLE_MMSNMPTRAPD_TRUE@am__append_81 = --enable-mmsnmptrapd
+@ENABLE_OMLIBDBI_TRUE@am__append_82 = --enable-libdbi
+@ENABLE_LIBGCRYPT_TRUE@am__append_83 = --enable-libgcrypt
+@ENABLE_OMHTTP_TRUE@am__append_84 = --enable-omhttp
+@ENABLE_OMHTTPFS_TRUE@am__append_85 = --enable-omhttpfs
+@ENABLE_OMTCL_TRUE@am__append_86 = --enable-omtcl
+@ENABLE_SNMP_TRUE@am__append_87 = --enable-snmp
+@ENABLE_FMHTTP_TRUE@am__append_88 = --enable-fmhttp
+@ENABLE_OMUDPSPOOF_TRUE@am__append_89 = --enable-omudpspoof
+@ENABLE_PGSQL_TRUE@am__append_90 = --enable-pgsql
+@ENABLE_GNUTLS_TRUE@am__append_91 = --enable-gnutls
+@ENABLE_OPENSSL_TRUE@am__append_92 = --enable-openssl
+@ENABLE_MYSQL_TRUE@am__append_93 = --enable-mysql
+@ENABLE_MYSQL_TESTS_TRUE@am__append_94 = --enable-mysql-tests
+@ENABLE_ELASTICSEARCH_TRUE@am__append_95 = --enable-elasticsearch
+@ENABLE_ELASTICSEARCH_TESTS_TRUE@am__append_96 = --enable-elasticsearch-tests
+@ENABLE_CLICKHOUSE_TRUE@am__append_97 = --enable-clickhouse
+@ENABLE_CLICKHOUSE_TESTS_TRUE@am__append_98 = --enable-clickhouse-tests
+@ENABLE_MMGROK_TRUE@am__append_99 = --enable-mmgrok
+@ENABLE_RELP_TRUE@am__append_100 = --enable-relp --enable-omrelp-default-port=13515
+@ENABLE_IMKAFKA_TRUE@am__append_101 = --enable-imkafka
+@ENABLE_OMKAFKA_TRUE@am__append_102 = --enable-omkafka
+@ENABLE_KAFKA_TESTS_TRUE@am__append_103 = --enable-kafka-tests
+@ENABLE_IMJOURNAL_TRUE@am__append_104 = --enable-imjournal
+@ENABLE_OMJOURNAL_TRUE@am__append_105 = --enable-omjournal
+@ENABLE_JOURNAL_TESTS_TRUE@am__append_106 = --enable-journal-tests
+@ENABLE_IMCZMQ_TRUE@am__append_107 = --enable-imczmq
+@ENABLE_OMCZMQ_TRUE@am__append_108 = --enable-omczmq
+@ENABLE_MMTAGHOSTNAME_TRUE@am__append_109 = --enable-mmtaghostname
+@ENABLE_IMTUXEDOULOG_TRUE@am__append_110 = --enable-imtuxedolog
+@ENABLE_PMDB2DIAG_TRUE@am__append_111 = --enable-pmdb2diag
+@ENABLE_IMBATCHREPORT_TRUE@am__append_112 = --enable-imbatchreport
+@ENABLE_IMFILE_TRUE@am__append_113 = --enable-imfile
+@ENABLE_IMDOCKER_TRUE@am__append_114 = --enable-imdocker
+@ENABLE_OMRABBITMQ_TRUE@am__append_115 = --enable-omrabbitmq
+@ENABLE_MMKUBERNETES_TRUE@am__append_116 = --enable-mmkubernetes
+@ENABLE_OMAMQP1_TRUE@am__append_117 = --enable-omamqp1
+@ENABLE_DISTCHECK_WORKAROUND_TRUE@am__append_118 = --disable-testbench
+@ENABLE_DISTCHECK_WORKAROUND_FALSE@am__append_119 = --enable-testbench
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ac_check_define.m4 \
@@ -345,22 +373,24 @@ DIST_SUBDIRS = compat runtime grammar . plugins/immark \
 	plugins/pmnormalize contrib/pmaixforwardedfrom contrib/pmsnare \
 	contrib/pmpanngfw plugins/pmlastmsg plugins/omruleset \
 	plugins/omudpspoof plugins/ommongodb contrib/omhiredis \
-	contrib/omzmq3 contrib/omczmq contrib/omrabbitmq \
-	contrib/imzmq3 contrib/imczmq plugins/omuxsock plugins/omhdfs \
-	plugins/omjournal plugins/imjournal plugins/omelasticsearch \
-	plugins/mmsnmptrapd plugins/imfile plugins/imptcp \
-	plugins/imdiag plugins/ommail plugins/fmhttp contrib/fmhash \
-	plugins/omkafka plugins/imkafka plugins/omprog plugins/im3195 \
-	plugins/mmnormalize plugins/mmjsonparse contrib/mmgrok \
-	plugins/mmaudit plugins/mmanon plugins/mmrm1stspace \
-	plugins/mmutf8fix contrib/mmcount contrib/mmsequence \
-	plugins/mmdblookup plugins/mmfields plugins/mmpstrucdata \
+	contrib/omczmq contrib/omrabbitmq contrib/imczmq \
+	plugins/omuxsock plugins/omhdfs plugins/omjournal \
+	plugins/imjournal plugins/omelasticsearch plugins/omclickhouse \
+	contrib/omhttp plugins/mmsnmptrapd plugins/imfile \
+	contrib/imdocker plugins/imptcp plugins/imdiag plugins/ommail \
+	plugins/fmhttp contrib/fmhash plugins/omkafka plugins/imkafka \
+	plugins/omprog plugins/im3195 plugins/mmnormalize \
+	plugins/mmjsonparse contrib/mmgrok plugins/mmaudit \
+	plugins/mmanon plugins/mmrm1stspace plugins/mmutf8fix \
+	contrib/mmcount contrib/mmsequence plugins/mmdblookup \
+	contrib/mmdarwin plugins/mmfields plugins/mmpstrucdata \
 	contrib/mmrfc5424addhmac contrib/omhttpfs contrib/omamqp1 \
-	contrib/omtcl contrib/mmkubernetes tests
+	contrib/imbatchreport contrib/omtcl contrib/mmkubernetes \
+	contrib/imtuxedoulog contrib/improg contrib/mmtaghostname \
+	contrib/pmdb2diag tests
 am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in AUTHORS \
-	COPYING COPYING.LESSER ChangeLog INSTALL NEWS README TODO \
-	compile config.guess config.sub install-sh ltmain.sh missing \
-	ylwrap
+	COPYING COPYING.LESSER ChangeLog INSTALL NEWS README compile \
+	config.guess config.sub install-sh ltmain.sh missing ylwrap
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -414,6 +444,7 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CONF_FILE_PATH = @CONF_FILE_PATH@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CURL_CFLAGS = @CURL_CFLAGS@
@@ -516,6 +547,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PGSQL_CFLAGS = @PGSQL_CFLAGS@
 PGSQL_LIBS = @PGSQL_LIBS@
 PG_CONFIG = @PG_CONFIG@
+PID_FILE_PATH = @PID_FILE_PATH@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -662,7 +694,9 @@ SUBDIRS = compat runtime grammar . plugins/immark plugins/imuxsock \
 	$(am__append_54) $(am__append_55) $(am__append_56) \
 	$(am__append_57) $(am__append_58) $(am__append_59) \
 	$(am__append_60) $(am__append_61) $(am__append_62) \
-	$(am__append_63) tests
+	$(am__append_63) $(am__append_64) $(am__append_65) \
+	$(am__append_66) $(am__append_67) $(am__append_68) \
+	$(am__append_69) $(am__append_70) tests
 # make sure "make distcheck" tries to build all modules. This means that
 # a developer must always have an environment where every supporting library
 # is available. If that is not the case, the respective configure option may
@@ -672,18 +706,23 @@ SUBDIRS = compat runtime grammar . plugins/immark plugins/imuxsock \
 DISTCHECK_CONFIGURE_FLAGS = --with-systemdsystemunitdir=$$dc_install_base/$(systemdsystemunitdir) \
 	--enable-silent-rules --enable-rsyslogd --enable-omstdout \
 	--enable-imdiag --enable-testbench --enable-valgrind \
-	$(am__append_64) $(am__append_65) $(am__append_66) \
-	$(am__append_67) $(am__append_68) $(am__append_69) \
-	$(am__append_70) $(am__append_71) $(am__append_72) \
-	$(am__append_73) $(am__append_74) $(am__append_75) \
-	$(am__append_76) $(am__append_77) $(am__append_78) \
-	$(am__append_79) $(am__append_80) $(am__append_81) \
-	$(am__append_82) $(am__append_83) $(am__append_84) \
-	$(am__append_85) $(am__append_86) $(am__append_87) \
-	$(am__append_88) $(am__append_89) $(am__append_90) \
-	$(am__append_91) $(am__append_92) $(am__append_93) \
-	$(am__append_94) $(am__append_95) $(am__append_96) \
-	$(am__append_97)
+	$(am__append_71) $(am__append_72) $(am__append_73) \
+	$(am__append_74) $(am__append_75) $(am__append_76) \
+	$(am__append_77) $(am__append_78) $(am__append_79) \
+	$(am__append_80) $(am__append_81) $(am__append_82) \
+	$(am__append_83) $(am__append_84) $(am__append_85) \
+	$(am__append_86) $(am__append_87) $(am__append_88) \
+	$(am__append_89) $(am__append_90) $(am__append_91) \
+	$(am__append_92) $(am__append_93) $(am__append_94) \
+	$(am__append_95) $(am__append_96) $(am__append_97) \
+	$(am__append_98) $(am__append_99) $(am__append_100) \
+	$(am__append_101) $(am__append_102) $(am__append_103) \
+	$(am__append_104) $(am__append_105) $(am__append_106) \
+	$(am__append_107) $(am__append_108) $(am__append_109) \
+	$(am__append_110) $(am__append_111) $(am__append_112) \
+	$(am__append_113) $(am__append_114) $(am__append_115) \
+	$(am__append_116) $(am__append_117) $(am__append_118) \
+	$(am__append_119)
 ACLOCAL_AMFLAGS = -I m4
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive

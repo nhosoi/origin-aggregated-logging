@@ -25,7 +25,7 @@
 
 #include "nsd.h"
 
-#define NSD_OSSL_MAX_RCVBUF 8 * 1024 /* max size of buffer for message reception */
+#define NSD_OSSL_MAX_RCVBUF 16 * 1024 + 1/* TLS RFC 8449: max size of buffer for message reception */
 
 typedef enum {
 	osslRtry_None = 0,	/**< no call needs to be retried */
@@ -55,6 +55,11 @@ struct nsd_ossl_s {
 		OSSL_AUTH_CERTVALID = 2,
 		OSSL_AUTH_CERTANON = 3
 	} authMode;
+	enum {
+		OSSL_EXPIRED_PERMIT = 0,
+		OSSL_EXPIRED_DENY = 1,
+		OSSL_EXPIRED_WARN = 2
+	} permitExpiredCerts;
 	osslRtryCall_t rtryCall;/**< what must we retry? */
 	int rtryOsslErr;	/**< store ssl error code into like SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE */
 	int bIsInitiator;	/**< 0 if socket is the server end (listener), 1 if it is the initiator */
@@ -66,7 +71,7 @@ struct nsd_ossl_s {
 				 * set to 1 and changed to 0 after the first report. It is changed back to 1 after
 				 * one successful authentication. */
 	permittedPeers_t *pPermPeers; /* permitted peers */
-
+	uchar *gnutlsPriorityString;	/* gnutls priority string */
 	short	bOurCertIsInit;	/**< 1 if our certificate is initialized and must be deinit on destruction */
 	short	bOurKeyIsInit;	/**< 1 if our private key is initialized and must be deinit on destruction */
 	char *pszRcvBuf;
@@ -78,7 +83,6 @@ struct nsd_ossl_s {
 //	BIO *acc;		/* OpenSSL main BIO obj */
 	SSL *ssl;		/* OpenSSL main SSL obj */
 	osslSslState_t sslState;/**< what must we retry? */
-
 };
 
 /* interface is defined in nsd.h, we just implement it! */

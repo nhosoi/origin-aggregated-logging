@@ -5,7 +5,7 @@
 # parameters, with the external program successfully confirming all messages
 # and transactions.
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/omprog/.libs/omprog")
@@ -30,9 +30,7 @@ template(name="outfmt" type="string" string="%msg%\n")
 }
 '
 startup
-. $srcdir/diag.sh wait-startup
-. $srcdir/diag.sh injectmsg 0 10
-. $srcdir/diag.sh wait-queueempty
+injectmsg 0 10
 shutdown_when_empty
 wait_shutdown
 
@@ -106,7 +104,7 @@ while IFS= read -r line; do
         fi
         status_expected=true;
     fi
-    let "line_num++"
+    ((line_num++))
 done < $RSYSLOG_OUT_LOG
 
 if [[ -z "$error" && "$transaction_state" != "NONE" ]]; then

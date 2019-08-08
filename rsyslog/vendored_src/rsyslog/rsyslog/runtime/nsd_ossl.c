@@ -2,7 +2,7 @@
  *
  * An implementation of the nsd interface for OpenSSL.
  *
- * Copyright 2018-2018 Adiscon GmbH.
+ * Copyright 2018-2019 Adiscon GmbH.
  * Author: Andre Lorbach
  *
  * This file is part of the rsyslog runtime library.
@@ -84,6 +84,13 @@ static int bGlblSrvrInitDone = 0;	/**< 0 - server global init not yet done, 1 - 
 
 /* Main OpenSSL CTX pointer */
 static SSL_CTX *ctx;
+
+/* Static Helper variables for CERT status */
+static short bHaveCA;
+static short bHaveCert;
+static short bHaveKey;
+static int bAnonInit;
+static MUTEX_TYPE anonInit_mut = PTHREAD_MUTEX_INITIALIZER;
 
 /*--------------------------------------MT OpenSSL helpers ------------------------------------------*/
 static MUTEX_TYPE *mutex_buf = NULL;
@@ -181,50 +188,39 @@ int opensslh_THREAD_cleanup(void)
 	DBGPRINTF("openssl: multithread cleanup finished\n");
 	return 1;
 }
-/*--------------------------------------MT OpenSSL helpers ------------------------------------------*/
+/*-------------------------------------- MT OpenSSL helpers -----------------------------------------*/
 
 /*--------------------------------------OpenSSL helpers ------------------------------------------*/
 void osslLastSSLErrorMsg(int ret, SSL *ssl, int severity, const char* pszCallSource)
 {
 	unsigned long un_error = 0;
-//	char psz[256];
-	int iSSLErr = SSL_get_error(ssl, ret);
-
-	/* Check which kind of error we have */
-	dbgprintf("OpenSSL Error '%s(%d)' in '%s' with ret=%d\n",
-		ERR_error_string(iSSLErr, NULL), iSSLErr, pszCallSource, ret);
-	if(iSSLErr == SSL_ERROR_SSL) {
-		LogMsg(0, RS_RET_NO_ERRCODE, severity, "SSL_ERROR_SSL in '%s'", pszCallSource);
-	} else if(iSSLErr == SSL_ERROR_SYSCALL){
-		LogMsg(0, RS_RET_NO_ERRCODE, severity, "SSL_ERROR_SYSCALL in '%s'", pszCallSource);
-/*
-		if(ret == 0) {
-			// iSSLErr = ERR_get_error();
-			// iSSLErr = SSL_get_error(ssl, iSSLErr);
-			if(iSSLErr == 0) {
-				*psz = '\0';
-			} else {
-				ERR_error_string_n(ERR_get_error(), psz, sizeof(psz));
-			}
-		}
-		LogMsg(0, RS_RET_NO_ERRCODE, "SSL_ERROR_SYSCALL in '%s': %s",
-			pszCallSource, psz);
-*/
+	int iSSLErr = 0;
+	if (ssl == NULL) {
+		/* Output Error Info*/
+		dbgprintf("osslLastSSLErrorMsg: Error in '%s' with ret=%d\n", pszCallSource, ret);
 	} else {
-		LogMsg(0, RS_RET_NO_ERRCODE, severity, "SSL_ERROR_UNKNOWN in '%s', SSL_get_error: '%s(%d)'",
-			pszCallSource, ERR_error_string(iSSLErr, NULL), iSSLErr);
+		/* if object is set, get error code */
+		iSSLErr = SSL_get_error(ssl, ret);
+
+		/* Output error message */
+		dbgprintf("osslLastSSLErrorMsg: Error '%s(%d)' in '%s' with ret=%d\n",
+			ERR_error_string(iSSLErr, NULL), iSSLErr, pszCallSource, ret);
+		if(iSSLErr == SSL_ERROR_SSL) {
+			LogMsg(0, RS_RET_NO_ERRCODE, severity, "SSL_ERROR_SSL in '%s'", pszCallSource);
+		} else if(iSSLErr == SSL_ERROR_SYSCALL){
+			/* SSL doc says: For socket I/O on Unix systems, consult errno for details, so it
+			* is save to use errno in this case */
+			LogMsg(errno, RS_RET_NO_ERRCODE, severity, "SSL_ERROR_SYSCALL in '%s'", pszCallSource);
+
+		} else {
+			LogMsg(0, RS_RET_NO_ERRCODE, severity, "SSL_ERROR_UNKNOWN in '%s', SSL_get_error: '%s(%d)'",
+				pszCallSource, ERR_error_string(iSSLErr, NULL), iSSLErr);
+		}
 	}
 
 	/* Loop through ERR_get_error */
 	while ((un_error = ERR_get_error()) > 0){
-		LogMsg(0, RS_RET_NO_ERRCODE, severity, "Error Stack: %s", ERR_error_string(un_error, NULL) );
-		dbgprintf("OpenSSL Error Stack: %s\n", ERR_error_string(un_error, NULL) );
-	}
-
-	/* Loop through ERR_peek_last_error */
-	while ((un_error = ERR_peek_last_error()) != 0){
-		LogMsg(0, RS_RET_NO_ERRCODE, severity, "Error Stack: %s", ERR_error_string(un_error, NULL) );
-		dbgprintf("OpenSSL Error Stack: %s\n", ERR_error_string(un_error, NULL) );
+		LogMsg(0, RS_RET_NO_ERRCODE, severity, "OpenSSL Error Stack: %s", ERR_error_string(un_error, NULL) );
 	}
 }
 
@@ -233,35 +229,77 @@ int verify_callback(int status, X509_STORE_CTX *store)
 	char szdbgdata1[256];
 	char szdbgdata2[256];
 
-	if(status == 0) {
-		dbgprintf("verify_callback: certificate validation failed!\n");
+	dbgprintf("verify_callback: status %d\n", status);
 
+	if(status == 0) {
+		/* Retrieve all needed pointers */
 		X509 *cert = X509_STORE_CTX_get_current_cert(store);
 		int depth = X509_STORE_CTX_get_error_depth(store);
 		int err = X509_STORE_CTX_get_error(store);
+		SSL* ssl = X509_STORE_CTX_get_ex_data(store, SSL_get_ex_data_X509_STORE_CTX_idx());
+		int iVerifyMode = SSL_get_verify_mode(ssl);
+		nsd_ossl_t *pThis = (nsd_ossl_t*) SSL_get_ex_data(ssl, 0);
+		assert(pThis != NULL);
+
+		dbgprintf("verify_callback: Certificate validation failed, Mode (%d)!\n", iVerifyMode);
+
 		X509_NAME_oneline(X509_get_issuer_name(cert), szdbgdata1, sizeof(szdbgdata1));
 		X509_NAME_oneline(RSYSLOG_X509_NAME_oneline(cert), szdbgdata2, sizeof(szdbgdata2));
 
-		/* Log Warning only on EXPIRED */
-		if (err == X509_V_OK || err == X509_V_ERR_CERT_HAS_EXPIRED) {
-			LogMsg(0, RS_RET_NO_ERRCODE, LOG_WARNING,
-				"Certificate warning at depth: %d \n\t"
+		if (iVerifyMode != SSL_VERIFY_NONE) {
+			/* Handle expired Certificates **/
+			if (err == X509_V_OK || err == X509_V_ERR_CERT_HAS_EXPIRED) {
+				if (pThis->permitExpiredCerts == OSSL_EXPIRED_PERMIT) {
+					dbgprintf("verify_callback: EXPIRED cert but PERMITTED at depth: %d \n\t"
+						"issuer  = %s\n\t"
+						"subject = %s\n\t"
+						"err %d:%s\n", depth, szdbgdata1, szdbgdata2,
+						err, X509_verify_cert_error_string(err));
+
+					/* Set Status to OK*/
+					status = 1;
+				}
+				else if (pThis->permitExpiredCerts == OSSL_EXPIRED_WARN) {
+					LogMsg(0, RS_RET_NO_ERRCODE, LOG_WARNING,
+						"Certificate EXPIRED warning at depth: %d \n\t"
+						"issuer  = %s\n\t"
+						"subject = %s\n\t"
+						"err %d:%s",
+						depth, szdbgdata1, szdbgdata2,
+						err, X509_verify_cert_error_string(err));
+
+					/* Set Status to OK*/
+					status = 1;
+				}
+				else /* also default - if (pThis->permitExpiredCerts == OSSL_EXPIRED_DENY)*/ {
+					LogError(0, RS_RET_NO_ERRCODE,
+						"Certificate EXPIRED at depth: %d \n\t"
+						"issuer  = %s\n\t"
+						"subject = %s\n\t"
+						"err %d:%s",
+						depth, szdbgdata1, szdbgdata2,
+						err, X509_verify_cert_error_string(err));
+				}
+			} else {
+				/* all other error codes cause failure */
+				LogError(0, RS_RET_NO_ERRCODE,
+					"Certificate error at depth: %d \n\t"
+					"issuer  = %s\n\t"
+					"subject = %s\n\t"
+					"err %d:%s",
+					depth, szdbgdata1, szdbgdata2, err, X509_verify_cert_error_string(err));
+			}
+		} else {
+			/* do not verify certs in ANON mode, just log into debug */
+			dbgprintf("verify_callback: Certificate validation DISABLED but Error at depth: %d \n\t"
 				"issuer  = %s\n\t"
 				"subject = %s\n\t"
-				"err %d:%s",
-				depth, szdbgdata1, szdbgdata2, err, X509_verify_cert_error_string(err));
+				"err %d:%s\n", depth, szdbgdata1, szdbgdata2,
+				err, X509_verify_cert_error_string(err));
 
 			/* Set Status to OK*/
 			status = 1;
-		} else {
-			LogError(0, RS_RET_NO_ERRCODE,
-				"Certificate error at depth: %d \n\t"
-				"issuer  = %s\n\t"
-				"subject = %s\n\t"
-				"err %d:%s",
-				depth, szdbgdata1, szdbgdata2, err, X509_verify_cert_error_string(err));
 		}
-
 	}
 
 	return status;
@@ -400,50 +438,60 @@ osslGlblInit(void)
 	/* Setup certificates */
 	caFile = (const char *) glbl.GetDfltNetstrmDrvrCAF();
 	if(caFile == NULL) {
-		LogError(0, RS_RET_CA_CERT_MISSING, "Error: CA certificate is not set, cannot continue");
-		ABORT_FINALIZE(RS_RET_CA_CERT_MISSING);
+		LogMsg(0, RS_RET_CA_CERT_MISSING, LOG_WARNING,
+			"Warning: CA certificate is not set");
+		bHaveCA = 0;
+	} else {
+		bHaveCA	= 1;
 	}
 	certFile = (const char *) glbl.GetDfltNetstrmDrvrCertFile();
 	if(certFile == NULL) {
-		LogError(0, RS_RET_CERT_MISSING, "Error: Certificate file is not set, cannot continue");
-		ABORT_FINALIZE(RS_RET_CERT_MISSING);
-
+		LogMsg(0, RS_RET_CERT_MISSING, LOG_WARNING,
+			"Warning: Certificate file is not set");
+		bHaveCert = 0;
+	} else {
+		bHaveCert = 1;
 	}
 	keyFile = (const char *) glbl.GetDfltNetstrmDrvrKeyFile();
 	if(keyFile == NULL) {
-		LogError(0, RS_RET_CERTKEY_MISSING, "Error: Key file is not set, cannot continue");
-		ABORT_FINALIZE(RS_RET_CERTKEY_MISSING);
-
+		LogMsg(0, RS_RET_CERTKEY_MISSING, LOG_WARNING,
+			"Warning: Key file is not set");
+		bHaveKey = 0;
+	} else {
+		bHaveKey = 1;
 	}
 
 	/* Create main CTX Object */
 	ctx = SSL_CTX_new(SSLv23_method());
-	if(SSL_CTX_load_verify_locations(ctx, caFile, NULL) != 1) {
-		LogError(0, RS_RET_NO_ERRCODE, "Error: CA certificate could not be accessed."
-				" Is the file at the right path? And do we have the permissions?");
-		ABORT_FINALIZE(RS_RET_NO_ERRCODE);
+	if(bHaveCA == 1 && SSL_CTX_load_verify_locations(ctx, caFile, NULL) != 1) {
+		LogError(0, RS_RET_TLS_CERT_ERR, "Error: CA certificate could not be accessed. "
+				"Check at least: 1) file path is correct, 2) file exist, "
+				"3) permissions are correct, 4) file content is correct. "
+				"Open ssl error info may follow in next messages");
+		osslLastSSLErrorMsg(0, NULL, LOG_ERR, "osslGlblInit");
+		ABORT_FINALIZE(RS_RET_TLS_CERT_ERR);
 	}
-	if(SSL_CTX_use_certificate_file(ctx, certFile, SSL_FILETYPE_PEM) != 1) {
-		LogError(0, RS_RET_NO_ERRCODE, "Error: Certificate file could not be "
-				"accessed. Is the file at the right path? And do we have the "
-				"permissions?");
-		ABORT_FINALIZE(RS_RET_NO_ERRCODE);
+	if(bHaveCert == 1 && SSL_CTX_use_certificate_file(ctx, certFile, SSL_FILETYPE_PEM) != 1) {
+		LogError(0, RS_RET_TLS_CERT_ERR, "Error: Certificate could not be accessed. "
+				"Check at least: 1) file path is correct, 2) file exist, "
+				"3) permissions are correct, 4) file content is correct. "
+				"Open ssl error info may follow in next messages");
+		osslLastSSLErrorMsg(0, NULL, LOG_ERR, "osslGlblInit");
+		ABORT_FINALIZE(RS_RET_TLS_CERT_ERR);
 	}
-	if(SSL_CTX_use_PrivateKey_file(ctx, keyFile, SSL_FILETYPE_PEM) != 1) {
-		LogError(0, RS_RET_NO_ERRCODE, "Error: Key file could not be accessed. "
-				"Is the file at the right path? And do we have the permissions?");
-		ABORT_FINALIZE(RS_RET_NO_ERRCODE);
+	if(bHaveKey == 1 && SSL_CTX_use_PrivateKey_file(ctx, keyFile, SSL_FILETYPE_PEM) != 1) {
+		LogError(0, RS_RET_TLS_KEY_ERR , "Error: Key could not be accessed. "
+				"Check at least: 1) file path is correct, 2) file exist, "
+				"3) permissions are correct, 4) file content is correct. "
+				"Open ssl error info may follow in next messages");
+		osslLastSSLErrorMsg(0, NULL, LOG_ERR, "osslGlblInit");
+		ABORT_FINALIZE(RS_RET_TLS_KEY_ERR);
 	}
 
 	/* Set CTX Options */
 	SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);		/* Disable insecure SSLv2 Protocol */
 	SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3);		/* Disable insecure SSLv3 Protocol */
 	SSL_CTX_sess_set_cache_size(ctx,1024);			/* TODO: make configurable? */
-
-	/* TODO: DO ONLY SUPPORT DEFAULT CIPHERS YET
-	SSL_CTX_set_cipher_list(ctx,"ALL");			Support all ciphers */
-// TODO MORE NEEDED 	SSL_CTX_set_ecdh_auto(ctx, 1);
-	/* Enable Support for automatic EC temporary key parameter selection. */
 
 	/* Set default VERIFY Options for OpenSSL CTX - and CALLBACK */
 	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, verify_callback);
@@ -452,10 +500,39 @@ osslGlblInit(void)
 	SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
 
 	bGlblSrvrInitDone = 1;
-
+	/* Anon Ciphers will only be initialized when Authmode is set to ANON later */
+	bAnonInit = 0;
 finalize_it:
 	RETiRet;
 }
+
+/* Init Anon OpenSSL helpers */
+static rsRetVal
+osslAnonInit(void)
+{
+	DEFiRet;
+	pthread_mutex_lock(&anonInit_mut);
+	if (bAnonInit == 1) {
+		/* we are done */
+		FINALIZE;
+	}
+	dbgprintf("osslAnonInit Init Anon OpenSSL helpers\n");
+
+	#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+	/* Enable Support for automatic EC temporary key parameter selection. */
+	SSL_CTX_set_ecdh_auto(ctx, 1);
+	#else
+	dbgprintf("osslAnonInit: openssl to old, cannot use SSL_CTX_set_ecdh_auto."
+		"Using SSL_CTX_set_tmp_ecdh with NID_X9_62_prime256v1/() instead.\n");
+	SSL_CTX_set_tmp_ecdh(ctx, EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+	#endif
+
+	bAnonInit = 1;
+finalize_it:
+	pthread_mutex_unlock(&anonInit_mut);
+	RETiRet;
+}
+
 
 /* try to receive a record from the remote peer. This works with
  * our own abstraction and handles local buffering and EAGAIN.
@@ -471,15 +548,36 @@ osslRecordRecv(nsd_ossl_t *pThis)
 	ssize_t lenRcvd;
 	DEFiRet;
 	int err;
+	int local_errno;
 
 	ISOBJ_TYPE_assert(pThis, nsd_ossl);
 	DBGPRINTF("osslRecordRecv: start\n");
 
 	lenRcvd = SSL_read(pThis->ssl, pThis->pszRcvBuf, NSD_OSSL_MAX_RCVBUF);
 	if(lenRcvd > 0) {
+		DBGPRINTF("osslRecordRecv: SSL_read received %zd bytes\n", lenRcvd);
 		pThis->lenRcvBuf = lenRcvd;
 		pThis->ptrRcvBuf = 0;
+
+		/* Check for additional data in SSL buffer */
+		int iBytesLeft = SSL_pending(pThis->ssl);
+		if (iBytesLeft > 0 ){
+			DBGPRINTF("osslRecordRecv: %d Bytes pending after SSL_Read, expand buffer.\n", iBytesLeft);
+			/* realloc buffer size and preserve char content */
+			CHKmalloc(pThis->pszRcvBuf = realloc(pThis->pszRcvBuf, NSD_OSSL_MAX_RCVBUF+iBytesLeft));
+
+			/* 2nd read will read missing bytes from the current SSL Packet */
+			lenRcvd = SSL_read(pThis->ssl, pThis->pszRcvBuf+NSD_OSSL_MAX_RCVBUF, iBytesLeft);
+			if(lenRcvd > 0) {
+				DBGPRINTF("osslRecordRecv: 2nd SSL_read received %zd bytes\n",
+					(NSD_OSSL_MAX_RCVBUF+lenRcvd));
+				pThis->lenRcvBuf = NSD_OSSL_MAX_RCVBUF+lenRcvd;
+			} else {
+				goto sslerr;
+			}
+		}
 	} else {
+sslerr:
 		err = SSL_get_error(pThis->ssl, lenRcvd);
 		if(	err == SSL_ERROR_ZERO_RETURN ) {
 			DBGPRINTF("osslRecordRecv: SSL_ERROR_ZERO_RETURN received, connection may closed already\n");
@@ -487,9 +585,20 @@ osslRecordRecv(nsd_ossl_t *pThis)
 		}
 		else if(err != SSL_ERROR_WANT_READ &&
 			err != SSL_ERROR_WANT_WRITE) {
-			/* Output error and abort */
+			DBGPRINTF("osslRecordRecv: SSL_get_error = %d\n", err);
+			/* Save errno */
+			local_errno = errno;
+
+			/* Output OpenSSL error*/
 			osslLastSSLErrorMsg(lenRcvd, pThis->ssl, LOG_ERR, "osslRecordRecv");
-			ABORT_FINALIZE(RS_RET_NO_ERRCODE);
+			/* Check for underlaying socket errors **/
+			if (local_errno == ECONNRESET) {
+				DBGPRINTF("osslRecordRecv: Errno %d, connection resetted by peer\n", local_errno);
+				ABORT_FINALIZE(RS_RET_CLOSED);
+			} else {
+				DBGPRINTF("osslRecordRecv: Errno %d\n", local_errno);
+				ABORT_FINALIZE(RS_RET_NO_ERRCODE);
+			}
 		} else {
 			DBGPRINTF("osslRecordRecv: SSL_get_error = %d\n", err);
 			pThis->rtryCall =  osslRtry_recv;
@@ -511,18 +620,38 @@ osslInitSession(nsd_ossl_t *pThis) /* , nsd_ossl_t *pServer) */
 {
 	DEFiRet;
 	BIO *client;
+	char pristringBuf[4096];
 
 	nsd_ptcp_t *pPtcp = (nsd_ptcp_t*) pThis->pTcp;
 
 	if(!(pThis->ssl = SSL_new(ctx))) {
+		pThis->ssl = NULL;
 		osslLastSSLErrorMsg(0, pThis->ssl, LOG_ERR, "osslInitSession");
 	}
 
 	if (pThis->authMode != OSSL_AUTH_CERTANON) {
-		dbgprintf("osslInitSession: enable certificate checking\n");
+		dbgprintf("osslInitSession: enable certificate checking (Mode=%d)\n", pThis->authMode);
 		/* Enable certificate valid checking */
 		SSL_set_verify(pThis->ssl, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
-		SSL_set_verify_depth(pThis->ssl, 4);
+		SSL_set_verify_depth(pThis->ssl, 2);
+	}
+
+	if (bAnonInit == 1) { /* no mutex needed, read-only after init */
+		/* Allow ANON Ciphers */
+		#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+		 /* NOTE: do never use: +eNULL, it DISABLES encryption! */
+		strncpy(pristringBuf, "ALL:+COMPLEMENTOFDEFAULT:+ADH:+ECDH:+aNULL@SECLEVEL=0",
+			sizeof(pristringBuf));
+		#else
+		strncpy(pristringBuf, "ALL:+COMPLEMENTOFDEFAULT:+ADH:+ECDH:+aNULL",
+			sizeof(pristringBuf));
+		#endif
+
+		dbgprintf("osslInitSession: setting anon ciphers: %s\n", pristringBuf);
+		if ( SSL_set_cipher_list(pThis->ssl, pristringBuf) == 0 ){
+			dbgprintf("osslInitSession: Error setting ciphers '%s'\n", pristringBuf);
+			ABORT_FINALIZE(RS_RET_SYS_ERR);
+		}
 	}
 
 	/* Create BIO from ptcp socket! */
@@ -581,14 +710,8 @@ osslChkPeerFingerprint(nsd_ossl_t *pThis, X509 *pCert)
 	bFoundPositiveMatch = 0;
 	pPeer = pThis->pPermPeers;
 	while(pPeer != NULL && !bFoundPositiveMatch) {
-/* // VERBOSE
-dbgprintf("osslChkPeerFingerprint: Compare '%s'  against Peerfingerprint '%s'\n",
-	pPeer->pszID, cstrGetSzStrNoNULL(pstrFingerprint));
-*/
 		if(!rsCStrSzStrCmp(pstrFingerprint, pPeer->pszID, strlen((char*) pPeer->pszID))) {
-// VERBOSE
-dbgprintf("osslChkPeerFingerprint: peer's certificate MATCH found: %s\n", pPeer->pszID);
-
+			dbgprintf("osslChkPeerFingerprint: peer's certificate MATCH found: %s\n", pPeer->pszID);
 			bFoundPositiveMatch = 1;
 		} else {
 			pPeer = pPeer->pNext;
@@ -641,10 +764,6 @@ osslChkOnePeerName(nsd_ossl_t *pThis, X509 *pCert, uchar *pszPeerID, int *pbFoun
 	if(pThis->pPermPeers) { /* do we have configured peer IDs? */
 		pPeer = pThis->pPermPeers;
 		while(pPeer != NULL) {
-/* // VERBOSE
-dbgprintf("osslChkOnePeerName: Compare '%s'  against Peercert '%s'\n",
-	pPeer->pszID, x509name);
-*/
 			CHKiRet(net.PermittedPeerWildcardMatch(pPeer, pszPeerID, pbFoundPositiveMatch));
 			if(*pbFoundPositiveMatch)
 				break;
@@ -784,14 +903,27 @@ osslChkPeerCertValidity(nsd_ossl_t *pThis)
 	iVerErr = SSL_get_verify_result(pThis->ssl);
 	if (iVerErr != X509_V_OK) {
 		if (iVerErr == X509_V_ERR_CERT_HAS_EXPIRED) {
-			LogError(0, RS_RET_CERT_EXPIRED, "not permitted to talk to peer: certificate expired: %s",
-				X509_verify_cert_error_string(iVerErr));
-			ABORT_FINALIZE(RS_RET_CERT_EXPIRED);
+			if (pThis->permitExpiredCerts == OSSL_EXPIRED_DENY) {
+				LogError(0, RS_RET_CERT_EXPIRED,
+					"CertValidity check - not permitted to talk to peer: certificate expired: %s",
+					X509_verify_cert_error_string(iVerErr));
+				ABORT_FINALIZE(RS_RET_CERT_EXPIRED);
+			} else if (pThis->permitExpiredCerts == OSSL_EXPIRED_WARN) {
+				LogMsg(0, RS_RET_NO_ERRCODE, LOG_WARNING,
+					"CertValidity check - warning talking to peer: certificate expired: %s",
+					X509_verify_cert_error_string(iVerErr));
+			} else {
+				dbgprintf("osslChkPeerCertValidity: talking to peer: certificate expired: %s\n",
+					X509_verify_cert_error_string(iVerErr));
+			}/* Else do nothing */
 		} else {
 			LogError(0, RS_RET_CERT_INVALID, "not permitted to talk to peer: "
 				"certificate validation failed: %s", X509_verify_cert_error_string(iVerErr));
 			ABORT_FINALIZE(RS_RET_CERT_INVALID);
 		}
+	} else {
+		dbgprintf("osslChkPeerCertValidity: client certificate validation success: %s\n",
+			X509_verify_cert_error_string(iVerErr));
 	}
 
 finalize_it:
@@ -866,7 +998,7 @@ osslEndSess(nsd_ossl_t *pThis)
 		ret = SSL_shutdown(pThis->ssl);
 		if (ret <= 0) {
 			err = SSL_get_error(pThis->ssl, ret);
-			DBGPRINTF("osslEndSess: shutdown failed with err = %d, forcing ssl shutdown!\n", err);
+			DBGPRINTF("osslEndSess: shutdown failed with err = %d\n", err);
 
 			/* ignore those SSL Errors on shutdown */
 			if(	err != SSL_ERROR_SYSCALL &&
@@ -877,6 +1009,13 @@ osslEndSess(nsd_ossl_t *pThis)
 				osslLastSSLErrorMsg(ret, pThis->ssl, LOG_WARNING, "osslEndSess");
 			}
 
+			/* Shutdown not finished, call SSL_read to do a bidirectional shutdown, see doc for more:
+			*	https://www.openssl.org/docs/man1.1.1/man3/SSL_shutdown.html
+			*/
+			char rcvBuf[NSD_OSSL_MAX_RCVBUF];
+			int iBytesRet = SSL_read(pThis->ssl, rcvBuf, NSD_OSSL_MAX_RCVBUF);
+			DBGPRINTF("osslEndSess: Forcing ssl shutdown SSL_read (%d) to do a bidirectional shutdown\n",
+				iBytesRet);
 			DBGPRINTF("osslEndSess: session closed (un)successfully \n");
 		} else {
 			DBGPRINTF("osslEndSess: session closed successfully \n");
@@ -916,7 +1055,7 @@ CODESTARTobjDestruct(nsd_ossl)
 		free(pThis->pszConnectHost);
 	}
 
-	if(pThis->pszRcvBuf == NULL) {
+	if(pThis->pszRcvBuf != NULL) {
 		free(pThis->pszRcvBuf);
 	}
 ENDobjDestruct(nsd_ossl)
@@ -928,7 +1067,7 @@ ENDobjDestruct(nsd_ossl)
  * rgerhards, 2008-04-28
  */
 static rsRetVal
-SetMode(nsd_t *pNsd, int mode)
+SetMode(nsd_t *pNsd, const int mode)
 {
 	DEFiRet;
 	nsd_ossl_t *pThis = (nsd_ossl_t*) pNsd;
@@ -952,7 +1091,7 @@ SetMode(nsd_t *pNsd, int mode)
  * rgerhards, 2008-05-16
  */
 static rsRetVal
-SetAuthMode(nsd_t *pNsd, uchar *mode)
+SetAuthMode(nsd_t *const pNsd, uchar *const mode)
 {
 	DEFiRet;
 	nsd_ossl_t *pThis = (nsd_ossl_t*) pNsd;
@@ -966,11 +1105,52 @@ SetAuthMode(nsd_t *pNsd, uchar *mode)
 		pThis->authMode = OSSL_AUTH_CERTVALID;
 	} else if(!strcasecmp((char*) mode, "anon")) {
 		pThis->authMode = OSSL_AUTH_CERTANON;
+
 	} else {
 		LogError(0, RS_RET_VALUE_NOT_SUPPORTED, "error: authentication mode '%s' not supported by "
 				"ossl netstream driver", mode);
 		ABORT_FINALIZE(RS_RET_VALUE_NOT_SUPPORTED);
 	}
+
+		/* Init Anon OpenSSL stuff */
+		CHKiRet(osslAnonInit());
+
+	dbgprintf("SetAuthMode: Set Mode %s/%d\n", mode, pThis->authMode);
+
+/* TODO: clear stored IDs! */
+
+finalize_it:
+	RETiRet;
+}
+
+
+/* Set the PermitExpiredCerts mode. For us, the following is supported:
+ * on - fail if certificate is expired
+ * off - ignore expired certificates
+ * warn - warn if certificate is expired
+ * alorbach, 2018-12-20
+ */
+static rsRetVal
+SetPermitExpiredCerts(nsd_t *pNsd, uchar *mode)
+{
+	DEFiRet;
+	nsd_ossl_t *pThis = (nsd_ossl_t*) pNsd;
+
+	ISOBJ_TYPE_assert((pThis), nsd_ossl);
+	/* default is set to warn! */
+	if(mode == NULL || !strcasecmp((char*)mode, "warn")) {
+		pThis->permitExpiredCerts = OSSL_EXPIRED_WARN;
+	} else if(!strcasecmp((char*) mode, "off")) {
+		pThis->permitExpiredCerts = OSSL_EXPIRED_DENY;
+	} else if(!strcasecmp((char*) mode, "on")) {
+		pThis->permitExpiredCerts = OSSL_EXPIRED_PERMIT;
+	} else {
+		LogError(0, RS_RET_VALUE_NOT_SUPPORTED, "error: permitexpiredcerts mode '%s' not supported by "
+				"ossl netstream driver", mode);
+		ABORT_FINALIZE(RS_RET_VALUE_NOT_SUPPORTED);
+	}
+
+	dbgprintf("SetPermitExpiredCerts: Set Mode %s/%d\n", mode, pThis->permitExpiredCerts);
 
 /* TODO: clear stored IDs! */
 
@@ -1104,7 +1284,7 @@ Abort(nsd_t *pNsd)
  */
 static rsRetVal
 LstnInit(netstrms_t *pNS, void *pUsr, rsRetVal(*fAddLstn)(void*,netstrm_t*),
-	 uchar *pLstnPort, uchar *pLstnIP, int iSessMax)
+	 uchar *pLstnPort, uchar *pLstnIP, int iSessMax, uchar *pszLstnPortFileName)
 {
 	DEFiRet;
 
@@ -1112,7 +1292,8 @@ LstnInit(netstrms_t *pNS, void *pUsr, rsRetVal(*fAddLstn)(void*,netstrm_t*),
 		fAddLstn, pLstnIP, pLstnPort, iSessMax);
 
 	/* Init TCP Listener using base ptcp class */
-	iRet = nsd_ptcp.LstnInit(pNS, pUsr, fAddLstn, pLstnPort, pLstnIP, iSessMax);
+	iRet = nsd_ptcp.LstnInit(pNS, pUsr, fAddLstn, pLstnPort, pLstnIP,
+			iSessMax, pszLstnPortFileName);
 	RETiRet;
 }
 
@@ -1294,9 +1475,13 @@ AcceptConnReq(nsd_t *pNsd, nsd_t **ppNew)
 	}
 
 	/* If we reach this point, we are in TLS mode */
-	CHKiRet(osslInitSession(pNew)); /*, pThis));*/
 	pNew->authMode = pThis->authMode;
+	pNew->permitExpiredCerts = pThis->permitExpiredCerts;
 	pNew->pPermPeers = pThis->pPermPeers;
+	CHKiRet(osslInitSession(pNew));
+
+	/* Store nsd_ossl_t* reference in SSL obj */
+	SSL_set_ex_data(pNew->ssl, 0, pThis);
 
 	/* We now do the handshake */
 	CHKiRet(osslHandshakeCheck(pNew));
@@ -1368,7 +1553,7 @@ Rcv(nsd_t *pNsd, uchar *pBuf, ssize_t *pLenBuf, int *const oserr)
 
 	if(pThis->pszRcvBuf == NULL) {
 		/* we have no buffer, so we need to malloc one */
-		CHKmalloc(pThis->pszRcvBuf = MALLOC(NSD_OSSL_MAX_RCVBUF));
+		CHKmalloc(pThis->pszRcvBuf = malloc(NSD_OSSL_MAX_RCVBUF));
 		pThis->lenRcvBuf = -1;
 	}
 
@@ -1398,7 +1583,13 @@ Rcv(nsd_t *pNsd, uchar *pBuf, ssize_t *pLenBuf, int *const oserr)
 
 finalize_it:
 	if (iRet != RS_RET_OK) {
-		if (iRet != RS_RET_RETRY) {
+		if (iRet == RS_RET_CLOSED) {
+			if (pThis->ssl != NULL) {
+				/* Set SSL Shutdown */
+				SSL_shutdown(pThis->ssl);
+				dbgprintf("osslRcv SSL_shutdown done\n");
+			}
+		} else if (iRet != RS_RET_RETRY) {
 			/* We need to free the receive buffer in error error case unless a retry is wanted. , if we
 			 * allocated one. -- rgerhards, 2008-12-03 -- moved here by alorbach, 2015-12-01
 			 */
@@ -1406,7 +1597,7 @@ finalize_it:
 			free(pThis->pszRcvBuf);
 			pThis->pszRcvBuf = NULL;
 		} else {
-			/* Check for SSL Shutdown */
+			/* RS_RET_RETRY | Check for SSL Shutdown */
 			if (SSL_get_shutdown(pThis->ssl) == SSL_RECEIVED_SHUTDOWN) {
 				dbgprintf("osslRcv received SSL_RECEIVED_SHUTDOWN!\n");
 				iRet = RS_RET_CLOSED;
@@ -1462,12 +1653,6 @@ Send(nsd_t *pNsd, uchar *pBuf, ssize_t *pLenBuf)
 				err != SSL_ERROR_WANT_WRITE) {
 				/* Output error and abort */
 				osslLastSSLErrorMsg(iSent, pThis->ssl, LOG_ERR, "Send");
-/*
-				LogError(0, RS_RET_NO_ERRCODE, "Error while sending data: "
-						"[%d] %s", err, ERR_error_string(err, NULL));
-				LogError(0, RS_RET_NO_ERRCODE, "Error is: %s",
-						ERR_reason_error_string(err));
-*/
 				ABORT_FINALIZE(RS_RET_NO_ERRCODE);
 			} else {
 				/* Check for SSL Shutdown */
@@ -1503,10 +1688,10 @@ Connect(nsd_t *pNsd, int family, uchar *port, uchar *host, char *device)
 {
 	DEFiRet;
 	DBGPRINTF("openssl: entering Connect family=%d, device=%s\n", family, device);
-	nsd_ossl_t*pThis = (nsd_ossl_t*) pNsd;
-	nsd_ptcp_t *pPtcp = (nsd_ptcp_t*) pThis->pTcp;
-
+	nsd_ossl_t* pThis = (nsd_ossl_t*) pNsd;
+	nsd_ptcp_t* pPtcp = (nsd_ptcp_t*) pThis->pTcp;
 	BIO *conn;
+	char pristringBuf[4096];
 
 	ISOBJ_TYPE_assert(pThis, nsd_ossl);
 	assert(port != NULL);
@@ -1524,6 +1709,38 @@ Connect(nsd_t *pNsd, int family, uchar *port, uchar *host, char *device)
 	conn = BIO_new_socket(pPtcp->sock, BIO_CLOSE /*BIO_NOCLOSE*/);
 	dbgprintf("Connect: Init conn BIO[%p] done\n", (void *)conn);
 
+	/*if we reach this point we are in tls mode */
+	DBGPRINTF("Connect: TLS Mode\n");
+	if(!(pThis->ssl = SSL_new(ctx))) {
+		pThis->ssl = NULL;
+		osslLastSSLErrorMsg(0, pThis->ssl, LOG_ERR, "Connect");
+		ABORT_FINALIZE(RS_RET_NO_ERRCODE);
+	}
+
+	if (pThis->authMode != OSSL_AUTH_CERTANON) {
+		dbgprintf("Connect: enable certificate checking (Mode=%d)\n", pThis->authMode);
+		/* Enable certificate valid checking */
+		SSL_set_verify(pThis->ssl, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
+		SSL_set_verify_depth(pThis->ssl, 2);
+	}
+
+	if (bAnonInit == 1) { /* no mutex needed, read-only after init */
+		/* Allow ANON Ciphers */
+		#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+		 /* NOTE: do never use: +eNULL, it DISABLES encryption! */
+		strncpy(pristringBuf, "ALL:+COMPLEMENTOFDEFAULT:+ADH:+ECDH:+aNULL@SECLEVEL=0",
+			sizeof(pristringBuf));
+		#else
+		strncpy(pristringBuf, "ALL:+COMPLEMENTOFDEFAULT:+ADH:+ECDH:+aNULL",
+			sizeof(pristringBuf));
+		#endif
+
+		dbgprintf("Connect: setting anon ciphers: %s\n", pristringBuf);
+		if ( SSL_set_cipher_list(pThis->ssl, pristringBuf) == 0 ){
+			dbgprintf("Connect: Error setting ciphers '%s'\n", pristringBuf);
+			ABORT_FINALIZE(RS_RET_SYS_ERR);
+		}
+	}
 
 	/* Set debug Callback for client BIO as well! */
 	BIO_set_callback(conn, BIO_debug_callback);
@@ -1531,17 +1748,13 @@ Connect(nsd_t *pNsd, int family, uchar *port, uchar *host, char *device)
 /* TODO: still needed? Set to NON blocking ! */
 BIO_set_nbio( conn, 1 );
 
-	/*if we reach this point we are in tls mode */
-	DBGPRINTF("Connect: TLS Mode\n");
-	if(!(pThis->ssl = SSL_new(ctx))) {
-		osslLastSSLErrorMsg(0, pThis->ssl, LOG_ERR, "Connect");
-/*		LogError(0, RS_RET_NO_ERRCODE, "Error creating an SSL context"); */
-		ABORT_FINALIZE(RS_RET_NO_ERRCODE);
-	}
 	SSL_set_bio(pThis->ssl, conn, conn);
 	SSL_set_connect_state(pThis->ssl); /*sets ssl to work in client mode.*/
 	pThis->sslState = osslClient; /*set Client state */
 	pThis->bHaveSess = 1;
+
+	/* Store nsd_ossl_t* reference in SSL obj */
+	SSL_set_ex_data(pThis->ssl, 0, pThis);
 
 	/* We now do the handshake */
 	iRet = osslHandshakeCheck(pThis);
@@ -1567,6 +1780,87 @@ static rsRetVal
 SetGnutlsPriorityString(__attribute__((unused)) nsd_t *pNsd, __attribute__((unused)) uchar *gnutlsPriorityString)
 {
 	DEFiRet;
+	nsd_ossl_t* pThis = (nsd_ossl_t*) pNsd;
+	ISOBJ_TYPE_assert(pThis, nsd_ossl);
+
+#if OPENSSL_VERSION_NUMBER >= 0x10020000L
+	char *pCurrentPos;
+	char *pNextPos;
+	char *pszCmd;
+	char *pszValue;
+	int iConfErr;
+
+	pThis->gnutlsPriorityString = gnutlsPriorityString;
+	dbgprintf("gnutlsPriorityString: set to '%s'\n", gnutlsPriorityString);
+
+	/* Set working pointer */
+	pCurrentPos = (char*) pThis->gnutlsPriorityString;
+	if (pCurrentPos != NULL && strlen(pCurrentPos) > 0) {
+		// Create CTX Config Helper
+		SSL_CONF_CTX *cctx;
+		cctx = SSL_CONF_CTX_new();
+		if (pThis->sslState == osslServer) {
+			SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_SERVER);
+		} else {
+			SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_CLIENT);
+		}
+		SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_FILE);
+		SSL_CONF_CTX_set_flags(cctx, SSL_CONF_FLAG_SHOW_ERRORS);
+		SSL_CONF_CTX_set_ssl_ctx(cctx, ctx);
+
+		do
+		{
+			pNextPos = index(pCurrentPos, '=');
+			if (pNextPos != NULL) {
+				while (	*pCurrentPos != '\0' &&
+					(*pCurrentPos == ' ' || *pCurrentPos == '\t') )
+					pCurrentPos++;
+				pszCmd = strndup(pCurrentPos, pNextPos-pCurrentPos);
+				pCurrentPos = pNextPos+1;
+				pNextPos = index(pCurrentPos, '\n');
+				pszValue = (pNextPos == NULL ?
+						strdup(pCurrentPos) :
+						strndup(pCurrentPos, pNextPos - pCurrentPos));
+				pCurrentPos = (pNextPos == NULL ? NULL : pNextPos+1);
+
+				/* Add SSL Conf Command */
+				iConfErr = SSL_CONF_cmd(cctx, pszCmd, pszValue);
+				if (iConfErr > 0) {
+					dbgprintf("gnutlsPriorityString: Successfully added Command '%s':'%s'\n",
+						pszCmd, pszValue);
+				}
+				else {
+					LogError(0, RS_RET_SYS_ERR, "Failed to added Command: %s:'%s' "
+							"in gnutlsPriorityString with error '%d'",
+							pszCmd, pszValue, iConfErr);
+				}
+
+				free(pszCmd);
+				free(pszValue);
+			} else {
+				/* Abort further parsing */
+				pCurrentPos = NULL;
+			}
+		}
+		while (pCurrentPos != NULL);
+
+		/* Finalize SSL Conf */
+		iConfErr = SSL_CONF_CTX_finish(cctx);
+		if (!iConfErr) {
+			LogError(0, RS_RET_SYS_ERR, "Error: setting openssl command parameters: %s"
+					"Open ssl error info may follow in next messages",
+					pThis->gnutlsPriorityString);
+			osslLastSSLErrorMsg(0, NULL, LOG_ERR, "SetGnutlsPriorityString");
+		}
+	}
+#else
+	pThis->gnutlsPriorityString = gnutlsPriorityString;
+	dbgprintf("gnutlsPriorityString: set to '%s'\n", gnutlsPriorityString);
+	LogError(0, RS_RET_SYS_ERR, "Error: OpenSSL Version to old, SSL_CONF_cmd API "
+			" is not supported.");
+
+#endif
+
 	RETiRet;
 }
 
@@ -1593,6 +1887,7 @@ CODESTARTobjQueryInterface(nsd_ossl)
 	pIf->SetSock = SetSock;
 	pIf->SetMode = SetMode;
 	pIf->SetAuthMode = SetAuthMode;
+	pIf->SetPermitExpiredCerts = SetPermitExpiredCerts;
 	pIf->SetPermPeers =SetPermPeers;
 	pIf->CheckConnection = CheckConnection;
 	pIf->GetRemoteHName = GetRemoteHName;
@@ -1661,5 +1956,3 @@ CODESTARTmodInit
 	CHKiRet(nsd_osslClassInit(pModInfo)); /* must be done after tcps_sess, as we use it */
 	CHKiRet(nsdsel_osslClassInit(pModInfo)); /* must be done after tcps_sess, as we use it */
 ENDmodInit
-/* vi:set ai:
- */

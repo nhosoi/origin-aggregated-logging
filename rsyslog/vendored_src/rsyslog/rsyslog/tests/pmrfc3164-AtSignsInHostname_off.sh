@@ -1,10 +1,10 @@
 #!/bin/bash
 # add 2016-11-22 by Pascal Withopf, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514" ruleset="customparser")
+input(type="imtcp" port="'$TCPFLOOD_PORT'" ruleset="customparser")
 parser(name="custom.rfc3164" type="pmrfc3164" permit.AtSignsInHostname="off")
 template(name="outfmt" type="string" string="-%hostname%-%syslogtag%-%msg%-\n")
 

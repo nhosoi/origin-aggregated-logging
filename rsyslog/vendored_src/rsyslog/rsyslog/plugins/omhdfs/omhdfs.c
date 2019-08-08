@@ -88,7 +88,7 @@ typedef struct {
 typedef struct _instanceData {
 	file_t *pFile;
 	uchar ioBuf[64*1024];
-	unsigned offsBuf;
+	size_t offsBuf;
 } instanceData;
 
 typedef struct wrkrInstanceData {
@@ -212,7 +212,7 @@ filePrepare(file_t *pFile)
 	/* file does not exist, create it (and eventually parent directories */
 	if(1) { // check if bCreateDirs
 		len = ustrlen(pFile->name) + 1;
-		CHKmalloc(pszWork = MALLOC(len));
+		CHKmalloc(pszWork = malloc(len));
 		memcpy(pszWork, pFile->name, len);
 		for(p = pszWork+1 ; *p ; p++)
 			if(*p == '/') {
@@ -360,7 +360,7 @@ finalize_it:
 static rsRetVal
 addData(instanceData *pData, uchar *buf)
 {
-	unsigned len;
+	size_t len;
 	DEFiRet;
 
 	len = strlen((char*)buf);

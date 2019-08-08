@@ -42,8 +42,6 @@ BEGINinterface(netstrm) /* name must also be changed in ENDinterface macro! */
 	rsRetVal (*ConstructFinalize)(netstrm_t *pThis);
 	rsRetVal (*Destruct)(netstrm_t **ppThis);
 	rsRetVal (*AbortDestruct)(netstrm_t **ppThis);
-	rsRetVal (*LstnInit)(netstrms_t *pNS, void *pUsr, rsRetVal(*)(void*,netstrm_t*),
-		             uchar *pLstnPort, uchar *pLstnIP, int iSessMax);
 	rsRetVal (*AcceptConnReq)(netstrm_t *pThis, netstrm_t **ppNew);
 	rsRetVal (*Rcv)(netstrm_t *pThis, uchar *pRcvBuf, ssize_t *pLenBuf, int *oserr);
 	rsRetVal (*Send)(netstrm_t *pThis, uchar *pBuf, ssize_t *pLenBuf);
@@ -52,6 +50,7 @@ BEGINinterface(netstrm) /* name must also be changed in ENDinterface macro! */
 	rsRetVal (*GetRemoteIP)(netstrm_t *pThis, prop_t **ip);
 	rsRetVal (*SetDrvrMode)(netstrm_t *pThis, int iMode);
 	rsRetVal (*SetDrvrAuthMode)(netstrm_t *pThis, uchar*);
+	rsRetVal (*SetDrvrPermitExpiredCerts)(netstrm_t *pThis, uchar*);
 	rsRetVal (*SetDrvrPermPeers)(netstrm_t *pThis, permittedPeers_t*);
 	rsRetVal (*CheckConnection)(netstrm_t *pThis);	/* This is a trick mostly for plain tcp syslog */
 	/* the GetSock() below is a hack to make imgssapi work. In the long term,
@@ -76,8 +75,11 @@ BEGINinterface(netstrm) /* name must also be changed in ENDinterface macro! */
 	rsRetVal (*SetKeepAliveTime)(netstrm_t *pThis, int keepAliveTime);
 	rsRetVal (*SetKeepAliveIntvl)(netstrm_t *pThis, int keepAliveIntvl);
 	rsRetVal (*SetGnutlsPriorityString)(netstrm_t *pThis, uchar *priorityString);
+	/* v11 -- Parameter pszLstnFileName added to LstnInit*/
+	rsRetVal (*LstnInit)(netstrms_t *pNS, void *pUsr, rsRetVal(*)(void*,netstrm_t*),
+		             uchar *pLstnPort, uchar *pLstnIP, int iSessMax, uchar *pszLstnPortFileName);
 ENDinterface(netstrm)
-#define netstrmCURR_IF_VERSION 10 /* increment whenever you change the interface structure! */
+#define netstrmCURR_IF_VERSION 11 /* increment whenever you change the interface structure! */
 /* interface version 3 added GetRemAddr()
  * interface version 4 added EnableKeepAlive() -- rgerhards, 2009-06-02
  * interface version 5 changed return of CheckConnection from void to rsRetVal -- alorbach, 2012-09-06

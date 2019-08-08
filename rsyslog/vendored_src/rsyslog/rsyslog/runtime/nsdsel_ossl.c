@@ -83,6 +83,9 @@ Add(nsdsel_t *pNsdsel, nsd_t *pNsd, nsdsel_waitOp_t waitOp)
 
 	ISOBJ_TYPE_assert(pThis, nsdsel_ossl);
 	ISOBJ_TYPE_assert(pNsdOSSL, nsd_ossl);
+
+DBGPRINTF("Add on nsd %p:\n", pNsdOSSL);
+
 	if(pNsdOSSL->iMode == 1) {
 		if(waitOp == NSDSEL_RD && osslHasRcvInBuffer(pNsdOSSL)) {
 			++pThis->iBufferRcvReady;
@@ -107,17 +110,6 @@ dbgprintf("nsdsel_ossl: rtryOsslErr=%d ... \n", pNsdOSSL->rtryOsslErr);
 				ABORT_FINALIZE(RS_RET_NO_ERRCODE);
 			}
 
-			/*
-			# define SSL_NOTHING            1
-			# define SSL_WRITING            2
-			# define SSL_READING            3
-			# define SSL_X509_LOOKUP        4
-			iwant = SSL_want(pNsdOSSL->ssl);
-			if(iwant == SSL_READING) {
-			} else if(iwant == SSL_WRITING) {
-			} else {
-			}
-			*/
 		} else {
 			dbgprintf("nsdsel_ossl: rtryCall=%d, nothing to do ... \n",
 				pNsdOSSL->rtryCall);
@@ -208,6 +200,8 @@ IsReady(nsdsel_t *pNsdsel, nsd_t *pNsd, nsdsel_waitOp_t waitOp, int *pbIsReady)
 
 	ISOBJ_TYPE_assert(pThis, nsdsel_ossl);
 	ISOBJ_TYPE_assert(pNsdOSSL, nsd_ossl);
+
+DBGPRINTF("nsdsel_ossl IsReady EINTR\n");
 	if(pNsdOSSL->iMode == 1) {
 		if(waitOp == NSDSEL_RD && osslHasRcvInBuffer(pNsdOSSL)) {
 			*pbIsReady = 1;

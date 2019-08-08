@@ -27,7 +27,6 @@
  * limitations under the License.
  */
 #include "config.h"
-#include "rsyslog.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -57,6 +56,7 @@
 #if HAVE_PATHS_H
 #include <paths.h>
 #endif
+#include "rsyslog.h"
 #include "srUtils.h"
 #include "stringbuf.h"
 #include "syslogd-types.h"
@@ -261,7 +261,7 @@ static rsRetVal wallmsg(uchar* pMsg, instanceData *pData)
 
 		/* compute the device name */
 		strcpy(p, _PATH_DEV);
-		memcpy(p, ut.ut_line, UNAMESZ);
+		strncat(p, ut.ut_line, UNAMESZ);
 
 		/* we must be careful when writing to the terminal. A terminal may block
 		 * (for example, a user has pressed <ctl>-s). In that case, we can not

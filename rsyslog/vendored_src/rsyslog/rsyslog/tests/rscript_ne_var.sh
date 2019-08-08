@@ -3,7 +3,7 @@
 # This file is part of the rsyslog project, released under ASL 2.0
 echo ===============================================================================
 echo \[rscript_ne.sh\]: testing rainerscript NE statement for two JSON variables
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="list") {
@@ -66,7 +66,7 @@ if $msg contains "msgnum" then {
 }
 '
 startup
-. $srcdir/diag.sh injectmsg  0 1
+injectmsg  0 1
 echo doing shutdown
 shutdown_when_empty
 echo wait on shutdown

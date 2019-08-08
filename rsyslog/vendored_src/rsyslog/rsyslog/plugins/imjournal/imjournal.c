@@ -24,6 +24,7 @@
 #include "config.h"
 #include "rsyslog.h"
 #include <stdio.h>
+#include <dirent.h>
 #include <assert.h>
 #include <string.h>
 #include <stdarg.h>
@@ -81,7 +82,7 @@ static struct configSettings_s {
 	int bUseJnlPID;
 	char *usePid;
 	int bWorkAroundJournalBug;
-	char *dfltTag;
+	int bFsync;
 } cs;
 
 static rsRetVal facilityHdlr(uchar **pp, void *pVal);
@@ -99,7 +100,7 @@ static struct cnfparamdescr modpdescr[] = {
 	{ "usepidfromsystem", eCmdHdlrBinary, 0 },
 	{ "usepid", eCmdHdlrString, 0 },
 	{ "workaroundjournalbug", eCmdHdlrBinary, 0 },
-	{ "defaulttag", eCmdHdlrGetWord, 0 }
+	{ "fsync", eCmdHdlrBinary, 0 }
 };
 static struct cnfparamblk modpblk =
 	{ CNFPARAMBLK_VERSION,
@@ -110,7 +111,6 @@ static struct cnfparamblk modpblk =
 #define DFLT_persiststateinterval 10
 #define DFLT_SEVERITY pri2sev(LOG_NOTICE)
 #define DFLT_FACILITY pri2fac(LOG_USER)
-#define DFLT_TAG "journal"
 
 static int bLegacyCnfModGlobalsPermitted = 1;/* are legacy module-global config parameters permitted? */
 
@@ -121,7 +121,7 @@ static const char *pidFieldName;	/* read-only after startup */
 static int bPidFallBack;
 static ratelimit_t *ratelimiter = NULL;
 static sd_journal *j;
-static int j_inotify_fd;
+static sbool reloaded = 0;
 static struct {
 	statsobj_t *stats;
 	STATSCOUNTER_DEF(ctrSubmitted, mutCtrSubmitted)
@@ -138,7 +138,7 @@ static char *last_cursor = NULL;
 
 #define J_PROCESS_PERIOD 1024  /* Call sd_journal_process() every 1,024 records */
 
-static rsRetVal persistJournalState(void);
+static rsRetVal persistJournalState(int trySave);
 static rsRetVal loadJournalState(void);
 
 static rsRetVal openJournal(void) {
@@ -152,18 +152,16 @@ static rsRetVal openJournal(void) {
 	if ((r = sd_journal_get_fd(j)) < 0) {
 		LogError(-r, RS_RET_IO_ERROR, "imjournal: sd_journal_get_fd() failed");
 		iRet = RS_RET_IO_ERROR;
-	} else {
-		j_inotify_fd = r;
 	}
 	RETiRet;
 }
 
-static void closeJournal(void) {
+/* trySave shoulod only be true if there is no journald error preceeding this call */
+static void closeJournal(int trySave) {
 	if (cs.stateFile) { /* can't persist without a state file */
-		persistJournalState();
+		persistJournalState(trySave);
 	}
 	sd_journal_close(j);
-	j_inotify_fd = 0;
 }
 
 
@@ -292,7 +290,7 @@ readjournal(void)
 
 	/* Information from messages */
 	char *message = NULL;
-	char *sys_iden = NULL;
+	char *sys_iden;
 	char *sys_iden_help = NULL;
 	char *c = NULL;
 
@@ -357,7 +355,7 @@ readjournal(void)
 	if (sd_journal_get_data(j, "SYSLOG_IDENTIFIER", &get, &length) >= 0) {
 		CHKiRet(sanitizeValue(((const char *)get) + 18, length - 18, &sys_iden));
 	} else {
-		CHKmalloc(sys_iden = strdup(cs.dfltTag));
+		CHKmalloc(sys_iden = strdup("journal"));
 	}
 
 	/* trying to get PID, default is "SYSLOG_PID" property */
@@ -442,8 +440,7 @@ readjournal(void)
 
 	if (cs.bWorkAroundJournalBug) {
 		/* save journal cursor (at this point we can be sure it is valid) */
-		sd_journal_get_cursor(j, &c);
-		if (c) {
+		if (!sd_journal_get_cursor(j, &c)) {
 			free(last_cursor);
 			last_cursor = c;
 		}
@@ -459,10 +456,12 @@ finalize_it:
 }
 
 
-/* This function gets journal cursor and saves it into state file
+/* This function gets journal cursor and saves it into state file.
+ * If WorkAroundJournalBug option is turned on it does use cursor saved previously.
+ * If it is false and if "trySave" is false it skips altogether.
  */
 static rsRetVal
-persistJournalState(void)
+persistJournalState(int trySave)
 {
 	DEFiRet;
 	FILE *sf; /* state file */
@@ -474,12 +473,16 @@ persistJournalState(void)
 		if (!last_cursor) {
 			ABORT_FINALIZE(RS_RET_OK);
 		}
-	} else {
+	} else if (trySave) {
 		int ret;
+		free(last_cursor);
 		if ((ret = sd_journal_get_cursor(j, &last_cursor))) {
 			LogError(-ret, RS_RET_ERR, "imjournal: sd_journal_get_cursor() failed");
+			last_cursor = NULL;
 			ABORT_FINALIZE(RS_RET_ERR);
 		}
+	} else { /* not trying to get cursor out of invalid journal state */
+		ABORT_FINALIZE(RS_RET_OK);
 	}
 
 	/* we create a temporary name by adding a ".tmp"
@@ -514,6 +517,23 @@ persistJournalState(void)
 		ABORT_FINALIZE(RS_RET_IO_ERROR);
 	}
 
+	if (cs.bFsync) {
+		if (fsync(fileno(sf)) != 0) {
+			LogError(errno, RS_RET_IO_ERROR, "imjournal: fsync on '%s' failed", cs.stateFile);
+			ABORT_FINALIZE(RS_RET_IO_ERROR);
+		}
+		/* In order to guarantee physical write we need to force parent sync as well */
+		DIR *wd;
+		if (!(wd = opendir((char *)glbl.GetWorkDir()))) {
+			LogError(errno, RS_RET_IO_ERROR, "imjournal: failed to open '%s' directory", glbl.GetWorkDir());
+			ABORT_FINALIZE(RS_RET_IO_ERROR);
+		}
+		if (fsync(dirfd(wd)) != 0) {
+			LogError(errno, RS_RET_IO_ERROR, "imjournal: fsync on '%s' failed", glbl.GetWorkDir());
+			ABORT_FINALIZE(RS_RET_IO_ERROR);
+		}
+	}
+
 finalize_it:
 	RETiRet;
 }
@@ -530,19 +550,34 @@ pollJournal(void)
 	int err;
 
 	err = sd_journal_wait(j, POLL_TIMEOUT);
-	if (err == SD_JOURNAL_INVALIDATE) {
+	if (err == SD_JOURNAL_INVALIDATE && !reloaded) {
 		STATSCOUNTER_INC(statsCounter.ctrRotations, statsCounter.mutCtrRotations);
-		closeJournal();
+		closeJournal(0);
 
 		iRet = openJournal();
 		if (iRet != RS_RET_OK) {
 			ABORT_FINALIZE(RS_RET_ERR);
 		}
 
-		if (cs.stateFile) {
+		/* If we have locally saved cursor there is no need to read it from state file */
+		if (cs.bWorkAroundJournalBug && last_cursor)
+		{
+			if (sd_journal_seek_cursor(j, last_cursor) != 0) {
+				LogError(0, RS_RET_ERR, "imjournal: "
+					"couldn't seek to cursor `%s'\n", last_cursor);
+				iRet = RS_RET_ERR;
+			}
+			/* Need to advance because cursor points at last processed message */
+			sd_journal_next(j);
+		}
+		else if (cs.stateFile) {
 			iRet = loadJournalState();
 		}
 		LogMsg(0, RS_RET_OK, LOG_NOTICE, "imjournal: journal reloaded...");
+		reloaded = 1;
+	}
+	else {
+		reloaded = 0;
 	}
 
 finalize_it:
@@ -632,6 +667,7 @@ loadJournalState(void)
 						iRet = RS_RET_ERR;
 					}
 				}
+				free(tmp_cursor);
 			}
 		} else {
 			LogError(0, RS_RET_IO_ERROR, "imjournal: "
@@ -666,10 +702,9 @@ finalize_it:
 
 static void
 tryRecover(void) {
-	LogMsg(0, RS_RET_OK, LOG_INFO, "imjournal: trying to recover from unexpected "
-		"journal error");
+	LogMsg(0, RS_RET_OK, LOG_INFO, "imjournal: trying to recover from journal error");
 	STATSCOUNTER_INC(statsCounter.ctrRecoveryAttempts, statsCounter.mutCtrRecoveryAttempts);
-	closeJournal();
+	closeJournal(0);
 	srSleep(10, 0);	// do not hammer machine with too-frequent retries
 	openJournal();
 }
@@ -700,11 +735,6 @@ CODESTARTrunInput
 		LogError(0, RS_RET_DEPRECATED,
 			"\"usepidfromsystem\" is depricated, use \"usepid\" instead");
 	}
-
-	if (cs.dfltTag == NULL) {
-		cs.dfltTag = strdup(DFLT_TAG);
-	}
-
 
 	if (cs.usePid && (strcmp(cs.usePid, "system") == 0)) {
 		pidFieldName = "_PID";
@@ -737,7 +767,7 @@ CODESTARTrunInput
 
 		if (r == 0) {
 			/* No new messages, wait for activity. */
-			if (pollJournal() != RS_RET_OK) {
+			if (pollJournal() != RS_RET_OK && !reloaded) {
 				tryRecover();
 			}
 			continue;
@@ -771,7 +801,7 @@ CODESTARTrunInput
 		if (cs.stateFile) { /* can't persist without a state file */
 			/* TODO: This could use some finer metric. */
 			if ((count % cs.iPersistStateInterval) == 0) {
-				persistJournalState();
+				persistJournalState(1);
 			}
 		}
 	}
@@ -793,8 +823,8 @@ CODESTARTbeginCnfLoad
 	cs.iDfltFacility = DFLT_FACILITY;
 	cs.bUseJnlPID = -1;
 	cs.usePid = NULL;
-	cs.bWorkAroundJournalBug = 0;
-	cs.dfltTag = NULL;
+	cs.bWorkAroundJournalBug = 1;
+	cs.bFsync = 0;
 ENDbeginCnfLoad
 
 
@@ -851,7 +881,7 @@ BEGINfreeCnf
 CODESTARTfreeCnf
 	free(cs.stateFile);
 	free(cs.usePid);
-	free(cs.dfltTag);
+	free(last_cursor);
 	statsobj.Destruct(&(statsCounter.stats));
 ENDfreeCnf
 
@@ -864,7 +894,7 @@ ENDwillRun
 /* close journal */
 BEGINafterRun
 CODESTARTafterRun
-	closeJournal();
+	closeJournal(1);
 	ratelimitDestruct(ratelimiter);
 ENDafterRun
 
@@ -934,8 +964,8 @@ CODESTARTsetModCnf
 			cs.usePid = (char *)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if (!strcmp(modpblk.descr[i].name, "workaroundjournalbug")) {
 			cs.bWorkAroundJournalBug = (int) pvals[i].val.d.n;
-		} else if (!strcmp(modpblk.descr[i].name, "defaulttag")) {
-			cs.dfltTag = (char *)es_str2cstr(pvals[i].val.d.estr, NULL);
+		} else if (!strcmp(modpblk.descr[i].name, "fsync")) {
+			cs.bFsync = (int) pvals[i].val.d.n;
 		} else {
 			dbgprintf("imjournal: program error, non-handled "
 				"param '%s' in beginCnfLoad\n", modpblk.descr[i].name);
@@ -996,8 +1026,6 @@ CODEmodInit_QueryRegCFSLineHdlr
 		facilityHdlr, &cs.iDfltFacility, STD_LOADABLE_MODULE_ID));
 	CHKiRet(omsdRegCFSLineHdlr((uchar *)"imjournalusepidfromsystem", 0, eCmdHdlrBinary,
 		NULL, &cs.bUseJnlPID, STD_LOADABLE_MODULE_ID));
-	CHKiRet(omsdRegCFSLineHdlr((uchar *)"imjournaldefaulttag", 0, eCmdHdlrGetWord,
-		NULL, &cs.dfltTag, STD_LOADABLE_MODULE_ID));
 ENDmodInit
 /* vim:set ai:
  */

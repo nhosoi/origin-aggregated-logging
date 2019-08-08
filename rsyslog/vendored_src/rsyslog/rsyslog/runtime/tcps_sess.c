@@ -69,7 +69,7 @@ BEGINobjConstruct(tcps_sess) /* be sure to specify the object type also in END m
 		pThis->inputState = eAtStrtFram; /* indicate frame header expected */
 		pThis->eFraming = TCP_FRAMING_OCTET_STUFFING; /* just make sure... */
 		/* now allocate the message reception buffer */
-		CHKmalloc(pThis->pMsg = (uchar*) MALLOC(glbl.GetMaxLine() + 1));
+		CHKmalloc(pThis->pMsg = (uchar*) malloc(glbl.GetMaxLine() + 1));
 finalize_it:
 ENDobjConstruct(tcps_sess)
 
@@ -93,7 +93,6 @@ finalize_it:
 /* destructor for the tcps_sess object */
 BEGINobjDestruct(tcps_sess) /* be sure to specify the object type also in END and CODESTART macros! */
 CODESTARTobjDestruct(tcps_sess)
-//printf("sess %p destruct, pStrm %p\n", pThis, pThis->pStrm);
 	if(pThis->pStrm != NULL)
 		netstrm.Destruct(&pThis->pStrm);
 
@@ -331,7 +330,6 @@ Close(tcps_sess_t *pThis)
 {
 	DEFiRet;
 
-//printf("sess %p close\n", pThis);
 	ISOBJ_TYPE_assert(pThis, tcps_sess);
 	netstrm.Destruct(&pThis->pStrm);
 	if(pThis->fromHost != NULL) {
@@ -350,9 +348,9 @@ Close(tcps_sess_t *pThis)
  * the end result to the queue. Introducing this function fixes a long-term bug ;)
  * rgerhards, 2008-03-14
  */
-static rsRetVal
+static rsRetVal ATTR_NONNULL(1)
 processDataRcvd(tcps_sess_t *pThis,
-	char c,
+	const char c,
 	struct syslogTime *stTime,
 	const time_t ttGenTime,
 	multi_submit_t *pMultiSub,
@@ -436,18 +434,14 @@ processDataRcvd(tcps_sess_t *pThis,
 		assert(pThis->inputState == eInMsg);
 		if(pThis->iMsg >= iMaxLine) {
 			/* emergency, we now need to flush, no matter if we are at end of message or not... */
-			DBGPRINTF("error: message received is larger than max msg size, we split it\n");
+			DBGPRINTF("error: message received is larger than max msg size, we %s it\n",
+				pThis->pSrv->discardTruncatedMsg == 1 ? "truncate" : "split");
 			defaultDoSubmitMessage(pThis, stTime, ttGenTime, pMultiSub);
 			++(*pnMsgs);
 			if(pThis->pSrv->discardTruncatedMsg == 1) {
 				pThis->inputState = eInMsgTruncating;
+				FINALIZE;
 			}
-			/* configuration parameter discardTruncatedMsg controlls
-			 * if rest of message is being processed
-			 * 0 = off
-			 * 1 = on
-			 * Pascal Withopf, 2017-04-21
-			 */
 		}
 
 		if((   ((c == '\n') && !pThis->pSrv->bDisableLFDelim)

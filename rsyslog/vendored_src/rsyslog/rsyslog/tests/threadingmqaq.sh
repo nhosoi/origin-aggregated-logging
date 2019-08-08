@@ -9,12 +9,12 @@
 # rgerhards, 2009-06-26
 
 uname
-if [ `uname` = "SunOS" ] ; then
+if [ $(uname) = "SunOS" ] ; then
    echo "This test currently does not work on all flavors of Solaris."
    exit 77
 fi
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $MainMsgQueueTimeoutShutdown 10000
@@ -30,14 +30,14 @@ $OMFileIOBufferSize 256k
 # This time, also run the action queue detached
 $ActionQueueWorkerThreadMinimumMessages 10
 $ActionQueueWorkerThreads 5
-$ActionQueueTimeoutEnqueue 500
+$ActionQueueTimeoutEnqueue 10000
 $ActionQueueType LinkedList
 :msg, contains, "msgnum:" ?dynfile;outfmt
 '
 startup
 #tcpflood -c2 -m100000
 #shutdown_when_empty # shut down rsyslogd when done processing messages
-. $srcdir/diag.sh injectmsg 0 100000
+injectmsg 0 100000
 # we need to sleep a bit on some environments, as imdiag can not correctly
 # diagnose when the action queues are empty...
 sleep 3

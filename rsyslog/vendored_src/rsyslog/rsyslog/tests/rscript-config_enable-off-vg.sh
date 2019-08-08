@@ -1,6 +1,6 @@
 #!/bin/bash
 # added 2018-01-22 by Rainer Gerhards; Released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 export DO_STOP=off
 generate_conf
 add_conf '
@@ -14,9 +14,9 @@ if $msg contains "msgnum:" then {
 }
 '
 startup_vg
-. $srcdir/diag.sh injectmsg 0 10
+injectmsg 0 10
 shutdown_when_empty
 wait_shutdown_vg
-. $srcdir/diag.sh check-exit-vg
+check_exit_vg
 seq_check 0 9
 exit_test

@@ -3,11 +3,11 @@
 # added 2014-09-16 by Rgerhards
 
 # This file is part of the rsyslog project, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $ModLoad ../plugins/imtcp/.libs/imtcp
-$InputTCPServerRun 13514
+$InputTCPServerRun '$TCPFLOOD_PORT'
 
 $template outfmt,"%msg:F,58:2%,%msg:F,58:3%,%msg:F,58:4%\n"
 authpriv.* action(type="omfile" file=`echo $RSYSLOG_OUT_LOG` template="outfmt")

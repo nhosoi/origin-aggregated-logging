@@ -7,12 +7,12 @@
 # This file is part of the rsyslog project, released  under GPLv3
 echo ================================================================================
 echo TEST: \[asynwr_deadlock_2.sh\]: a case known to have caused a deadlock in the past
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $ModLoad ../plugins/imtcp/.libs/imtcp
 $MainMsgQueueTimeoutShutdown 10000
-$InputTCPServerRun 13514
+$InputTCPServerRun '$TCPFLOOD_PORT'
 
 $template outfmt,"%msg:F,58:2%\n"
 

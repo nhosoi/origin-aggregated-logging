@@ -1,7 +1,7 @@
 #!/bin/bash
 # added 2016-12-11 by rgerhards
 # This file is part of the rsyslog project, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="list") {
@@ -10,7 +10,7 @@ template(name="outfmt" type="list") {
 }
 
 ruleset(name="rs") {
-	action(type="omfile" file="./rsyslog2.out.log" template="outfmt")
+	action(type="omfile" file="./'"${RSYSLOG2_OUT_LOG}"'" template="outfmt")
 }
 
 if $msg contains "msgnum" then
@@ -19,7 +19,7 @@ else
 	action(type="omfile" file=`echo $RSYSLOG_OUT_LOG`)
 '
 startup
-. $srcdir/diag.sh injectmsg  0 5
+injectmsg  0 5
 shutdown_when_empty
 wait_shutdown 
 grep "error.*does-not-exist"  $RSYSLOG_OUT_LOG > /dev/null

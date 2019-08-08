@@ -3,7 +3,7 @@
 # This file is part of the rsyslog project, released under ASL 2.0
 echo ===============================================================================
 echo \[key_dereference_on_uninitialized_variable_space.sh\]: test to dereference key from a not-yet-created cee or local json-object
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="corge" type="string" string="cee:%$!%\n")
@@ -17,7 +17,7 @@ ruleset(name="echo") {
   action(type="omfile" file=`echo $RSYSLOG_OUT_LOG` template="corge")
 }
 
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 call echo
 '
@@ -27,5 +27,5 @@ echo doing shutdown
 shutdown_when_empty
 echo wait on shutdown
 wait_shutdown
-. $srcdir/diag.sh content-check 'cee:'
+content_check 'cee:'
 exit_test

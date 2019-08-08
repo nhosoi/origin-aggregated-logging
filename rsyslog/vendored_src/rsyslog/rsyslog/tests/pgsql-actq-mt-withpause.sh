@@ -1,7 +1,7 @@
 #!/bin/bash
 # This file is part of the rsyslog project, released under ASL 2.0
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 
 psql -h localhost -U postgres -f testsuites/pgsql-basic.sql
 
@@ -19,15 +19,15 @@ if $msg contains "msgnum" then {
 	)
 }'
 startup
-. $srcdir/diag.sh injectmsg  0 50000
-. $srcdir/diag.sh wait-queueempty
+injectmsg  0 50000
+wait_queueempty
 echo waiting for worker threads to timeout
 ./msleep 3000
-. $srcdir/diag.sh injectmsg  50000 50000
-. $srcdir/diag.sh wait-queueempty
+injectmsg  50000 50000
+wait_queueempty
 echo waiting for worker threads to timeout
 ./msleep 2000
-. $srcdir/diag.sh injectmsg  100000 50000
+injectmsg  100000 50000
 shutdown_when_empty
 wait_shutdown
 

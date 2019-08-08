@@ -1,13 +1,13 @@
 #!/bin/bash
 # This file is part of the rsyslog project, released under ASL 2.0
-export ES_DOWNLOAD=elasticsearch-6.0.0.tar.gz
+. ${srcdir:=.}/diag.sh init
 export ES_PORT=19200
-. $srcdir/diag.sh download-elasticsearch
-. $srcdir/diag.sh stop-elasticsearch
-. $srcdir/diag.sh prepare-elasticsearch
-. $srcdir/diag.sh start-elasticsearch
+export NUMMESSAGES=1500 # slow test, thus low number - large number is NOT necessary
+export QUEUE_EMPTY_CHECK_FUNC=es_shutdown_empty_check
+download_elasticsearch
+prepare_elasticsearch
+start_elasticsearch
 
-. $srcdir/diag.sh init
 generate_conf
 add_conf '
 template(name="tpl" type="string"
@@ -21,11 +21,10 @@ module(load="../plugins/omelasticsearch/.libs/omelasticsearch")
 				 searchIndex="rsyslog_testbench")
 '
 startup
-. $srcdir/diag.sh injectmsg  0 10000
+injectmsg
 shutdown_when_empty
 wait_shutdown 
-. $srcdir/diag.sh es-getdata 10000 $ES_PORT
-seq_check  0 9999
-. $srcdir/diag.sh stop-elasticsearch
-. $srcdir/diag.sh cleanup-elasticsearch
+es_getdata
+seq_check
+cleanup_elasticsearch
 exit_test

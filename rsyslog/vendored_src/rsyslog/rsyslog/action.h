@@ -53,6 +53,7 @@ struct action_s {
 	int	iSecsExecOnceInterval; /* if non-zero, minimum seconds to wait until action is executed again */
 	time_t	ttResumeRtry;	/* when is it time to retry the resume? */
 	int	iResumeInterval;/* resume interval for this action */
+	int	iResumeIntervalMax;/* maximum resume interval for this action --> -1: unbounded */
 	int	iResumeRetryCount;/* how often shall we retry a suspended action? (-1 --> eternal) */
 	int	iNbrNoExec;	/* number of matches that did not yet yield to an exec */
 	int	iExecEveryNthOccur;/* execute this action only every n-th occurence (with n=0,1 -> always) */
@@ -77,6 +78,8 @@ struct action_s {
 	const char *pszErrFile;
 	int fdErrFile;
 	pthread_mutex_t mutErrFile;
+	/* external stat file system */
+	const char *pszExternalStateFile;
 	/* for per-worker HUP processing */
 	pthread_mutex_t mutWrkrDataTable; /* protects table structures */
 	void **wrkrDataTable;
@@ -97,7 +100,6 @@ struct action_s {
 rsRetVal actionConstruct(action_t **ppThis);
 rsRetVal actionConstructFinalize(action_t *pThis, struct nvlst *lst);
 rsRetVal actionDestruct(action_t *pThis);
-//rsRetVal actionDbgPrint(action_t *pThis);
 rsRetVal actionSetGlobalResumeInterval(int iNewVal);
 rsRetVal actionDoAction(action_t *pAction);
 rsRetVal actionWriteToAction(action_t *pAction, smsg_t *pMsg, wti_t*);

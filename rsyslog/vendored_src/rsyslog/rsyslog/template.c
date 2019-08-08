@@ -1,7 +1,7 @@
 /* This is the template processing code of rsyslog.
  * begun 2004-11-17 rgerhards
  *
- * Copyright 2004-2018 Rainer Gerhards and Adiscon
+ * Copyright 2004-2019 Rainer Gerhards and Adiscon
  *
  * This file is part of rsyslog.
  *
@@ -48,9 +48,7 @@
 #include "parserif.h"
 #include "unicode-helper.h"
 
-#if !defined(_AIX)
-#pragma GCC diagnostic ignored "-Wswitch-enum"
-#endif
+PRAGMA_INGORE_Wswitch_enum
 /* static data */
 DEFobjCurrIf(obj)
 DEFobjCurrIf(strgen)
@@ -96,6 +94,8 @@ static struct cnfparamdescr cnfparamdescrProperty[] = {
 	{ "regex.submatch", eCmdHdlrInt, 0 },
 	{ "droplastlf", eCmdHdlrBinary, 0 },
 	{ "fixedwidth", eCmdHdlrBinary, 0 },
+	{ "datatype", eCmdHdlrString, 0 },
+	{ "onempty", eCmdHdlrString, 0 },
 	{ "mandatory", eCmdHdlrBinary, 0 },
 	{ "spifno1stsp", eCmdHdlrBinary, 0 }
 };
@@ -262,81 +262,6 @@ finalize_it:
 	if(bMustBeFreed) {
 		free(pVal);
 		bMustBeFreed = 0;
-	}
-
-	RETiRet;
-}
-
-
-/* This functions converts a template into an array of strings.
- * For further general details, see the very similar funtion
- * tpltoString().
- * Instead of a string, an array of string pointers is returned by
- * thus function. The caller is repsonsible for destroying that array as
- * well as all of its elements. The array is of fixed size. It's end
- * is indicated by a NULL pointer.
- * rgerhards, 2009-04-03
- */
-rsRetVal
-tplToArray(struct template *pTpl, smsg_t *pMsg, uchar*** ppArr, struct syslogTime *ttNow)
-{
-	DEFiRet;
-	struct templateEntry *pTpe;
-	uchar **pArr;
-	int iArr;
-	rs_size_t propLen;
-	unsigned short bMustBeFreed;
-	uchar *pVal;
-
-	assert(pTpl != NULL);
-	assert(pMsg != NULL);
-	assert(ppArr != NULL);
-
-	if(pTpl->bHaveSubtree) {
-		/* Note: this mode is untested, as there is no official plugin
-		 *       using array passing, so I simply could not test it.
-		 */
-		CHKmalloc(pArr = calloc(2, sizeof(uchar*)));
-		getJSONPropVal(pMsg, &pTpl->subtree, &pVal, &propLen, &bMustBeFreed);
-		if(bMustBeFreed) { /* if it must be freed, it is our own private copy... */
-			pArr[0] = pVal; /* ... so we can use it! */
-		} else {
-			CHKmalloc(pArr[0] = (uchar*)strdup((char*) pVal));
-		}
-		FINALIZE;
-	}
-
-	/* loop through the template. We obtain one value, create a
-	 * private copy (if necessary), add it to the string array
-	 * and then on to the next until we have processed everything.
-	 */
-	CHKmalloc(pArr = calloc(pTpl->tpenElements + 1, sizeof(uchar*)));
-	iArr = 0;
-
-	pTpe = pTpl->pEntryRoot;
-	while(pTpe != NULL) {
-		if(pTpe->eEntryType == CONSTANT) {
-			CHKmalloc(pArr[iArr] = (uchar*)strdup((char*) pTpe->data.constant.pConstant));
-		} else 	if(pTpe->eEntryType == FIELD) {
-			pVal = (uchar*) MsgGetProp(pMsg, pTpe, &pTpe->data.field.msgProp,
-						   &propLen, &bMustBeFreed, ttNow);
-			if(bMustBeFreed) { /* if it must be freed, it is our own private copy... */
-				pArr[iArr] = pVal; /* ... so we can use it! */
-			} else {
-				CHKmalloc(pArr[iArr] = (uchar*)strdup((char*) pVal));
-			}
-		}
-		iArr++;
-		pTpe = pTpe->pNext;
-	}
-
-finalize_it:
-	*ppArr = (iRet == RS_RET_OK) ? pArr : NULL;
-	if(iRet == RS_RET_OK) {
-		*ppArr = pArr;
-	} else {
-		*ppArr = NULL;
-		free(pArr);
 	}
 
 	RETiRet;
@@ -1100,7 +1025,7 @@ do_Parameter(uchar **pp, struct template *pTpl)
 				/* We get here ONLY if the regex end was found */
 				longitud = regex_end - p;
 				/* Malloc for the regex string */
-				regex_char = (unsigned char *) MALLOC(longitud + 1);
+				regex_char = (unsigned char *) malloc(longitud + 1);
 				if(regex_char == NULL) {
 					dbgprintf("Could not allocate memory for template parameter!\n");
 					pTpe->data.field.has_regex = 0;
@@ -1312,7 +1237,7 @@ struct template *tplAddLine(rsconf_t *conf, const char* pName, uchar** ppRestOfC
 	
 	DBGPRINTF("tplAddLine processing template '%s'\n", pName);
 	pTpl->iLenName = strlen(pName);
-	pTpl->pszName = (char*) MALLOC(pTpl->iLenName + 1);
+	pTpl->pszName = (char*) malloc(pTpl->iLenName + 1);
 	if(pTpl->pszName == NULL) {
 		dbgprintf("tplAddLine could not alloc memory for template name!");
 		pTpl->iLenName = 0;
@@ -1541,6 +1466,8 @@ createPropertyTpe(struct template *pTpl, struct cnfobj *o)
 	int bPosRelativeToEnd = 0;
 	int bDateInUTC = 0;
 	int bCompressSP = 0;
+	unsigned dataType = TPE_DATATYPE_STRING;
+	unsigned onEmpty = TPE_DATAEMPTY_KEEP;
 	char *re_expr = NULL;
 	struct cnfparamvals *pvals = NULL;
 	enum {F_NONE, F_CSV, F_JSON, F_JSONF, F_JSONR, F_JSONFR} formatType = F_NONE;
@@ -1565,6 +1492,36 @@ createPropertyTpe(struct template *pTpl, struct cnfobj *o)
 			continue;
 		if(!strcmp(pblkProperty.descr[i].name, "name")) {
 			name = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
+		} else if(!strcmp(pblkProperty.descr[i].name, "datatype")) {
+			if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"string", sizeof("string")-1)) {
+				dataType = TPE_DATATYPE_STRING;
+			} else if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"number", sizeof("number")-1)) {
+				dataType = TPE_DATATYPE_NUMBER;
+			} else if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"bool", sizeof("bool")-1)) {
+				dataType = TPE_DATATYPE_BOOL;
+			} else if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"auto", sizeof("auto")-1)) {
+				dataType = TPE_DATATYPE_AUTO;
+			} else {
+				uchar *typeStr = (uchar*) es_str2cstr(pvals[i].val.d.estr, NULL);
+				LogError(0, RS_RET_ERR, "invalid dataType '%s' for property",
+					typeStr);
+				free(typeStr);
+				ABORT_FINALIZE(RS_RET_ERR);
+			}
+		} else if(!strcmp(pblkProperty.descr[i].name, "onempty")) {
+			if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"keep", sizeof("keep")-1)) {
+				onEmpty = TPE_DATAEMPTY_KEEP;
+			} else if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"skip", sizeof("skip")-1)) {
+				onEmpty = TPE_DATAEMPTY_SKIP;
+			} else if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"null", sizeof("null")-1)) {
+				onEmpty = TPE_DATAEMPTY_NULL;
+			} else {
+				uchar *typeStr = (uchar*) es_str2cstr(pvals[i].val.d.estr, NULL);
+				LogError(0, RS_RET_ERR, "invalid onEmpty value '%s' for property",
+					typeStr);
+				free(typeStr);
+				ABORT_FINALIZE(RS_RET_ERR);
+			}
 		} else if(!strcmp(pblkProperty.descr[i].name, "droplastlf")) {
 			droplastlf = pvals[i].val.d.n;
 			bComplexProcessing = 1;
@@ -1709,7 +1666,7 @@ createPropertyTpe(struct template *pTpl, struct cnfobj *o)
 			} else if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"rfc3339", sizeof("rfc3339")-1)) {
 				datefmt = tplFmtRFC3339Date;
 			} else if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"unixtimestamp",
-			sizeof("unixtimestamp")-1)) {
+				sizeof("unixtimestamp")-1)) {
 				datefmt = tplFmtUnixDate;
 			} else if(!es_strbufcmp(pvals[i].val.d.estr, (uchar*)"subseconds", sizeof("subseconds")-1)) {
 				datefmt = tplFmtSecFrac;
@@ -1795,6 +1752,8 @@ createPropertyTpe(struct template *pTpl, struct cnfobj *o)
 	pTpe->data.field.options.bSPIffNo1stSP = spifno1stsp;
 	pTpe->data.field.options.bMandatory = mandatory;
 	pTpe->data.field.options.bFixedWidth = fixedwidth;
+	pTpe->data.field.options.dataType = dataType;
+	pTpe->data.field.options.onEmpty = onEmpty;
 	pTpe->data.field.eCaseConv = caseconv;
 	switch(formatType) {
 	case F_NONE:
@@ -2188,23 +2147,17 @@ void tplDeleteAll(rsconf_t *conf)
 {
 	struct template *pTpl, *pTplDel;
 	struct templateEntry *pTpe, *pTpeDel;
-	BEGINfunc
 
 	pTpl = conf->templates.root;
 	while(pTpl != NULL) {
-		/* dbgprintf("Delete Template: Name='%s'\n ", pTpl->pszName == NULL? "NULL" : pTpl->pszName);*/
 		pTpe = pTpl->pEntryRoot;
 		while(pTpe != NULL) {
 			pTpeDel = pTpe;
 			pTpe = pTpe->pNext;
-			/*dbgprintf("\tDelete Entry(%x): type %d, ", (unsigned) pTpeDel, pTpeDel->eEntryType);*/
 			switch(pTpeDel->eEntryType) {
 			case UNDEFINED:
-				/*dbgprintf("(UNDEFINED)");*/
 				break;
 			case CONSTANT:
-				/*dbgprintf("(CONSTANT), value: '%s'",
-					pTpeDel->data.constant.pConstant);*/
 				free(pTpeDel->data.constant.pConstant);
 				break;
 			case FIELD:
@@ -2220,7 +2173,6 @@ void tplDeleteAll(rsconf_t *conf)
 				break;
 			}
 			free(pTpeDel->fieldName);
-			/*dbgprintf("\n");*/
 			free(pTpeDel);
 		}
 		pTplDel = pTpl;
@@ -2230,7 +2182,6 @@ void tplDeleteAll(rsconf_t *conf)
 			msgPropDescrDestruct(&pTplDel->subtree);
 		free(pTplDel);
 	}
-	ENDfunc
 }
 
 
@@ -2242,7 +2193,6 @@ void tplDeleteNew(rsconf_t *conf)
 	struct template *pTpl, *pTplDel;
 	struct templateEntry *pTpe, *pTpeDel;
 
-	BEGINfunc
 
 	if(conf->templates.root == NULL || conf->templates.lastStatic == NULL)
 		return;
@@ -2251,19 +2201,14 @@ void tplDeleteNew(rsconf_t *conf)
 	conf->templates.lastStatic->pNext = NULL;
 	conf->templates.last = conf->templates.lastStatic;
 	while(pTpl != NULL) {
-		/* dbgprintf("Delete Template: Name='%s'\n ", pTpl->pszName == NULL? "NULL" : pTpl->pszName);*/
 		pTpe = pTpl->pEntryRoot;
 		while(pTpe != NULL) {
 			pTpeDel = pTpe;
 			pTpe = pTpe->pNext;
-			/*dbgprintf("\tDelete Entry(%x): type %d, ", (unsigned) pTpeDel, pTpeDel->eEntryType);*/
 			switch(pTpeDel->eEntryType) {
 			case UNDEFINED:
-				/*dbgprintf("(UNDEFINED)");*/
 				break;
 			case CONSTANT:
-				/*dbgprintf("(CONSTANT), value: '%s'",
-					pTpeDel->data.constant.pConstant);*/
 				free(pTpeDel->data.constant.pConstant);
 				break;
 			case FIELD:
@@ -2278,7 +2223,6 @@ void tplDeleteNew(rsconf_t *conf)
 				msgPropDescrDestruct(&pTpeDel->data.field.msgProp);
 				break;
 			}
-			/*dbgprintf("\n");*/
 			free(pTpeDel);
 		}
 		pTplDel = pTpl;
@@ -2288,7 +2232,6 @@ void tplDeleteNew(rsconf_t *conf)
 			msgPropDescrDestruct(&pTplDel->subtree);
 		free(pTplDel);
 	}
-	ENDfunc
 }
 
 /* Store the pointer to the last hardcoded teplate */
@@ -2336,8 +2279,6 @@ void tplPrintList(rsconf_t *conf)
 					dbgprintf("[EE-Property: '%s'] ", pTpe->data.field.msgProp.name);
 				} else if(pTpe->data.field.msgProp.id == PROP_LOCAL_VAR) {
 					dbgprintf("[Local Var: '%s'] ", pTpe->data.field.msgProp.name);
-				//} else if(pTpe->data.field.propid == PROP_GLOBAL_VAR) {
-				//	dbgprintf("[Global Var: '%s'] ", pTpe->data.field.propName);
 				}
 				switch(pTpe->data.field.eDateFormat) {
 				case tplFmtDefault:
@@ -2362,6 +2303,45 @@ void tplPrintList(rsconf_t *conf)
 					break;
 				case tplFmtRFC3164BuggyDate:
 					dbgprintf("[Format as buggy RFC3164-Date] ");
+					break;
+				case tplFmtWDayName:
+					dbgprintf("[Format as weekday name] ");
+					break;
+				case tplFmtYear:
+					dbgprintf("[Format as year] ");
+					break;
+				case tplFmtMonth:
+					dbgprintf("[Format as month] ");
+					break;
+				case tplFmtDay:
+					dbgprintf("[Format as day] ");
+					break;
+				case tplFmtHour:
+					dbgprintf("[Format as hour] ");
+					break;
+				case tplFmtMinute:
+					dbgprintf("[Format as minute] ");
+					break;
+				case tplFmtSecond:
+					dbgprintf("[Format as second] ");
+					break;
+				case tplFmtTZOffsHour:
+					dbgprintf("[Format as offset hour] ");
+					break;
+				case tplFmtTZOffsMin:
+					dbgprintf("[Format as offset minute] ");
+					break;
+				case tplFmtTZOffsDirection:
+					dbgprintf("[Format as offset direction] ");
+					break;
+				case tplFmtWDay:
+					dbgprintf("[Format as weekday] ");
+					break;
+				case tplFmtOrdinal:
+					dbgprintf("[Format as ordinal] ");
+					break;
+				case tplFmtWeek:
+					dbgprintf("[Format as week] ");
 					break;
 				default:
 					dbgprintf("[UNKNOWN eDateFormat %d] ", pTpe->data.field.eDateFormat);

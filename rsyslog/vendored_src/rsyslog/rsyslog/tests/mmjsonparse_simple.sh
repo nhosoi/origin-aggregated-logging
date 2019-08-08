@@ -3,14 +3,14 @@
 # This file is part of the rsyslog project, released under ASL 2.0
 echo ===============================================================================
 echo \[mmjsonparse_simple.sh\]: basic test for mmjsonparse module with defaults
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="string" string="%$!msgnum%\n")
 
 module(load="../plugins/mmjsonparse/.libs/mmjsonparse")
 module(load="../plugins/imptcp/.libs/imptcp")
-input(type="imptcp" port="13514")
+input(type="imptcp" port="'$TCPFLOOD_PORT'")
 
 action(type="mmjsonparse")
 if $parsesuccess == "OK" then {

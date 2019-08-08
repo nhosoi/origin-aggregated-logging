@@ -1,10 +1,10 @@
 #!/bin/bash
 # add 2017-02-09 by Jan Gerhards, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 set $!ip!v0 = int2hex("");
 set $!ip!v1 = int2hex("0");
@@ -22,10 +22,6 @@ startup
 tcpflood -m1 -y
 shutdown_when_empty
 wait_shutdown
-echo '{ "v0": "0", "v1": "0", "v2": "1", "v4": "5bc56", "v6": "10", "v8": "ffffffff", "e1": "NAN" }' | cmp - $RSYSLOG_OUT_LOG
-if [ ! $? -eq 0 ]; then
-  echo "invalid function output detected, $RSYSLOG_OUT_LOG is:"
-  cat $RSYSLOG_OUT_LOG
-  error_exit 1
-fi;
+export EXPECTED='{ "v0": "0", "v1": "0", "v2": "1", "v4": "5bc56", "v6": "10", "v8": "ffffffff", "e1": "NAN" }'
+cmp_exact
 exit_test

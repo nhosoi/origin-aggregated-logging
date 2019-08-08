@@ -89,7 +89,7 @@ BEGINparse
 	uchar *f3_commas[3];
 	int cur_comma = 0;
 	uint64 log_type;
-	int j;
+	unsigned int j;
 CODESTARTparse
 	#define CSV_DELIMITER '\t'
 	#define STATE_FIELD_START 0
@@ -130,14 +130,14 @@ CODESTARTparse
 
 	/* check msg length */
 	p2parse++;
-	if ((p2parse > msgend) || ((msgend - p2parse) < sizeof(uint64))) {
+	if ((p2parse > msgend) || ((msgend - p2parse) < (int)sizeof(uint64))) {
 	    dbgprintf("not a PAN-OS syslog message: too short\n");
 	    ABORT_FINALIZE(RS_RET_COULD_NOT_PARSE);
 	}
 
 	/* check log type */
 	log_type = *((uint64 *)p2parse);
-	for(j = 0; j < NUM_LOG_TYPES; j++) {
+	for(j = 0; j < (int)NUM_LOG_TYPES; j++) {
 	    if ((log_type & log_types[j].mask) == log_types[j].value)
 	        break;
 	}
@@ -154,7 +154,6 @@ CODESTARTparse
 	p2target = p2parse;
 
 	while(p2parse < msgend) {
-	    /* dbgprintf("state: %d char: %c p2parse: %16x p2target: %16x\n", state, *p2parse, p2parse, p2target); */
 	    switch(state) {
 	        case STATE_FIELD_START:
 	            switch(*p2parse) {

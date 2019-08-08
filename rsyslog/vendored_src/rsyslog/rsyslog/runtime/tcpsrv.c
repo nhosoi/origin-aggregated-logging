@@ -21,7 +21,7 @@
  * File begun on 2007-12-21 by RGerhards (extracted from syslogd.c[which was
  * licensed under BSD at the time of the rsyslog fork])
  *
- * Copyright 2007-2016 Adiscon GmbH.
+ * Copyright 2007-2018 Adiscon GmbH.
  *
  * This file is part of rsyslog.
  *
@@ -52,6 +52,7 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <signal.h>
 #include <sys/socket.h>
 #if HAVE_FCNTL_H
 #include <fcntl.h>
@@ -75,10 +76,7 @@
 #include "ratelimit.h"
 #include "unicode-helper.h"
 
-#if !defined(_AIX)
-#pragma GCC diagnostic ignored "-Wswitch-enum"
-#endif
-
+PRAGMA_INGORE_Wswitch_enum
 MODULE_TYPE_LIB
 MODULE_TYPE_NOKEEP
 
@@ -282,7 +280,6 @@ TCPSessGetNxtSess(tcpsrv_t *pThis, int iCurr)
 {
 	register int i;
 
-	BEGINfunc
 	ISOBJ_TYPE_assert(pThis, tcpsrv);
 	assert(pThis->pSessions != NULL);
 	for(i = iCurr + 1 ; i < pThis->iSessMax ; ++i) {
@@ -290,7 +287,6 @@ TCPSessGetNxtSess(tcpsrv_t *pThis, int iCurr)
 			break;
 	}
 
-	ENDfunc
 	return((i < pThis->iSessMax) ? i : -1);
 }
 
@@ -382,20 +378,11 @@ initTCPListener(tcpsrv_t *pThis, tcpLstnPortList_t *pPortEntry)
 	ISOBJ_TYPE_assert(pThis, tcpsrv);
 	assert(pPortEntry != NULL);
 
-	if(!ustrcmp(pPortEntry->pszPort, UCHAR_CONSTANT("0")))
-		TCPLstnPort = UCHAR_CONSTANT("514");
-		/* use default - we can not do service db update, because there is
-		 * no IANA-assignment for syslog/tcp. In the long term, we might
-		 * re-use RFC 3195 port of 601, but that would probably break to
-		 * many existing configurations.
-		 * rgerhards, 2007-06-28
-		 */
-	else
-		TCPLstnPort = pPortEntry->pszPort;
+	TCPLstnPort = pPortEntry->pszPort;
 
 	// pPortEntry->pszAddr = NULL ==> bind to all interfaces
 	CHKiRet(netstrm.LstnInit(pThis->pNS, (void*)pPortEntry, addTcpLstn, TCPLstnPort,
-	pPortEntry->pszAddr, pThis->iSessMax));
+		pPortEntry->pszAddr, pThis->iSessMax, pThis->pszLstnPortFileName));
 
 finalize_it:
 	RETiRet;
@@ -495,6 +482,15 @@ SessAccept(tcpsrv_t *pThis, tcpLstnPortList_t *pLstnInfo, tcps_sess_t **ppSess, 
 
 	/* get the host name */
 	CHKiRet(netstrm.GetRemoteHName(pNewStrm, &fromHostFQDN));
+	if (!pThis->bPreserveCase) {
+		/* preserve_case = off */
+		uchar *p;
+		for(p = fromHostFQDN; *p; p++) {
+			if (isupper((int) *p)) {
+				*p = tolower((int) *p);
+			}
+		}
+	}
 	CHKiRet(netstrm.GetRemoteIP(pNewStrm, &fromHostIP));
 	CHKiRet(netstrm.GetRemAddr(pNewStrm, &addr));
 	/* TODO: check if we need to strip the domain name here -- rgerhards, 2008-04-24 */
@@ -669,7 +665,12 @@ static void * ATTR_NONNULL(1)
 wrkr(void *const myself)
 {
 	struct wrkrInfo_s *const me = (struct wrkrInfo_s*) myself;
-	
+
+	/* block signals for this thread */
+	sigset_t sigSet;
+	sigfillset(&sigSet);
+	pthread_sigmask(SIG_SETMASK, &sigSet, NULL);
+
 	pthread_mutex_lock(&wrkrMut);
 	while(1) {
 		// wait for work, in which case pSrv will be populated
@@ -771,9 +772,8 @@ finalize_it:
  * This variant here is only used if we need to work with a netstream driver
  * that does not support epoll().
  */
-#if !defined(_AIX)
-#pragma GCC diagnostic ignored "-Wempty-body"
-#endif
+PRAGMA_DIAGNOSTIC_PUSH
+PRAGMA_IGNORE_Wempty_body
 static rsRetVal
 RunSelect(tcpsrv_t *pThis, nsd_epworkset_t workset[], size_t sizeWorkset)
 {
@@ -832,8 +832,6 @@ RunSelect(tcpsrv_t *pThis, nsd_epworkset_t workset[], size_t sizeWorkset)
 					processWorkset(pThis, NULL, iWorkset, workset);
 					iWorkset = 0;
 				}
-				//DBGPRINTF("New connect on NSD %p.\n", pThis->ppLstn[i]);
-				//SessAccept(pThis, pThis->ppLstnPort[i], &pNewSess, pThis->ppLstn[i]);
 				--nfds; /* indicate we have processed one */
 			}
 		}
@@ -879,9 +877,7 @@ finalize_it: /* this is a very special case - this time only we do not exit the 
 
 	RETiRet;
 }
-#if !defined(_AIX)
-#pragma GCC diagnostic warning "-Wempty-body"
-#endif
+PRAGMA_DIAGNOSTIC_POP
 
 
 /* This function is called to gather input. It tries doing that via the epoll()
@@ -1001,6 +997,7 @@ BEGINobjConstruct(tcpsrv) /* be sure to specify the object type also in END macr
 	pThis->ratelimitBurst = 10000;
 	pThis->bUseFlowControl = 1;
 	pThis->pszDrvrName = NULL;
+	pThis->bPreserveCase = 1; /* preserve case in fromhost; default to true. */
 ENDobjConstruct(tcpsrv)
 
 
@@ -1018,6 +1015,8 @@ tcpsrvConstructFinalize(tcpsrv_t *pThis)
 	CHKiRet(netstrms.SetDrvrMode(pThis->pNS, pThis->iDrvrMode));
 	if(pThis->pszDrvrAuthMode != NULL)
 		CHKiRet(netstrms.SetDrvrAuthMode(pThis->pNS, pThis->pszDrvrAuthMode));
+	if(pThis->pszDrvrPermitExpiredCerts != NULL)
+		CHKiRet(netstrms.SetDrvrPermitExpiredCerts(pThis->pNS, pThis->pszDrvrPermitExpiredCerts));
 	if(pThis->pPermPeers != NULL)
 		CHKiRet(netstrms.SetDrvrPermPeers(pThis->pNS, pThis->pPermPeers));
 	if(pThis->gnutlsPriorityString != NULL)
@@ -1052,6 +1051,7 @@ CODESTARTobjDestruct(tcpsrv)
 		netstrms.Destruct(&pThis->pNS);
 	free(pThis->pszDrvrName);
 	free(pThis->pszDrvrAuthMode);
+	free(pThis->pszDrvrPermitExpiredCerts);
 	free(pThis->ppLstn);
 	free(pThis->ppLstnPort);
 	free(pThis->pszInputName);
@@ -1082,11 +1082,7 @@ SetCBRcvData(tcpsrv_t *pThis, rsRetVal (*pRcvData)(tcps_sess_t*, char*, size_t, 
 }
 
 static rsRetVal
-#ifdef _AIX
 SetCBOnListenDeinit(tcpsrv_t *pThis, rsRetVal (*pCB)(void*))
-#else
-SetCBOnListenDeinit(tcpsrv_t *pThis, int (*pCB)(void*))
-#endif
 {
 	DEFiRet;
 	pThis->pOnListenDeinit = pCB;
@@ -1200,6 +1196,16 @@ SetGnutlsPriorityString(tcpsrv_t *pThis, uchar *iVal)
 	DBGPRINTF("tcpsrv: gnutlsPriorityString set to %s\n",
 		(iVal == NULL) ? "(null)" : (const char*) iVal);
 	pThis->gnutlsPriorityString = iVal;
+	RETiRet;
+}
+
+static rsRetVal
+SetLstnPortFileName(tcpsrv_t *pThis, uchar *iVal)
+{
+	DEFiRet;
+	DBGPRINTF("tcpsrv: LstnPortFileName set to %s\n",
+		(iVal == NULL) ? "(null)" : (const char*) iVal);
+	pThis->pszLstnPortFileName = iVal;
 	RETiRet;
 }
 
@@ -1376,6 +1382,18 @@ finalize_it:
 	RETiRet;
 }
 
+/* set the driver permitexpiredcerts mode -- alorbach, 2018-12-20
+ */
+static rsRetVal
+SetDrvrPermitExpiredCerts(tcpsrv_t *pThis, uchar *mode)
+{
+	DEFiRet;
+	ISOBJ_TYPE_assert(pThis, tcpsrv);
+	CHKmalloc(pThis->pszDrvrPermitExpiredCerts = ustrdup(mode));
+finalize_it:
+	RETiRet;
+}
+
 
 /* set the driver's permitted peers -- rgerhards, 2008-05-19 */
 static rsRetVal
@@ -1433,6 +1451,16 @@ SetSessMax(tcpsrv_t *pThis, int iMax)
 }
 
 
+static rsRetVal
+SetPreserveCase(tcpsrv_t *pThis, int bPreserveCase)
+{
+	DEFiRet;
+	ISOBJ_TYPE_assert(pThis, tcpsrv);
+	pThis-> bPreserveCase = bPreserveCase;
+	RETiRet;
+}
+
+
 /* queryInterface function
  * rgerhards, 2008-02-29
  */
@@ -1461,6 +1489,7 @@ CODESTARTobjQueryInterface(tcpsrv)
 	pIf->SetKeepAliveProbes = SetKeepAliveProbes;
 	pIf->SetKeepAliveTime = SetKeepAliveTime;
 	pIf->SetGnutlsPriorityString = SetGnutlsPriorityString;
+	pIf->SetLstnPortFileName = SetLstnPortFileName;
 	pIf->SetUsrP = SetUsrP;
 	pIf->SetInputName = SetInputName;
 	pIf->SetOrigin = SetOrigin;
@@ -1475,6 +1504,7 @@ CODESTARTobjQueryInterface(tcpsrv)
 	pIf->SetLstnMax = SetLstnMax;
 	pIf->SetDrvrMode = SetDrvrMode;
 	pIf->SetDrvrAuthMode = SetDrvrAuthMode;
+	pIf->SetDrvrPermitExpiredCerts = SetDrvrPermitExpiredCerts;
 	pIf->SetDrvrName = SetDrvrName;
 	pIf->SetDrvrPermPeers = SetDrvrPermPeers;
 	pIf->SetCBIsPermittedHost = SetCBIsPermittedHost;
@@ -1491,6 +1521,7 @@ CODESTARTobjQueryInterface(tcpsrv)
 	pIf->SetRuleset = SetRuleset;
 	pIf->SetLinuxLikeRatelimiters = SetLinuxLikeRatelimiters;
 	pIf->SetNotificationOnRemoteClose = SetNotificationOnRemoteClose;
+	pIf->SetPreserveCase = SetPreserveCase;
 
 finalize_it:
 ENDobjQueryInterface(tcpsrv)

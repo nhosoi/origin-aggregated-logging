@@ -1,6 +1,6 @@
 #!/bin/bash
 # add 2018-05-02 by PascalWithopf, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 ./have_relpSrvSetOversizeMode
 if [ $? -eq 1 ]; then
   echo "imrelp parameter oversizeMode not available. Test stopped"
@@ -12,7 +12,7 @@ module(load="../plugins/imrelp/.libs/imrelp")
 global(maxMessageSize="230")
 
 
-input(type="imrelp" port="13514" maxdatasize="300")
+input(type="imrelp" port="'$TCPFLOOD_PORT'" maxdatasize="300")
 
 template(name="outfmt" type="string" string="%rawmsg%\n")
 action(type="omfile" template="outfmt"
@@ -20,7 +20,7 @@ action(type="omfile" template="outfmt"
 '
 # TODO: add tcpflood option to specific EXACT test message size!
 startup
-tcpflood -Trelp-plain -p13514 -m1 -d 240
+tcpflood -Trelp-plain -p'$TCPFLOOD_PORT' -m1 -d 240
 shutdown_when_empty # shut down rsyslogd when done processing messages
 wait_shutdown
 

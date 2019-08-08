@@ -4,7 +4,7 @@
  *
  * File begun on 2008-03-13 by RGerhards
  *
- * Copyright 2008-2018 Adiscon GmbH.
+ * Copyright 2008-2019 Adiscon GmbH.
  *
  * This file is part of rsyslog.
  *
@@ -122,6 +122,7 @@ struct instanceConf_s {
 struct modConfData_s {
 	rsconf_t *pConf;		/* our overall config object */
 	instanceConf_t *root, *tail;
+	const char *tlslib;
 	uchar *pszBindRuleset;		/* default name of Ruleset to bind to */
 };
 
@@ -131,6 +132,7 @@ static modConfData_t *runModConf = NULL;/* modConf ptr to use for the current lo
 /* module-global parameters */
 static struct cnfparamdescr modpdescr[] = {
 	{ "ruleset", eCmdHdlrGetWord, 0 },
+	{ "tls.tlslib", eCmdHdlrString, 0 }
 };
 static struct cnfparamblk modpblk =
 	{ CNFPARAMBLK_VERSION,
@@ -171,9 +173,8 @@ static int bLegacyCnfModGlobalsPermitted;/* are legacy module-global config para
 
 /* ------------------------------ callbacks ------------------------------ */
 
-#if !defined(_AIX)
-#pragma GCC diagnostic ignored "-Wformat-nonliteral"
-#endif
+PRAGMA_DIAGNOSTIC_PUSH
+PRAGMA_IGNORE_Wformat_nonliteral
 static void __attribute__((format(printf, 1, 2)))
 imrelp_dbgprintf(const char *fmt, ...)
 {
@@ -191,10 +192,7 @@ imrelp_dbgprintf(const char *fmt, ...)
 	va_end(ap);
 	r_dbgprintf("imrelp.c", "%s", pszWriteBuf);
 }
-#if !defined(_AIX)
-#pragma GCC diagnostic warning "-Wformat-nonliteral"
-#endif
-
+PRAGMA_DIAGNOSTIC_POP
 
 static void
 onErr(void *pUsr, char *objinfo, char* errmesg, __attribute__((unused)) relpRetVal errcode)
@@ -269,7 +267,7 @@ createInstance(instanceConf_t **pinst)
 {
 	instanceConf_t *inst;
 	DEFiRet;
-	CHKmalloc(inst = MALLOC(sizeof(instanceConf_t)));
+	CHKmalloc(inst = malloc(sizeof(instanceConf_t)));
 	inst->next = NULL;
 
 	inst->pszBindPort = NULL;
@@ -346,6 +344,8 @@ static rsRetVal addInstance(void __attribute__((unused)) *pVal, uchar *pNewVal)
 		CHKmalloc(inst->pszBindRuleset = ustrdup(cs.pszBindRuleset));
 	}
 	inst->pBindRuleset = NULL;
+
+	inst->bEnableLstn = -1; /* all ok, ready to start up */
 finalize_it:
 	free(pNewVal);
 	RETiRet;
@@ -378,12 +378,23 @@ addListner(modConfData_t __attribute__((unused)) *modConf, instanceConf_t *inst)
 		if (!glbl.GetDisableDNS()) {
 			CHKiRet(relpEngineSetDnsLookupMode(pRelpEngine, 1));
 		}
+		#if defined(HAVE_RELPENGINESETTLSLIBBYNAME)
+			if(modConf->tlslib != NULL) {
+				if(relpEngineSetTLSLibByName(pRelpEngine, modConf->tlslib) != RELP_RET_OK) {
+					LogMsg(0, RS_RET_CONF_PARAM_INVLD, LOG_WARNING,
+						"imrelp: tlslib '%s' not accepted as valid by librelp - using default",
+						modConf->tlslib);
+				}
+			}
+		#endif
 	}
 
 	CHKiRet(relpEngineListnerConstruct(pRelpEngine, &pSrv));
-	CHKiRet(relpSrvSetLstnPort(pSrv, inst->pszBindPort));
-	CHKiRet(relpSrvSetLstnAddr(pSrv, inst->pszBindAddr));
 	CHKiRet(relpSrvSetMaxDataSize(pSrv, inst->maxDataSize));
+	CHKiRet(relpSrvSetLstnPort(pSrv, inst->pszBindPort));
+	#if defined(HAVE_RELPSRVSETLSTNADDR)
+		CHKiRet(relpSrvSetLstnAddr(pSrv, inst->pszBindAddr));
+	#endif
 
 #ifdef HAVE_RELPSRVSETOVERSIZEMODE
 	CHKiRet(relpSrvSetOversizeMode(pSrv, inst->oversizeMode));
@@ -505,7 +516,13 @@ CODESTARTnewInpInst
 		if(!strcmp(inppblk.descr[i].name, "port")) {
 			inst->pszBindPort = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if(!strcmp(inppblk.descr[i].name, "address")) {
-			inst->pszBindAddr = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
+			#if defined(HAVE_RELPSRVSETLSTNADDR)
+				inst->pszBindAddr = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
+			#else
+				parser_errmsg("imrelp: librelp does not support input parameter 'address'; "
+					"it probably is too old (1.2.16 should be fine); ignoring setting now, "
+					"listening on all interfaces");
+			#endif
 		} else if(!strcmp(inppblk.descr[i].name, "name")) {
 			inst->pszInputName = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if(!strcmp(inppblk.descr[i].name, "ruleset")) {
@@ -629,6 +646,7 @@ CODESTARTbeginCnfLoad
 	loadModConf = pModConf;
 	pModConf->pConf = pConf;
 	pModConf->pszBindRuleset = NULL;
+	pModConf->tlslib = NULL;
 	/* init legacy config variables */
 	cs.pszBindRuleset = NULL;
 	bLegacyCnfModGlobalsPermitted = 1;
@@ -656,6 +674,14 @@ CODESTARTsetModCnf
 			continue;
 		if(!strcmp(modpblk.descr[i].name, "ruleset")) {
 			loadModConf->pszBindRuleset = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
+		} else if(!strcmp(modpblk.descr[i].name, "tls.tlslib")) {
+			#if defined(HAVE_RELPENGINESETTLSLIBBYNAME)
+				loadModConf->tlslib = es_str2cstr(pvals[i].val.d.estr, NULL);
+			#else
+				LogError(0, RS_RET_NOT_IMPLEMENTED,
+					"imrelp warning: parameter tls.tlslib ignored - librelp does not support "
+					"this API call. Using whatever librelp was compiled with.");
+			#endif
 		} else {
 			dbgprintf("imrelp: program error, non-handled "
 			  "param '%s' in beginCnfLoad\n", modpblk.descr[i].name);
@@ -775,8 +801,12 @@ ENDfreeCnf
 static void
 doSIGTTIN(int __attribute__((unused)) sig)
 {
-	DBGPRINTF("imrelp: termination requested via SIGTTIN - telling RELP engine\n");
-	relpEngineSetStop(pRelpEngine);
+	const int bTerminate = ATOMIC_FETCH_32BIT(&bTerminateInputs, &mutTerminateInputs);
+	DBGPRINTF("imrelp: awoken via SIGTTIN; bTerminateInputs: %d\n", bTerminate);
+	if(bTerminate) {
+		relpEngineSetStop(pRelpEngine);
+		DBGPRINTF("imrelp: termination requested via SIGTTIN - telling RELP engine\n");
+	}
 }
 
 
@@ -881,7 +911,3 @@ CODEmodInit_QueryRegCFSLineHdlr
 	CHKiRet(omsdRegCFSLineHdlr((uchar *)"resetconfigvariables", 1, eCmdHdlrCustomHandler,
 		resetConfigVariables, NULL, STD_LOADABLE_MODULE_ID));
 ENDmodInit
-
-
-/* vim:set ai:
- */

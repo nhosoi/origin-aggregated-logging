@@ -4,12 +4,12 @@ echo ===========================================================================
 echo \[execonlywhenprevsuspended-queue.sh\]: test execonly...suspended functionality with action on its own queue
 
 uname
-if [ `uname` = "SunOS" ] ; then
+if [ $(uname) = "SunOS" ] ; then
    echo "This test currently does not work on all flavors of Solaris."
    exit 77
 fi
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 main_queue(queue.workerthreads="1") 
@@ -29,7 +29,7 @@ template(name="outfmt" type="string" string="%msg:F,58:2%\n")
 }
 '
 startup
-. $srcdir/diag.sh injectmsg 0 1000
+injectmsg 0 1000
 shutdown_when_empty
 wait_shutdown
 seq_check 1 999

@@ -5,7 +5,7 @@
  *
  * File begun on 2008-07-25 by RGerhards
  *
- * Copyright 2008-2014 Adiscon GmbH.
+ * Copyright 2008-2018 Adiscon GmbH.
  *
  * This file is part of rsyslog.
  *
@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <signal.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/types.h>
@@ -81,6 +82,8 @@ static prop_t *pInputName = NULL;
 static prop_t *pRcvDummy = NULL;
 static prop_t *pRcvIPDummy = NULL;
 
+static int max_empty_checks = 5; /* how often check for queue empty during shutdown? */
+
 statsobj_t *diagStats;
 STATSCOUNTER_DEF(potentialArtificialDelayMs, mutPotentialArtificialDelayMs)
 STATSCOUNTER_DEF(actualArtificialDelayMs, mutActualArtificialDelayMs)
@@ -93,14 +96,18 @@ DEF_ATOMIC_HELPER_MUT(mutAllowOnlyOnce);
 pthread_mutex_t mutStatsReporterWatch;
 pthread_cond_t statsReporterWatch;
 int statsReported = 0;
+static int abortTimeout = -1;		/* for timeoutGuard - if set, abort rsyslogd after that many seconds */
+static pthread_t timeoutGuard_thrd;	/* thread ID for timeoutGuard thread (if active) */
 
 /* config settings */
 struct modConfData_s {
 	EMPTY_STRUCT;
 };
 
+static flowControl_t injectmsgDelayMode = eFLOWCTL_NO_DELAY;
 static int iTCPSessMax = 20; /* max number of sessions */
 static int iStrmDrvrMode = 0; /* mode for stream driver, driver-dependent (0 mostly means plain tcp) */
+static uchar *pszLstnPortFileName = NULL;
 static uchar *pszStrmDrvrAuthMode = NULL; /* authentication mode to use */
 static uchar *pszInputName = NULL; /* value for inputname property, NULL is OK and handled by core engine */
 
@@ -225,7 +232,7 @@ doInjectMsg(uchar *szMsg, ratelimit_t *ratelimiter)
 	CHKiRet(msgConstructWithTime(&pMsg, &stTime, ttGenTime));
 	MsgSetRawMsg(pMsg, (char*) szMsg, ustrlen(szMsg));
 	MsgSetInputName(pMsg, pInputName);
-	MsgSetFlowControlType(pMsg, eFLOWCTL_NO_DELAY);
+	MsgSetFlowControlType(pMsg, injectmsgDelayMode);
 	pMsg->msgFlags  = NEEDS_PARSING | PARSE_HOSTNAME;
 	MsgSetRcvFrom(pMsg, pRcvDummy);
 	CHKiRet(MsgSetRcvFromIP(pMsg, pRcvIPDummy));
@@ -281,7 +288,7 @@ injectMsg(uchar *pszCmd, tcps_sess_t *pSess)
 		}
 	}
 	CHKiRet(sendResponse(pSess, "%d messages injected\n", nMsgs));
-	
+
 	DBGPRINTF("imdiag: %d messages injected\n", nMsgs);
 
 finalize_it:
@@ -313,11 +320,19 @@ waitMainQEmpty(tcps_sess_t *pSess)
 	while(1) {
 		processImInternal();
 		const unsigned OverallQueueSize = PREFER_FETCH_32BIT(iOverallQueueSize);
-		if(OverallQueueSize == 0)
+		if(OverallQueueSize == 0) {
 			++nempty;
-		else
+		} else {
+			if(OverallQueueSize > 500) {
+				/* do a bit of extra sleep to not poll too frequently */
+				srSleep(0, (OverallQueueSize > 2000) ? 900000 : 100000);
+			}
 			nempty = 0;
-		if(nempty > 10)
+		}
+		if(dbgTimeoutToStderr) { /* we abuse this setting a bit ;-) */
+			fprintf(stderr, "imdiag: wait q_empty: qsize %d nempty %d\n", OverallQueueSize, nempty);
+		}
+		if(nempty > max_empty_checks)
 			break;
 		if(iPrint++ % 500 == 0)
 			DBGPRINTF("imdiag sleeping, wait queues drain, "
@@ -352,6 +367,21 @@ finalize_it:
 	RETiRet;
 }
 
+static rsRetVal
+enableDebug(tcps_sess_t *pSess)
+{
+	DEFiRet;
+
+	Debug = DEBUG_FULL;
+	debugging_on = 1;
+	dbgprintf("Note: debug turned on via imdiag\n");
+
+	CHKiRet(sendResponse(pSess, "debug enabled\n"));
+
+finalize_it:
+	RETiRet;
+}
+
 static void
 imdiag_statsReadCallback(statsobj_t __attribute__((unused)) *const ignore_stats,
 	void __attribute__((unused)) *const ignore_ctx)
@@ -371,7 +401,7 @@ imdiag_statsReadCallback(statsobj_t __attribute__((unused)) *const ignore_stats,
 		pthread_cond_signal(&statsReporterWatch);
 		pthread_mutex_unlock(&mutStatsReporterWatch);
 	}
-	
+
 	if (delta > 0) {
 		STATSCOUNTER_ADD(actualArtificialDelayMs, mutActualArtificialDelayMs, delta);
 	}
@@ -446,8 +476,8 @@ finalize_it:
 /* Function to handle received messages. This is our core function!
  * rgerhards, 2009-05-24
  */
-static rsRetVal
-OnMsgReceived(tcps_sess_t *pSess, uchar *pRcv, int iLenMsg)
+static rsRetVal ATTR_NONNULL()
+OnMsgReceived(tcps_sess_t *const pSess, uchar *const pRcv, const int iLenMsg)
 {
 	uchar *pszMsg;
 	uchar *pToFree = NULL;
@@ -461,7 +491,7 @@ OnMsgReceived(tcps_sess_t *pSess, uchar *pRcv, int iLenMsg)
 	 * WITHOUT a termination \0 char. So we need to convert it to one
 	 * before proceeding.
 	 */
-	CHKmalloc(pszMsg = MALLOC(iLenMsg + 1));
+	CHKmalloc(pszMsg = malloc(iLenMsg + 1));
 	pToFree = pszMsg;
 	memcpy(pszMsg, pRcv, iLenMsg);
 	pszMsg[iLenMsg] = '\0';
@@ -482,14 +512,15 @@ OnMsgReceived(tcps_sess_t *pSess, uchar *pRcv, int iLenMsg)
 		CHKiRet(blockStatsReporting(pSess));
 	} else if(!ustrcmp(cmdBuf, UCHAR_CONSTANT("awaitstatsreport"))) {
 		CHKiRet(awaitStatsReport(pszMsg, pSess));
+	} else if(!ustrcmp(cmdBuf, UCHAR_CONSTANT("enabledebug"))) {
+		CHKiRet(enableDebug(pSess));
 	} else {
 		dbgprintf("imdiag unkown command '%s'\n", cmdBuf);
 		CHKiRet(sendResponse(pSess, "unkown command '%s'\n", cmdBuf));
 	}
 
 finalize_it:
-	if(pToFree != NULL)
-		free(pToFree);
+	free(pToFree);
 	RETiRet;
 }
 
@@ -503,6 +534,26 @@ setPermittedPeer(void __attribute__((unused)) *pVal, uchar *pszID)
 	CHKiRet(net.AddPermittedPeer(&pPermPeersRoot, pszID));
 	free(pszID); /* no longer needed, but we need to free as of interface def */
 finalize_it:
+	RETiRet;
+}
+
+
+static rsRetVal
+setInjectDelayMode(void __attribute__((unused)) *pVal, uchar *const pszMode)
+{
+	DEFiRet;
+
+	if(!strcasecmp((char*)pszMode, "no")) {
+		injectmsgDelayMode = eFLOWCTL_NO_DELAY;
+	} else if(!strcasecmp((char*)pszMode, "light")) {
+		injectmsgDelayMode = eFLOWCTL_LIGHT_DELAY;
+	} else if(!strcasecmp((char*)pszMode, "full")) {
+		injectmsgDelayMode = eFLOWCTL_FULL_DELAY;
+	} else {
+		LogError(0, RS_RET_PARAM_ERROR,
+			"imdiag: invalid imdiagInjectDelayMode '%s' - ignored", pszMode);
+	}
+	free(pszMode);
 	RETiRet;
 }
 
@@ -521,6 +572,7 @@ static rsRetVal addTCPListener(void __attribute__((unused)) *pVal, uchar *pNewVa
 		CHKiRet(tcpsrv.SetCBOnErrClose(pOurTcpsrv, onErrClose));
 		CHKiRet(tcpsrv.SetDrvrMode(pOurTcpsrv, iStrmDrvrMode));
 		CHKiRet(tcpsrv.SetOnMsgReceive(pOurTcpsrv, OnMsgReceived));
+		CHKiRet(tcpsrv.SetLstnPortFileName(pOurTcpsrv, pszLstnPortFileName));
 		/* now set optional params, but only if they were actually configured */
 		if(pszStrmDrvrAuthMode != NULL) {
 			CHKiRet(tcpsrv.SetDrvrAuthMode(pOurTcpsrv, pszStrmDrvrAuthMode));
@@ -534,7 +586,7 @@ static rsRetVal addTCPListener(void __attribute__((unused)) *pVal, uchar *pNewVa
 	CHKiRet(tcpsrv.SetInputName(pOurTcpsrv, pszInputName == NULL ?
 						UCHAR_CONSTANT("imdiag") : pszInputName));
 	CHKiRet(tcpsrv.SetOrigin(pOurTcpsrv, (uchar*)"imdiag"));
-	/* we support octect-cuunted frame (constant 1 below) */
+	/* we support octect-counted frame (constant 1 below) */
 	tcpsrv.configureTCPListen(pOurTcpsrv, pNewVal, 1, NULL);
 
 finalize_it:
@@ -544,6 +596,77 @@ finalize_it:
 			tcpsrv.Destruct(&pOurTcpsrv);
 	}
 	free(pNewVal);
+	RETiRet;
+}
+
+
+static void *
+timeoutGuard(ATTR_UNUSED void *arg)
+{
+	assert(abortTimeout != -1);
+	sigset_t sigSet;
+	time_t strtTO;
+	time_t endTO;
+
+	/* block all signals except SIGTTIN and SIGSEGV */
+	sigfillset(&sigSet);
+	sigdelset(&sigSet, SIGSEGV);
+	pthread_sigmask(SIG_BLOCK, &sigSet, NULL);
+
+	dbgprintf("timeoutGuard: timeout %d seconds, time %lld\n", abortTimeout, (long long) time(NULL));
+
+	time(&strtTO);
+	endTO = strtTO + abortTimeout;
+
+	while(1) {
+		int to = endTO - time(NULL);
+		dbgprintf("timeoutGuard: sleep timeout %d seconds\n", to);
+		if(to > 0) {
+			srSleep(to, 0);
+		}
+		if(time(NULL) < endTO) {
+			dbgprintf("timeoutGuard: spurios wakeup, going back to sleep, time: %lld\n",
+				(long long) time(NULL));
+		} else {
+			break;
+		}
+	}
+	dbgprintf("timeoutGuard: sleep expired, aborting\n");
+	/* note: we use fprintf to stderr intentionally! */
+
+	fprintf(stderr, "timeoutGuard: rsyslog still active after expiry of guard "
+		"period (strtTO %lld, endTO %lld, time now %lld, diff %lld), pid %d - initiating abort()\n",
+	(long long) strtTO, (long long) endTO, (long long) time(NULL), (long long) (time(NULL) - strtTO),
+	(int) glblGetOurPid());
+	fflush(stderr);
+	abort();
+}
+
+
+static rsRetVal
+setAbortTimeout(void __attribute__((unused)) *pVal, int timeout)
+{
+	DEFiRet;
+
+	if(abortTimeout != -1) {
+		LogError(0, NO_ERRCODE, "imdiag: abort timeout already set -"
+			"ignoring 2nd+ request");
+		ABORT_FINALIZE(RS_RET_ERR);
+	}
+	if(timeout <= 0) {
+		LogError(0, NO_ERRCODE, "imdiag: $IMDiagAbortTimeout must be greater "
+			"than 0 - ignored");
+		ABORT_FINALIZE(RS_RET_ERR);
+	}
+	abortTimeout = timeout;
+	const int iState = pthread_create(&timeoutGuard_thrd, NULL, timeoutGuard, NULL);
+	if(iState != 0) {
+		LogError(iState, NO_ERRCODE, "imdiag: error enabling timeoutGuard thread -"
+			"not guarding against system hang");
+		ABORT_FINALIZE(RS_RET_ERR);
+	}
+
+finalize_it:
 	RETiRet;
 }
 
@@ -629,6 +752,8 @@ CODESTARTmodExit
 
 	/* free some globals to keep valgrind happy */
 	free(pszInputName);
+	free(pszLstnPortFileName);
+	free(pszStrmDrvrAuthMode);
 
 	statsobj.Destruct(&diagStats);
 	sem_destroy(&statsReportingBlocker);
@@ -644,6 +769,15 @@ CODESTARTmodExit
 	objRelease(datetime, CORE_COMPONENT);
 	objRelease(prop, CORE_COMPONENT);
 	objRelease(statsobj, CORE_COMPONENT);
+
+	/* clean up timeoutGuard if active */
+	if(abortTimeout != -1) {
+		int r = pthread_cancel(timeoutGuard_thrd);
+		if(r == 0) {
+			void *dummy;
+			pthread_join(timeoutGuard_thrd, &dummy);
+		}
+	}
 ENDmodExit
 
 
@@ -653,7 +787,8 @@ resetConfigVariables(uchar __attribute__((unused)) *pp, void __attribute__((unus
 	iTCPSessMax = 200;
 	iStrmDrvrMode = 0;
 	free(pszInputName);
-	pszInputName = NULL;
+	free(pszLstnPortFileName);
+	pszLstnPortFileName = NULL;
 	if(pszStrmDrvrAuthMode != NULL) {
 		free(pszStrmDrvrAuthMode);
 		pszStrmDrvrAuthMode = NULL;
@@ -690,13 +825,37 @@ CODEmodInit_QueryRegCFSLineHdlr
 	CHKiRet(objUse(prop, CORE_COMPONENT));
 	CHKiRet(objUse(statsobj, CORE_COMPONENT));
 
+	const char *ci_max_empty_checks = getenv("CI_SHUTDOWN_QUEUE_EMPTY_CHECKS");
+	if(ci_max_empty_checks != NULL) {
+		int n = atoi(ci_max_empty_checks);
+		if(n > 200) {
+			LogError(0, RS_RET_PARAM_ERROR, "env var CI_SHUTDOWN_QUEUE_EMPTY_CHECKS has "
+				"value over 200, which is the maximum - capped to 200");
+			n = 200;
+		}
+		if(n > 0) {
+			max_empty_checks = n;
+		} else {
+			LogError(0, RS_RET_PARAM_ERROR, "env var CI_SHUTDOWN_QUEUE_EMPTY_CHECKS has "
+				"value below 1, ignored; using default instead");
+		}
+		fprintf(stderr, "rsyslogd: info: imdiag does %d empty checks due to "
+			"CI_SHUTDOWN_QUEUE_EMPTY_CHECKS\n", max_empty_checks);
+	}
+
 	/* register config file handlers */
+	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("imdiagaborttimeout"), 0, eCmdHdlrInt,
+				   setAbortTimeout, NULL, STD_LOADABLE_MODULE_ID));
 	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("imdiagserverrun"), 0, eCmdHdlrGetWord,
 				   addTCPListener, NULL, STD_LOADABLE_MODULE_ID));
+	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("imdiaginjectdelaymode"), 0, eCmdHdlrGetWord,
+				   setInjectDelayMode, NULL, STD_LOADABLE_MODULE_ID));
 	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("imdiagmaxsessions"), 0, eCmdHdlrInt,
 				   NULL, &iTCPSessMax, STD_LOADABLE_MODULE_ID));
 	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("imdiagserverstreamdrivermode"), 0,
 				   eCmdHdlrInt, NULL, &iStrmDrvrMode, STD_LOADABLE_MODULE_ID));
+	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("imdiaglistenportfilename"), 0,
+				   eCmdHdlrGetWord, NULL, &pszLstnPortFileName, STD_LOADABLE_MODULE_ID));
 	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("imdiagserverstreamdriverauthmode"), 0,
 				   eCmdHdlrGetWord, NULL, &pszStrmDrvrAuthMode, STD_LOADABLE_MODULE_ID));
 	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("imdiagserverstreamdriverpermittedpeer"), 0,
@@ -727,7 +886,3 @@ CODEmodInit_QueryRegCFSLineHdlr
 	CHKiRet(statsobj.SetReadNotifier(diagStats, imdiag_statsReadCallback, NULL));
 	CHKiRet(statsobj.ConstructFinalize(diagStats));
 ENDmodInit
-
-
-/* vim:set ai:
- */

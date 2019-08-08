@@ -5,8 +5,8 @@
 
 Summary: Enhanced system logging and kernel message trapping daemon
 Name: rsyslog
-Version: 8.37.0
-Release: 9%{?dist}
+Version: 8.39.0
+Release: 1%{?dist}
 License: (GPLv3+ and ASL 2.0)
 Group: System Environment/Daemons
 ExcludeArch: i686
@@ -275,7 +275,7 @@ install -p -m 644 plugins/ommysql/createDB.sql %{buildroot}%{rsyslog_docdir}/mys
 install -p -m 644 plugins/ompgsql/createDB.sql %{buildroot}%{rsyslog_docdir}/pgsql-createDB.sql
 install -p -m 644 contrib/mmkubernetes/*.rulebase %{buildroot}%{rsyslog_docdir}
 # extract documentation
-cp -r doc/* %{buildroot}%{rsyslog_docdir}/html
+# cp -r doc/* %{buildroot}%{rsyslog_docdir}/html
 # get rid of libtool libraries
 rm -f %{buildroot}%{_libdir}/rsyslog/*.la
 # get rid of socket activation by default
@@ -332,7 +332,7 @@ done
 %{_libdir}/rsyslog/lmnetstrms.so
 %{_libdir}/rsyslog/lmnsd_ptcp.so
 %{_libdir}/rsyslog/lmregexp.so
-%{_libdir}/rsyslog/lmstrmsrv.so
+# %{_libdir}/rsyslog/lmstrmsrv.so
 %{_libdir}/rsyslog/lmtcpclt.so
 %{_libdir}/rsyslog/lmtcpsrv.so
 %{_libdir}/rsyslog/lmzlibw.so

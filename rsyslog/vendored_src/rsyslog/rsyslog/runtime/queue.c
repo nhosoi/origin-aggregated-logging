@@ -5,14 +5,14 @@
  * File begun on 2008-01-03 by RGerhards
  *
  * There is some in-depth documentation available in doc/dev_queue.html
- * (and in the web doc set on http://www.rsyslog.com/doc). Be sure to read it
+ * (and in the web doc set on https://www.rsyslog.com/doc/). Be sure to read it
  * if you are getting aquainted to the object.
  *
  * NOTE: as of 2009-04-22, I have begin to remove the qqueue* prefix from static
  * function names - this makes it really hard to read and does not provide much
  * benefit, at least I (now) think so...
  *
- * Copyright 2008-2017 Rainer Gerhards and Adiscon GmbH.
+ * Copyright 2008-2019 Rainer Gerhards and Adiscon GmbH.
  *
  * This file is part of the rsyslog runtime library.
  *
@@ -82,16 +82,25 @@ DEFobjCurrIf(statsobj)
 unsigned int iOverallQueueSize = 0;
 #endif
 
+#define OVERSIZE_QUEUE_WATERMARK 500000 /* when is a queue considered to be "overly large"? */
+
+/* overridable default values (via global config) */
+int actq_dflt_toQShutdown = 10;		/* queue shutdown */
+int actq_dflt_toActShutdown = 1000;	/* action shutdown (in phase 2) */
+int actq_dflt_toEnq = 2000;		/* timeout for queue enque */
+int actq_dflt_toWrkShutdown = 60000;	/* timeout for worker thread shutdown */
+
+int ruleset_dflt_toQShutdown = 1500;	/* queue shutdown */
+int ruleset_dflt_toActShutdown = 1000;	/* action shutdown (in phase 2) */
+int ruleset_dflt_toEnq = 2000;		/* timeout for queue enque */
+int ruleset_dflt_toWrkShutdown = 60000;	/* timeout for worker thread shutdown */
+
+
 /* forward-definitions */
 static rsRetVal doEnqSingleObj(qqueue_t *pThis, flowControl_t flowCtlType, smsg_t *pMsg);
 static rsRetVal qqueueChkPersist(qqueue_t *pThis, int nUpdates);
 static rsRetVal RateLimiter(qqueue_t *pThis);
-/*  AIXPORT : return type mismatch corrected */
-#if defined (_AIX)
 static rsRetVal qqueueChkStopWrkrDA(qqueue_t *pThis);
-#else
-static int qqueueChkStopWrkrDA(qqueue_t *pThis);
-#endif
 static rsRetVal GetDeqBatchSize(qqueue_t *pThis, int *pVal);
 static rsRetVal ConsumerDA(qqueue_t *pThis, wti_t *pWti);
 static rsRetVal batchProcessed(qqueue_t *pThis, wti_t *pWti);
@@ -113,6 +122,8 @@ static struct cnfparamdescr cnfpdescr[] = {
 	{ "queue.spooldirectory", eCmdHdlrGetWord, 0 },
 	{ "queue.size", eCmdHdlrSize, 0 },
 	{ "queue.dequeuebatchsize", eCmdHdlrInt, 0 },
+	{ "queue.mindequeuebatchsize", eCmdHdlrInt, 0 },
+	{ "queue.mindequeuebatchsize.timeout", eCmdHdlrInt, 0 },
 	{ "queue.maxdiskspace", eCmdHdlrSize, 0 },
 	{ "queue.highwatermark", eCmdHdlrInt, 0 },
 	{ "queue.lowwatermark", eCmdHdlrInt, 0 },
@@ -143,6 +154,14 @@ static struct cnfparamblk pblk =
 	  cnfpdescr
 	};
 
+/* support to detect duplicate queue file names */
+struct queue_filename {
+	struct queue_filename *next;
+	const char *dirname;
+	const char *filename;
+};
+struct queue_filename *queue_filename_root = NULL;
+
 /* debug aid */
 #if 0
 static inline void displayBatchState(batch_t *pBatch)
@@ -154,6 +173,21 @@ static inline void displayBatchState(batch_t *pBatch)
 }
 #endif
 static rsRetVal qqueuePersist(qqueue_t *pThis, int bIsCheckpoint);
+
+/* do cleanup when config is loaded */
+void qqueueDoneLoadCnf(void)
+{
+	struct queue_filename *next, *del;
+	next = queue_filename_root;
+	while(next != NULL) {
+		del = next;
+		next = next->next;
+		free((void*) del->filename);
+		free((void*) del->dirname);
+		free((void*) del);
+	}
+}
+
 
 /***********************************************************************
  * we need a private data structure, the "to-delete" list. As C does
@@ -219,7 +253,7 @@ tdlAdd(qqueue_t *pQueue, qDeqID deqID, int nElemDeq)
 	ISOBJ_TYPE_assert(pQueue, qqueue);
 	assert(pQueue->toDeleteLst != NULL);
 
-	CHKmalloc(pNew = MALLOC(sizeof(toDeleteLst_t)));
+	CHKmalloc(pNew = malloc(sizeof(toDeleteLst_t)));
 	pNew->deqID = deqID;
 	pNew->nElemDeq = nElemDeq;
 
@@ -278,6 +312,8 @@ qqueueDbgPrint(qqueue_t *pThis)
 		(pThis->pszFilePrefix == NULL) ? "[NONE]" : (char*)pThis->pszFilePrefix);
 	dbgoprint((obj_t*) pThis, "queue.size: %d\n", pThis->iMaxQueueSize);
 	dbgoprint((obj_t*) pThis, "queue.dequeuebatchsize: %d\n", pThis->iDeqBatchSize);
+	dbgoprint((obj_t*) pThis, "queue.mindequeuebatchsize: %d\n", pThis->iMinDeqBatchSize);
+	dbgoprint((obj_t*) pThis, "queue.mindequeuebatchsize.timeout: %d\n", pThis->toMinDeqBatchSize);
 	dbgoprint((obj_t*) pThis, "queue.maxdiskspace: %lld\n", pThis->sizeOnDiskMax);
 	dbgoprint((obj_t*) pThis, "queue.highwatermark: %d\n", pThis->iHighWtrMrk);
 	dbgoprint((obj_t*) pThis, "queue.lowwatermark: %d\n", pThis->iLowWtrMrk);
@@ -337,9 +373,8 @@ getLogicalQueueSize(qqueue_t *pThis)
 static void queueDrain(qqueue_t *pThis)
 {
 	smsg_t *pMsg;
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
-	BEGINfunc
 	DBGOPRINT((obj_t*) pThis, "queue (type %d) will lose %d messages, destroying...\n",
 		pThis->qType, pThis->iQueueSize);
 	/* iQueueSize is not decremented by qDel(), so we need to do it ourselves */
@@ -350,7 +385,6 @@ static void queueDrain(qqueue_t *pThis)
 		}
 		pThis->qDel(pThis);
 	}
-	ENDfunc
 }
 
 
@@ -372,7 +406,8 @@ qqueueAdviseMaxWorkers(qqueue_t *pThis)
 	if(!pThis->bEnqOnly) {
 		if(pThis->bIsDA && getLogicalQueueSize(pThis) >= pThis->iHighWtrMrk) {
 			DBGOPRINT((obj_t*) pThis, "(re)activating DA worker\n");
-			wtpAdviseMaxWorkers(pThis->pWtpDA, 1); /* disk queues have always one worker */
+			wtpAdviseMaxWorkers(pThis->pWtpDA, 1, DENY_WORKER_START_DURING_SHUTDOWN);
+			/* disk queues have always one worker */
 		}
 		if(getLogicalQueueSize(pThis) == 0) {
 			iMaxWorkers = 0;
@@ -381,7 +416,7 @@ qqueueAdviseMaxWorkers(qqueue_t *pThis)
 		} else {
 			iMaxWorkers = getLogicalQueueSize(pThis) / pThis->iMinMsgsPerWrkr + 1;
 		}
-		wtpAdviseMaxWorkers(pThis->pWtpReg, iMaxWorkers);
+		wtpAdviseMaxWorkers(pThis->pWtpReg, iMaxWorkers, DENY_WORKER_START_DURING_SHUTDOWN);
 	}
 
 	RETiRet;
@@ -450,6 +485,22 @@ StartDA(qqueue_t *pThis)
 	CHKiRet(qqueueSettoQShutdown(pThis->pqDA, pThis->toQShutdown));
 	CHKiRet(qqueueSetiHighWtrMrk(pThis->pqDA, 0));
 	CHKiRet(qqueueSetiDiscardMrk(pThis->pqDA, 0));
+	if(pThis->useCryprov) {
+		/* hand over cryprov to DA queue - in-mem queue does no longer need it
+		 * and DA queue will be kept active from now on until termination.
+		 */
+		pThis->pqDA->useCryprov = pThis->useCryprov;
+		pThis->pqDA->cryprov = pThis->cryprov;
+		pThis->pqDA->cryprovData = pThis->cryprovData;
+		pThis->pqDA->cryprovName = pThis->cryprovName;
+		pThis->pqDA->cryprovNameFull = pThis->cryprovNameFull;
+		/* reset memory queue parameters */
+		pThis->useCryprov = 0;
+		/* pThis->cryprov cannot and need not be reset, is structure */
+		pThis->cryprovData = NULL;
+		pThis->cryprovName = NULL;
+		pThis->cryprovNameFull = NULL;
+	}
 
 	iRet = qqueueStart(pThis->pqDA);
 	/* file not found is expected, that means it is no previous QIF available */
@@ -483,15 +534,18 @@ finalize_it:
  * If this function fails (should not happen), DA mode is not turned on.
  * rgerhards, 2008-01-16
  */
-static rsRetVal
-InitDA(qqueue_t *pThis, int bLockMutex)
+static rsRetVal ATTR_NONNULL()
+InitDA(qqueue_t *const pThis, const int bLockMutex)
 {
 	DEFiRet;
-	DEFVARS_mutexProtection;
 	uchar pszBuf[64];
 	size_t lenBuf;
 
-	BEGIN_MTX_PROTECTED_OPERATIONS(pThis->mut, bLockMutex);
+	ISOBJ_TYPE_assert(pThis, qqueue);
+	if(bLockMutex == LOCK_MUTEX) {
+		d_pthread_mutex_lock(pThis->mut);
+	}
+
 	/* check if we already have a DA worker pool. If not, initiate one. Please note that the
 	 * pool is created on first need but never again destructed (until the queue is). This
 	 * is intentional. We assume that when we need it once, we may also need it on another
@@ -519,7 +573,9 @@ InitDA(qqueue_t *pThis, int bLockMutex)
 	}
 
 finalize_it:
-	END_MTX_PROTECTED_OPERATIONS(pThis->mut);
+	if(bLockMutex == LOCK_MUTEX) {
+		d_pthread_mutex_unlock(pThis->mut);
+	}
 	RETiRet;
 }
 
@@ -538,12 +594,12 @@ static rsRetVal qConstructFixedArray(qqueue_t *pThis)
 {
 	DEFiRet;
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
 	if(pThis->iMaxQueueSize == 0)
 		ABORT_FINALIZE(RS_RET_QSIZE_ZERO);
 
-	if((pThis->tVars.farray.pBuf = MALLOC(sizeof(void *) * pThis->iMaxQueueSize)) == NULL) {
+	if((pThis->tVars.farray.pBuf = malloc(sizeof(void *) * pThis->iMaxQueueSize)) == NULL) {
 		ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 	}
 
@@ -561,8 +617,8 @@ finalize_it:
 static rsRetVal qDestructFixedArray(qqueue_t *pThis)
 {
 	DEFiRet;
-	
-	ASSERT(pThis != NULL);
+
+	assert(pThis != NULL);
 
 	queueDrain(pThis); /* discard any remaining queue entries */
 	free(pThis->tVars.farray.pBuf);
@@ -575,7 +631,7 @@ static rsRetVal qAddFixedArray(qqueue_t *pThis, smsg_t* in)
 {
 	DEFiRet;
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 	pThis->tVars.farray.pBuf[pThis->tVars.farray.tail] = in;
 	pThis->tVars.farray.tail++;
 	if (pThis->tVars.farray.tail == pThis->iMaxQueueSize)
@@ -589,7 +645,7 @@ static rsRetVal qDeqFixedArray(qqueue_t *pThis, smsg_t **out)
 {
 	DEFiRet;
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 	*out = (void*) pThis->tVars.farray.pBuf[pThis->tVars.farray.deqhead];
 
 	pThis->tVars.farray.deqhead++;
@@ -604,7 +660,7 @@ static rsRetVal qDelFixedArray(qqueue_t *pThis)
 {
 	DEFiRet;
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
 	pThis->tVars.farray.head++;
 	if (pThis->tVars.farray.head == pThis->iMaxQueueSize)
@@ -621,7 +677,7 @@ static rsRetVal qConstructLinkedList(qqueue_t *pThis)
 {
 	DEFiRet;
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
 	pThis->tVars.linklist.pDeqRoot = NULL;
 	pThis->tVars.linklist.pDelRoot = NULL;
@@ -651,7 +707,7 @@ static rsRetVal qAddLinkedList(qqueue_t *pThis, smsg_t* pMsg)
 	qLinkedList_t *pEntry;
 	DEFiRet;
 
-	CHKmalloc((pEntry = (qLinkedList_t*) MALLOC(sizeof(qLinkedList_t))));
+	CHKmalloc((pEntry = (qLinkedList_t*) malloc(sizeof(qLinkedList_t))));
 
 	pEntry->pNext = NULL;
 	pEntry->pMsg = pMsg;
@@ -784,7 +840,8 @@ qqueueTryLoadPersistedInfo(qqueue_t *pThis)
 			DBGOPRINT((obj_t*) pThis, "clean startup, no .qi file found\n");
 			ABORT_FINALIZE(RS_RET_FILE_NOT_FOUND);
 		} else {
-			DBGOPRINT((obj_t*) pThis, "error %d trying to access .qi file\n", errno);
+			LogError(errno, RS_RET_IO_ERROR, "queue: %s: error %d could not access .qi file",
+					obj.GetName((obj_t*) pThis), errno);
 			ABORT_FINALIZE(RS_RET_IO_ERROR);
 		}
 	}
@@ -799,7 +856,7 @@ qqueueTryLoadPersistedInfo(qqueue_t *pThis)
 
 	/* first, we try to read the property bag for ourselfs */
 	CHKiRet(obj.DeserializePropBag((obj_t*) pThis, psQIF));
-	
+
 	/* then the stream objects (same order as when persisted!) */
 	CHKiRet(obj.Deserialize(&pThis->tVars.disk.pWrite, (uchar*) "strm", psQIF,
 			       (rsRetVal(*)(obj_t*,void*))qqueueLoadPersStrmInfoFixup, pThis));
@@ -827,6 +884,10 @@ qqueueTryLoadPersistedInfo(qqueue_t *pThis)
 	 * deleted when we are done with the persisted information.
 	 */
 	pThis->bNeedDelQIF = 1;
+	LogMsg(0, RS_RET_OK, LOG_INFO, "%s: queue files exist on disk, re-starting with "
+		"%d messages. This will keep the disk queue file open, details: "
+		"https://rainer.gerhards.net/2013/07/rsyslog-why-disk-assisted-queues-keep-a-file-open.html",
+		objGetName((obj_t*) pThis), getLogicalQueueSize(pThis));
 
 finalize_it:
 	if(psQIF != NULL)
@@ -853,7 +914,7 @@ static rsRetVal qConstructDisk(qqueue_t *pThis)
 	DEFiRet;
 	int bRestarted = 0;
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
 	/* and now check if there is some persistent information that needs to be read in */
 	iRet = qqueueTryLoadPersistedInfo(pThis);
@@ -924,8 +985,8 @@ finalize_it:
 static rsRetVal qDestructDisk(qqueue_t *pThis)
 {
 	DEFiRet;
-	
-	ASSERT(pThis != NULL);
+
+	assert(pThis != NULL);
 
 	free(pThis->pszQIFNam);
 	if(pThis->tVars.disk.pWrite != NULL) {
@@ -947,13 +1008,14 @@ static rsRetVal qDestructDisk(qqueue_t *pThis)
 	RETiRet;
 }
 
-static rsRetVal qAddDisk(qqueue_t *pThis, smsg_t* pMsg)
+static rsRetVal ATTR_NONNULL(1,2)
+qAddDisk(qqueue_t *const pThis, smsg_t* pMsg)
 {
 	DEFiRet;
+	ISOBJ_TYPE_assert(pThis, qqueue);
+	ISOBJ_TYPE_assert(pMsg, msg);
 	number_t nWriteCount;
 	const int oldfile = strmGetCurrFileNum(pThis->tVars.disk.pWrite);
-
-	ASSERT(pThis != NULL);
 
 	CHKiRet(strm.SetWCntr(pThis->tVars.disk.pWrite, &nWriteCount));
 	CHKiRet((objSerialize(pMsg))(pMsg, pThis->tVars.disk.pWrite));
@@ -1025,7 +1087,7 @@ static rsRetVal qAddDirectWithWti(qqueue_t *pThis, smsg_t* pMsg, wti_t *pWti)
 	DEFiRet;
 
 	//TODO: init batchObj (states _OK and new fields -- CHECK)
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
 	/* calling the consumer is quite different here than it is from a worker thread */
 	/* we need to provide the consumer's return value back to the caller because in direct
@@ -1077,7 +1139,7 @@ qqueueAdd(qqueue_t *pThis, smsg_t *pMsg)
 {
 	DEFiRet;
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
 	static int msgCnt = 0;
 
@@ -1119,7 +1181,7 @@ qqueueDeq(qqueue_t *pThis, smsg_t **ppMsg)
 {
 	DEFiRet;
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
 	/* we do NOT abort if we encounter an error, because otherwise the queue
 	 * will not be decremented, what will most probably result in an endless loop.
@@ -1154,7 +1216,7 @@ tryShutdownWorkersWithinQueueTimeout(qqueue_t *const pThis)
 	DEFiRet;
 
 	ISOBJ_TYPE_assert(pThis, qqueue);
-	ASSERT(pThis->pqParent == NULL); /* detect invalid calling sequence */
+	assert(pThis->pqParent == NULL); /* detect invalid calling sequence */
 
 	if(pThis->bIsDA) {
 		/* We need to lock the mutex, as otherwise we may have a race that prevents
@@ -1165,12 +1227,13 @@ tryShutdownWorkersWithinQueueTimeout(qqueue_t *const pThis)
 		DBGOPRINT((obj_t*) pThis, "setting EnqOnly mode for DA worker\n");
 		pThis->pqDA->bEnqOnly = 1;
 		wtpSetState(pThis->pWtpDA, wtpState_SHUTDOWN_IMMEDIATE);
-		wtpAdviseMaxWorkers(pThis->pWtpDA, 1);
+		wtpAdviseMaxWorkers(pThis->pWtpDA, 1, DENY_WORKER_START_DURING_SHUTDOWN);
 		DBGOPRINT((obj_t*) pThis, "awoke DA worker, told it to shut down.\n");
 
 		/* also tell the DA queue worker to shut down, so that it already knows... */
 		wtpSetState(pThis->pqDA->pWtpReg, wtpState_SHUTDOWN);
-		wtpAdviseMaxWorkers(pThis->pqDA->pWtpReg, 1); /* awake its lone worker */
+		wtpAdviseMaxWorkers(pThis->pqDA->pWtpReg, 1, DENY_WORKER_START_DURING_SHUTDOWN);
+			/* awake its lone worker */
 		DBGOPRINT((obj_t*) pThis, "awoke DA queue regular worker, told it to shut down when done.\n");
 
 		d_pthread_mutex_unlock(pThis->mut);
@@ -1230,7 +1293,7 @@ tryShutdownWorkersWithinActionTimeout(qqueue_t *pThis)
 	DEFiRet;
 
 	ISOBJ_TYPE_assert(pThis, qqueue);
-	ASSERT(pThis->pqParent == NULL); /* detect invalid calling sequence */
+	assert(pThis->pqParent == NULL); /* detect invalid calling sequence */
 
 	/* instruct workers to finish ASAP, even if still work exists */
 	DBGOPRINT((obj_t*) pThis, "trying to shutdown workers within Action Timeout");
@@ -1362,17 +1425,17 @@ cancelWorkers(qqueue_t *pThis)
  * longer, because we no longer can persist the queue in parallel to waiting
  * on worker timeouts.
  */
-rsRetVal
+rsRetVal ATTR_NONNULL(1)
 qqueueShutdownWorkers(qqueue_t *const pThis)
 {
 	DEFiRet;
+	ISOBJ_TYPE_assert(pThis, qqueue);
 
 	if(pThis->qType == QUEUETYPE_DIRECT) {
 		FINALIZE;
 	}
 
-	ISOBJ_TYPE_assert(pThis, qqueue);
-	ASSERT(pThis->pqParent == NULL); /* detect invalid calling sequence */
+	assert(pThis->pqParent == NULL); /* detect invalid calling sequence */
 
 	DBGOPRINT((obj_t*) pThis, "initiating worker thread shutdown sequence %p\n", pThis);
 
@@ -1411,9 +1474,9 @@ rsRetVal qqueueConstruct(qqueue_t **ppThis, queueType_t qType, int iWorkerThread
 	qqueue_t *pThis;
 	const uchar *const workDir = glblGetWorkDirRaw();
 
-	ASSERT(ppThis != NULL);
-	ASSERT(pConsumer != NULL);
-	ASSERT(iWorkerThreads >= 0);
+	assert(ppThis != NULL);
+	assert(pConsumer != NULL);
+	assert(iWorkerThreads >= 0);
 
 	CHKmalloc(pThis = (qqueue_t *)calloc(1, sizeof(qqueue_t)));
 
@@ -1437,6 +1500,7 @@ rsRetVal qqueueConstruct(qqueue_t **ppThis, queueType_t qType, int iWorkerThread
 	pThis->iNumWorkerThreads = iWorkerThreads;
 	pThis->iDeqtWinToHr = 25; /* disable time-windowed dequeuing by default */
 	pThis->iDeqBatchSize = 8; /* conservative default, should still provide good performance */
+	pThis->iMinDeqBatchSize = 0; /* conservative default, should still provide good performance */
 
 	pThis->pszFilePrefix = NULL;
 	pThis->qType = qType;
@@ -1464,6 +1528,8 @@ qqueueSetDefaultsActionQueue(qqueue_t *pThis)
 	pThis->qType = QUEUETYPE_DIRECT;	/* type of the main message queue above */
 	pThis->iMaxQueueSize = 1000;		/* size of the main message queue above */
 	pThis->iDeqBatchSize = 128; 		/* default batch size */
+	pThis->iMinDeqBatchSize = 0;
+	pThis->toMinDeqBatchSize = 1000;
 	pThis->iHighWtrMrk = -1;		/* high water mark for disk-assisted queues */
 	pThis->iLowWtrMrk = -1;			/* low water mark for disk-assisted queues */
 	pThis->iDiscardMrk = -1;		/* begin to discard messages */
@@ -1472,10 +1538,10 @@ qqueueSetDefaultsActionQueue(qqueue_t *pThis)
 	pThis->iMaxFileSize = 1024*1024;
 	pThis->iPersistUpdCnt = 0;		/* persist queue info every n updates */
 	pThis->bSyncQueueFiles = 0;
-	pThis->toQShutdown = 0;			/* queue shutdown */
-	pThis->toActShutdown = 1000;		/* action shutdown (in phase 2) */
-	pThis->toEnq = 2000;			/* timeout for queue enque */
-	pThis->toWrkShutdown = 60000;		/* timeout for worker thread shutdown */
+	pThis->toQShutdown = actq_dflt_toQShutdown;	/* queue shutdown */
+	pThis->toActShutdown = actq_dflt_toActShutdown;	/* action shutdown (in phase 2) */
+	pThis->toEnq = actq_dflt_toEnq;			/* timeout for queue enque */
+	pThis->toWrkShutdown = actq_dflt_toWrkShutdown;	/* timeout for worker thread shutdown */
 	pThis->iMinMsgsPerWrkr = -1;		/* minimum messages per worker needed to start a new one */
 	pThis->bSaveOnShutdown = 1;		/* save queue on shutdown (when DA enabled)? */
 	pThis->sizeOnDiskMax = 0;		/* unlimited */
@@ -1495,6 +1561,8 @@ qqueueSetDefaultsRulesetQueue(qqueue_t *pThis)
 	pThis->qType = QUEUETYPE_FIXED_ARRAY;	/* type of the main message queue above */
 	pThis->iMaxQueueSize = 50000;		/* size of the main message queue above */
 	pThis->iDeqBatchSize = 1024; 		/* default batch size */
+	pThis->iMinDeqBatchSize = 0;
+	pThis->toMinDeqBatchSize = 1000;
 	pThis->iHighWtrMrk = -1;		/* high water mark for disk-assisted queues */
 	pThis->iLowWtrMrk = -1;			/* low water mark for disk-assisted queues */
 	pThis->iDiscardMrk = -1;		/* begin to discard messages */
@@ -1503,10 +1571,10 @@ qqueueSetDefaultsRulesetQueue(qqueue_t *pThis)
 	pThis->iMaxFileSize = 16*1024*1024;
 	pThis->iPersistUpdCnt = 0;		/* persist queue info every n updates */
 	pThis->bSyncQueueFiles = 0;
-	pThis->toQShutdown = 1500;			/* queue shutdown */
-	pThis->toActShutdown = 1000;		/* action shutdown (in phase 2) */
-	pThis->toEnq = 2000;			/* timeout for queue enque */
-	pThis->toWrkShutdown = 60000;		/* timeout for worker thread shutdown */
+	pThis->toQShutdown = ruleset_dflt_toQShutdown;
+	pThis->toActShutdown = ruleset_dflt_toActShutdown;
+	pThis->toEnq = ruleset_dflt_toEnq;
+	pThis->toWrkShutdown = ruleset_dflt_toWrkShutdown;
 	pThis->iMinMsgsPerWrkr = -1;		/* minimum messages per worker needed to start a new one */
 	pThis->bSaveOnShutdown = 1;		/* save queue on shutdown (when DA enabled)? */
 	pThis->sizeOnDiskMax = 0;		/* unlimited */
@@ -1706,13 +1774,16 @@ DeleteProcessedBatch(qqueue_t *pThis, batch_t *pBatch)
  * This must only be called when the queue mutex is LOOKED, otherwise serious
  * malfunction will happen.
  */
-static rsRetVal
-DequeueConsumableElements(qqueue_t *pThis, wti_t *pWti, int *piRemainingQueueSize, int *const pSkippedMsgs)
+static rsRetVal ATTR_NONNULL()
+DequeueConsumableElements(qqueue_t *const pThis, wti_t *const pWti,
+	int *const piRemainingQueueSize, int *const pSkippedMsgs)
 {
 	int nDequeued;
 	int nDiscarded;
 	int nDeleted;
 	int iQueueSize;
+	int keep_running = 1;
+	struct timespec timeout;
 	smsg_t *pMsg;
 	rsRetVal localRet;
 	DEFiRet;
@@ -1723,6 +1794,12 @@ DequeueConsumableElements(qqueue_t *pThis, wti_t *pWti, int *piRemainingQueueSiz
 	nDequeued = nDiscarded = 0;
 	if(pThis->qType == QUEUETYPE_DISK) {
 		pThis->tVars.disk.deqFileNumIn = strmGetCurrFileNum(pThis->tVars.disk.pReadDeq);
+	}
+
+	/* work-around clang static analyzer false positive, we need a const value */
+	const int iMinDeqBatchSize = pThis->iMinDeqBatchSize;
+	if(iMinDeqBatchSize > 0) {
+		timeoutComp(&timeout, pThis->toMinDeqBatchSize);/* get absolute timeout */
 	}
 
 	while((iQueueSize = getLogicalQueueSize(pThis)) > 0 && nDequeued < pThis->iDeqBatchSize) {
@@ -1774,6 +1851,25 @@ DequeueConsumableElements(qqueue_t *pThis, wti_t *pWti, int *piRemainingQueueSiz
 		pWti->batch.pElem[nDequeued].pMsg = pMsg;
 		pWti->batch.eltState[nDequeued] = BATCH_STATE_RDY;
 		++nDequeued;
+		if(nDequeued < iMinDeqBatchSize && getLogicalQueueSize(pThis) == 0) {
+			while(!pThis->bShutdownImmediate
+				&& keep_running
+				&& nDequeued < iMinDeqBatchSize
+				&& getLogicalQueueSize(pThis) == 0) {
+				dbgprintf("%s minDeqBatchSize doing wait, batch is %d messages, "
+					"queue size %d\n", obj.GetName((obj_t*) pThis),
+					nDequeued, getLogicalQueueSize(pThis));
+				if(wtiWaitNonEmpty(pWti, timeout) == 0) { /* timeout? */
+					DBGPRINTF("%s minDeqBatchSize timeout, batch is %d messages\n",
+						obj.GetName((obj_t*) pThis), nDequeued);
+					keep_running = 0;
+				}
+			}
+		}
+		if(keep_running) {
+			keep_running = ((iQueueSize = getLogicalQueueSize(pThis)) > 0
+				&& nDequeued < pThis->iDeqBatchSize);
+		}
 	}
 
 	if(pThis->qType == QUEUETYPE_DISK) {
@@ -2226,7 +2322,7 @@ qqueueStart(qqueue_t *pThis) /* this is the ConstructionFinalizer */
 	uchar *qName;
 	size_t lenBuf;
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
 	dbgoprint((obj_t*) pThis, "starting queue\n");
 
@@ -2291,7 +2387,7 @@ qqueueStart(qqueue_t *pThis) /* this is the ConstructionFinalizer */
 	   && (pThis->qType == QUEUETYPE_LINKEDLIST || pThis->qType == QUEUETYPE_FIXED_ARRAY)) {
 		LogMsg(0, RS_RET_OK_WARN, LOG_WARNING, "Note: queue.size=\"%d\" is very "
 			"low and can lead to unpredictable results. See also "
-			"http://www.rsyslog.com/lower-bound-for-queue-sizes/",
+			"https://www.rsyslog.com/lower-bound-for-queue-sizes/",
 			pThis->iMaxQueueSize);
 	}
 
@@ -2372,6 +2468,11 @@ qqueueStart(qqueue_t *pThis) /* this is the ConstructionFinalizer */
 				(pThis->iMaxQueueSize == 1) ? 1 : pThis->iMaxQueueSize - 1;
 		}
 	}
+
+	if(pThis->iLightDlyMrk == 0) {
+		pThis->iLightDlyMrk = pThis->iMaxQueueSize;
+	}
+
 	if(pThis->iLightDlyMrk == -1 || pThis->iLightDlyMrk > pThis->iMaxQueueSize) {
 		pThis->iLightDlyMrk = (pThis->iMaxQueueSize / 100) * 70;
 		if(pThis->iLightDlyMrk == 0) {
@@ -2396,7 +2497,7 @@ qqueueStart(qqueue_t *pThis) /* this is the ConstructionFinalizer */
 	 * influenced by properties which might have been set after queueConstruct ()
 	 */
 	if(pThis->pqParent == NULL) {
-		CHKmalloc(pThis->mut = (pthread_mutex_t *) MALLOC (sizeof (pthread_mutex_t)));
+		CHKmalloc(pThis->mut = (pthread_mutex_t *) malloc (sizeof (pthread_mutex_t)));
 		pthread_mutex_init(pThis->mut, NULL);
 	} else {
 		/* child queue, we need to use parent's mutex */
@@ -2424,13 +2525,14 @@ qqueueStart(qqueue_t *pThis) /* this is the ConstructionFinalizer */
 
 	DBGOPRINT((obj_t*) pThis, "params: type %d, enq-only %d, disk assisted %d, spoolDir '%s', maxFileSz %lld, "
 			          "maxQSize %d, lqsize %d, pqsize %d, child %d, full delay %d, "
-				  "light delay %d, deq batch size %d, high wtrmrk %d, low wtrmrk %d, "
+				  "light delay %d, deq batch size %d, min deq batch size %d, "
+				  "high wtrmrk %d, low wtrmrk %d, "
 				  "discardmrk %d, max wrkr %d, min msgs f. wrkr %d\n",
 		  pThis->qType, pThis->bEnqOnly, pThis->bIsDA, pThis->pszSpoolDir,
 		  pThis->iMaxFileSize, pThis->iMaxQueueSize,
 		  getLogicalQueueSize(pThis), getPhysicalQueueSize(pThis),
 		  pThis->pqParent == NULL ? 0 : 1, pThis->iFullDlyMrk, pThis->iLightDlyMrk,
-		  pThis->iDeqBatchSize, pThis->iHighWtrMrk, pThis->iLowWtrMrk,
+		  pThis->iDeqBatchSize, pThis->iMinDeqBatchSize, pThis->iHighWtrMrk, pThis->iLowWtrMrk,
 		  pThis->iDiscardMrk, pThis->iNumWorkerThreads, pThis->iMinMsgsPerWrkr);
 
 	pThis->bQueueStarted = 1;
@@ -2520,7 +2622,7 @@ qqueuePersist(qqueue_t *pThis, int bIsCheckpoint)
 	strm_t *psQIF = NULL; /* Queue Info File */
 	char errStr[1024];
 
-	ASSERT(pThis != NULL);
+	assert(pThis != NULL);
 
 	if(pThis->qType != QUEUETYPE_DISK) {
 		if(getPhysicalQueueSize(pThis) > 0) {
@@ -2594,7 +2696,7 @@ qqueuePersist(qqueue_t *pThis, int bIsCheckpoint)
 			ABORT_FINALIZE(RS_RET_RENAME_TMP_QI_ERROR);
 		}
 	}
-	
+
 	/* tell the input file object that it must not delete the file on close if the queue
 	 * is non-empty - but only if we are not during a simple checkpoint
 	 */
@@ -2668,7 +2770,7 @@ DoSaveOnShutdown(qqueue_t *pThis)
 	pThis->bShutdownImmediate = 0; /* would termiante the DA worker! */
 	pThis->iLowWtrMrk = 0;
 	wtpSetState(pThis->pWtpDA, wtpState_SHUTDOWN);	/* shutdown worker (only) when done (was _IMMEDIATE!) */
-	wtpAdviseMaxWorkers(pThis->pWtpDA, 1);		/* restart DA worker */
+	wtpAdviseMaxWorkers(pThis->pWtpDA, 1, PERMIT_WORKER_START_DURING_SHUTDOWN);	/* restart DA worker */
 
 	DBGOPRINT((obj_t*) pThis, "waiting for DA worker to terminate...\n");
 	timeoutComp(&tTimeout, QUEUE_TIMEOUT_ETERNAL);
@@ -2699,8 +2801,19 @@ CODESTARTobjDestruct(qqueue)
 		   && pThis->pWtpReg != NULL)
 			qqueueShutdownWorkers(pThis);
 
-		if(pThis->bIsDA && getPhysicalQueueSize(pThis) > 0 && pThis->bSaveOnShutdown) {
-			CHKiRet(DoSaveOnShutdown(pThis));
+		if(pThis->bIsDA && getPhysicalQueueSize(pThis) > 0){
+			if(pThis->bSaveOnShutdown) {
+				LogMsg(0, RS_RET_TIMED_OUT, LOG_INFO,
+					"%s: queue holds %d messages after shutdown of workers. "
+					"queue.saveonshutdown is set, so data will now be spooled to disk",
+					objGetName((obj_t*) pThis), getPhysicalQueueSize(pThis));
+				CHKiRet(DoSaveOnShutdown(pThis));
+			} else {
+				LogMsg(0, RS_RET_TIMED_OUT, LOG_WARNING,
+					"%s: queue holds %d messages after shutdown of workers. "
+					"queue.saveonshutdown is NOT set, so data will be discarded.",
+					objGetName((obj_t*) pThis), getPhysicalQueueSize(pThis));
+			}
 		}
 
 		/* finally destruct our (regular) worker thread pool
@@ -2808,7 +2921,7 @@ qqueueSetFilePrefix(qqueue_t *pThis, uchar *pszPrefix, size_t iLenPrefix)
 	if(pszPrefix == NULL) /* just unset the prefix! */
 		ABORT_FINALIZE(RS_RET_OK);
 
-	if((pThis->pszFilePrefix = MALLOC(iLenPrefix + 1)) == NULL)
+	if((pThis->pszFilePrefix = malloc(iLenPrefix + 1)) == NULL)
 		ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 	memcpy(pThis->pszFilePrefix, pszPrefix, iLenPrefix + 1);
 	pThis->lenFilePrefix = iLenPrefix;
@@ -2826,7 +2939,7 @@ qqueueSetMaxFileSize(qqueue_t *pThis, size_t iMaxFileSize)
 	DEFiRet;
 
 	ISOBJ_TYPE_assert(pThis, qqueue);
-	
+
 	if(iMaxFileSize < 1024) {
 		ABORT_FINALIZE(RS_RET_VALUE_TOO_LOW);
 	}
@@ -3146,6 +3259,47 @@ finalize_it:
 	RETiRet;
 }
 
+/* check the the queue file name is unique. */
+static rsRetVal ATTR_NONNULL()
+checkUniqueDiskFile(qqueue_t *const pThis)
+{
+	DEFiRet;
+	struct queue_filename *queue_fn_curr = queue_filename_root;
+	struct queue_filename *newetry = NULL;
+	const char *const curr_dirname = (pThis->pszSpoolDir == NULL) ? "" : (char*)pThis->pszSpoolDir;
+
+	if(pThis->pszFilePrefix == NULL) {
+		FINALIZE; /* no disk queue! */
+	}
+
+	while(queue_fn_curr != NULL) {
+		if(!strcmp((const char*) pThis->pszFilePrefix, queue_fn_curr->filename) &&
+			!strcmp(curr_dirname, queue_fn_curr->dirname)) {
+			parser_errmsg("queue directory '%s' and file name prefix '%s' already used. "
+				"This is not possible. Please make it unique.",
+				curr_dirname, pThis->pszFilePrefix);
+			ABORT_FINALIZE(RS_RET_ERR_QUEUE_FN_DUP);
+			}
+		queue_fn_curr = queue_fn_curr->next;
+	}
+
+	/* name ok, so let's add it to the list */
+	CHKmalloc(newetry = calloc(1, sizeof(struct queue_filename)));
+	CHKmalloc(newetry->filename = strdup((char*) pThis->pszFilePrefix));
+	CHKmalloc(newetry->dirname = strdup(curr_dirname));
+	newetry->next = queue_filename_root;
+	queue_filename_root = newetry;
+
+finalize_it:
+	if(iRet != RS_RET_OK) {
+		if(newetry != NULL) {
+			free((void*)newetry->filename);
+			free((void*)newetry);
+		}
+	}
+	RETiRet;
+}
+
 /* apply all params from param block to queue. Must be called before
  * finalizing. This supports the v6 config system. Defaults were already
  * set during queue creation. The pvals object is destructed by this
@@ -3187,8 +3341,18 @@ qqueueApplyCnfParam(qqueue_t *pThis, struct nvlst *lst)
 			}
 		} else if(!strcmp(pblk.descr[i].name, "queue.size")) {
 			pThis->iMaxQueueSize = pvals[i].val.d.n;
+			if(pThis->iMaxQueueSize > OVERSIZE_QUEUE_WATERMARK) {
+				parser_warnmsg("queue.size=%d is very large - is this "
+					"really intended? More info at "
+					"https://www.rsyslog.com/avoid-overly-large-in-memory-queues/",
+					pThis->iMaxQueueSize);
+			}
 		} else if(!strcmp(pblk.descr[i].name, "queue.dequeuebatchsize")) {
 			pThis->iDeqBatchSize = pvals[i].val.d.n;
+		} else if(!strcmp(pblk.descr[i].name, "queue.mindequeuebatchsize")) {
+			pThis->iMinDeqBatchSize = pvals[i].val.d.n;
+		} else if(!strcmp(pblk.descr[i].name, "queue.mindequeuebatchsize.timeout")) {
+			pThis->toMinDeqBatchSize = pvals[i].val.d.n;
 		} else if(!strcmp(pblk.descr[i].name, "queue.maxdiskspace")) {
 			pThis->sizeOnDiskMax = pvals[i].val.d.n;
 		} else if(!strcmp(pblk.descr[i].name, "queue.highwatermark")) {
@@ -3238,6 +3402,9 @@ qqueueApplyCnfParam(qqueue_t *pThis, struct nvlst *lst)
 			  "param '%s'\n", pblk.descr[i].name);
 		}
 	}
+
+	checkUniqueDiskFile(pThis);
+
 	if(pThis->qType == QUEUETYPE_DISK) {
 		if(pThis->pszFilePrefix == NULL) {
 			LogError(0, RS_RET_QUEUE_DISK_NO_FN, "error on queue '%s', disk mode selected, but "
@@ -3285,6 +3452,7 @@ DEFpropSetMeth(qqueue, bSaveOnShutdown, int)
 DEFpropSetMeth(qqueue, pAction, action_t*)
 DEFpropSetMeth(qqueue, iDeqSlowdown, int)
 DEFpropSetMeth(qqueue, iDeqBatchSize, int)
+DEFpropSetMeth(qqueue, iMinDeqBatchSize, int)
 DEFpropSetMeth(qqueue, sizeOnDiskMax, int64)
 DEFpropSetMeth(qqueue, iSmpInterval, int)
 
@@ -3300,7 +3468,7 @@ static rsRetVal qqueueSetProperty(qqueue_t *pThis, var_t *pProp)
 	DEFiRet;
 
 	ISOBJ_TYPE_assert(pThis, qqueue);
-	ASSERT(pProp != NULL);
+	assert(pProp != NULL);
 
 	if(isProp("iQueueSize")) {
 		pThis->iQueueSize = pProp->val.num;

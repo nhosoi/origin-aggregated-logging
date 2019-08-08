@@ -44,8 +44,8 @@ DEFobjCurrIf(glbl)
 static struct cnfparamdescr cnfpdescr[] = {
 	{ "sig.hashfunction", eCmdHdlrGetWord, 0 },
 	{ "sig.aggregator.url", eCmdHdlrGetWord, CNFPARAM_REQUIRED},
-	{ "sig.aggregator.user", eCmdHdlrGetWord, CNFPARAM_REQUIRED},
-	{ "sig.aggregator.key", eCmdHdlrGetWord, CNFPARAM_REQUIRED},
+	{ "sig.aggregator.user", eCmdHdlrGetWord, 0},
+	{ "sig.aggregator.key", eCmdHdlrGetWord, 0},
 	{ "sig.aggregator.hmacAlg", eCmdHdlrGetWord, 0 },
 	{ "sig.block.levelLimit", eCmdHdlrSize, CNFPARAM_REQUIRED},
 	{ "sig.block.timeLimit", eCmdHdlrInt, 0},
@@ -54,7 +54,8 @@ static struct cnfparamdescr cnfpdescr[] = {
 	{ "sig.fileformat", eCmdHdlrString, 0},
 	{ "sig.syncmode", eCmdHdlrString, 0},
 	{ "sig.randomsource", eCmdHdlrString, 0},
-	{ "sig.debug", eCmdHdlrInt, 0},
+	{ "sig.debugfile", eCmdHdlrString, 0},
+	{ "sig.debuglevel", eCmdHdlrInt, 0},
 	{ "dirowner", eCmdHdlrUID, 0}, /* legacy: dirowner */
 	{ "dirownernum", eCmdHdlrInt, 0 }, /* legacy: dirownernum */
 	{ "dirgroup", eCmdHdlrGID, 0 }, /* legacy: dirgroup */
@@ -181,8 +182,12 @@ SetCnfParam(void *pT, struct nvlst *lst)
 			cstr = (uchar*) es_str2cstr(pvals[i].val.d.estr, NULL);
 			rsksiSetRandomSource(pThis->ctx, (char*) cstr);
 			free(cstr);
-		} else if (!strcmp(pblk.descr[i].name, "sig.debug")) {
-			rsksiSetDebug(pThis->ctx, pvals[i].val.d.n);
+		} else if (!strcmp(pblk.descr[i].name, "sig.debugfile")) {
+			cstr = (uchar*) es_str2cstr(pvals[i].val.d.estr, NULL);
+			rsksiSetDebugFile(pThis->ctx, (char*) cstr);
+			free(cstr);
+		} else if (!strcmp(pblk.descr[i].name, "sig.debuglevel")) {
+			rsksiSetDebugLevel(pThis->ctx, pvals[i].val.d.n);
 		} else if (!strcmp(pblk.descr[i].name, "dirowner")) {
 			rsksiSetDirUID(pThis->ctx, pvals[i].val.d.n);
 		} else if (!strcmp(pblk.descr[i].name, "dirownernum")) {
@@ -223,6 +228,7 @@ finalize_it:
 	free(ag_loginid);
 	free(ag_key);
 	free(hash);
+	free(hmac);
 
 	if(pvals != NULL)
 		cnfparamvalsDestruct(pvals, &pblk);

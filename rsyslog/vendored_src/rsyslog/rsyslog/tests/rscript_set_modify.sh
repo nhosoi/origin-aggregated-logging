@@ -4,7 +4,7 @@
 # This file is part of the rsyslog project, released under ASL 2.0
 echo ===============================================================================
 echo \[rscript_set_modify.sh\]: testing set twice
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="list") {
@@ -19,7 +19,7 @@ if $msg contains "msgnum" then {
 }
 '
 startup
-. $srcdir/diag.sh injectmsg  0 100
+injectmsg  0 100
 shutdown_when_empty
 wait_shutdown 
 seq_check  0 99

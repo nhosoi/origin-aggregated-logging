@@ -3,14 +3,14 @@
 # This file is part of the rsyslog project, released under ASL 2.0
 echo ===============================================================================
 echo \rscript_hash64.sh\]: test for hash64 and hash64mod script-function
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="string" string="%$.hash_no_1% -  %$.hash_no_2%\n")
 
 module(load="../plugins/imtcp/.libs/imtcp")
 module(load="../contrib/fmhash/.libs/fmhash")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 set $.hash_no_1 = hash64("0f9a1d07-a8c9-43a7-a6f7-198dca3d932e");
 set $.hash_no_2 = hash64mod("0f9a1d07-a8c9-43a7-a6f7-198dca3d932e", 100);

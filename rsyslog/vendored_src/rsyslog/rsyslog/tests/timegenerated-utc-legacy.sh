@@ -8,7 +8,7 @@
 # FOR THE SAME REASON, there is NO VALGRIND EQUIVALENT
 # of this test, as valgrind would abort with reports
 # of faketime.
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 . $srcdir/faketime_common.sh
 
 export TZ=TEST+02:00
@@ -16,7 +16,7 @@ export TZ=TEST+02:00
 generate_conf
 add_conf '
 $ModLoad ../plugins/imtcp/.libs/imtcp
-$InputTCPServerRun 13514
+$InputTCPServerRun '$TCPFLOOD_PORT'
 
 template(name="outfmt" type="string"
 	 string="%timegenerated:::date-utc%\n")

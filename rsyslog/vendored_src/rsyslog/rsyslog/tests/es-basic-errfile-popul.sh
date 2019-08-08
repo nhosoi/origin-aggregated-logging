@@ -1,13 +1,14 @@
 #!/bin/bash
 # This file is part of the rsyslog project, released under ASL 2.0
+. ${srcdir:=.}/diag.sh init
 export ES_DOWNLOAD=elasticsearch-6.0.0.tar.gz
-. $srcdir/diag.sh download-elasticsearch
-. $srcdir/diag.sh stop-elasticsearch
-. $srcdir/diag.sh prepare-elasticsearch
-. $srcdir/diag.sh start-elasticsearch
+export ES_PORT=19200
+export NUMMESSAGES=1000 # slow test, thus low number - large number is NOT necessary
+download_elasticsearch
+prepare_elasticsearch
+start_elasticsearch
 
-. $srcdir/diag.sh init
-. $srcdir/diag.sh es-init
+init_elasticsearch
 curl -H 'Content-Type: application/json' -XPUT localhost:19200/rsyslog_testbench/ -d '{
   "mappings": {
     "test-type": {
@@ -35,16 +36,16 @@ module(load="../plugins/omelasticsearch/.libs/omelasticsearch")
 				 searchType="test-type"
 				 serverport="19200"
 				 bulkmode="off"
-				 errorFile="./rsyslog.errorfile")
+				 errorFile="./'${RSYSLOG_DYNNAME}'.errorfile")
 '
 startup
-. $srcdir/diag.sh injectmsg  0 1000
+injectmsg
 shutdown_when_empty
 wait_shutdown 
-if [ ! -f rsyslog.errorfile ]
+if [ ! -f ${RSYSLOG_DYNNAME}.errorfile ]
 then
     echo "error: error file does not exist!"
-    exit 1
+    error_exit 1
 fi
-. $srcdir/diag.sh cleanup-elasticsearch
+cleanup_elasticsearch
 exit_test

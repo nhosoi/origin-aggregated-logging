@@ -92,6 +92,8 @@ host_triplet = @host@
 # select klog "driver"
 @ENABLE_IMKLOG_BSD_TRUE@am__append_1 = bsd.c
 @ENABLE_IMKLOG_LINUX_TRUE@am__append_2 = bsd.c
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_3 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_4 = $(LIBLOGGING_STDLOG_LIBS)
 subdir = plugins/imklog
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ac_check_define.m4 \
@@ -225,6 +227,7 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CONF_FILE_PATH = @CONF_FILE_PATH@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CURL_CFLAGS = @CURL_CFLAGS@
@@ -327,6 +330,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PGSQL_CFLAGS = @PGSQL_CFLAGS@
 PGSQL_LIBS = @PGSQL_LIBS@
 PG_CONFIG = @PG_CONFIG@
+PID_FILE_PATH = @PID_FILE_PATH@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -420,8 +424,9 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 pkglib_LTLIBRARIES = imklog.la
 imklog_la_SOURCES = imklog.c imklog.h $(am__append_1) $(am__append_2)
-imklog_la_CPPFLAGS = -I$(top_srcdir) $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-imklog_la_LDFLAGS = -module -avoid-version $(LIBLOGGING_STDLOG_LIBS)
+imklog_la_CPPFLAGS = -I$(top_srcdir) $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) \
+	$(am__append_3)
+imklog_la_LDFLAGS = -module -avoid-version $(am__append_4)
 imklog_la_LIBADD = 
 all: all-am
 

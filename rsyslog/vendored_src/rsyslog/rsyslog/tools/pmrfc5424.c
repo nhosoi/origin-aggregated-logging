@@ -42,8 +42,6 @@
 #include "datetime.h"
 #include "unicode-helper.h"
 
-#ifdef _AIX
-#endif
 MODULE_TYPE_PARSER
 MODULE_TYPE_NOKEEP
 PARSER_NAME("rsyslog.rfc5424")
@@ -170,8 +168,8 @@ static int parseRFCStructuredData(uchar **pp2parse, uchar *pResult, int *pLenStr
 			} else if(*p2parse == ']' && *(p2parse+1) == ' ') {
 				/* found end, just need to copy the ] and eat the SP */
 				*pResult++ = *p2parse;
-				p2parse += 2;
-				lenStr -= 2;
+				p2parse += 1;
+				lenStr -= 1;
 				bCont = 0;
 			} else {
 				*pResult++ = *p2parse++;
@@ -236,7 +234,7 @@ CODESTARTparse
 	 * message, so we can not run into any troubles. I think this is
 	 * wiser than to use individual buffers.
 	 */
-	CHKmalloc(pBuf = MALLOC(lenMsg + 1));
+	CHKmalloc(pBuf = malloc(lenMsg + 1));
 
 	/* IMPORTANT NOTE:
 	 * Validation is not actually done below nor are any errors handled. I have

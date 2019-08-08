@@ -3,11 +3,11 @@
 # addd 2016-02-23 by RGerhards, released under ASL 2.0
 # requires faketime
 echo \[now-utc\]: test \$NOW-UTC
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $ModLoad ../plugins/imtcp/.libs/imtcp
-$InputTCPServerRun 13514
+$InputTCPServerRun '$TCPFLOOD_PORT'
 
 template(name="outfmt" type="string"
 	 string="%$now%,%$now-utc%\n")

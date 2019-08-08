@@ -88,6 +88,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_1 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_2 = $(LIBLOGGING_STDLOG_LIBS)
 subdir = plugins/immark
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ac_check_define.m4 \
@@ -216,6 +218,7 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CONF_FILE_PATH = @CONF_FILE_PATH@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CURL_CFLAGS = @CURL_CFLAGS@
@@ -318,6 +321,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PGSQL_CFLAGS = @PGSQL_CFLAGS@
 PGSQL_LIBS = @PGSQL_LIBS@
 PG_CONFIG = @PG_CONFIG@
+PID_FILE_PATH = @PID_FILE_PATH@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -411,8 +415,9 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 pkglib_LTLIBRARIES = immark.la
 immark_la_SOURCES = immark.c immark.h
-immark_la_CPPFLAGS = $(RSRT_CFLAGS) -I$(top_srcdir) $(PTHREADS_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-immark_la_LDFLAGS = -module -avoid-version $(LIBLOGGING_STDLOG_LIBS)
+immark_la_CPPFLAGS = $(RSRT_CFLAGS) -I$(top_srcdir) $(PTHREADS_CFLAGS) \
+	$(am__append_1)
+immark_la_LDFLAGS = -module -avoid-version $(am__append_2)
 immark_la_LIBADD = 
 all: all-am
 

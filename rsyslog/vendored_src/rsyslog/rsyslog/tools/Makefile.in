@@ -90,13 +90,14 @@ build_triplet = @build@
 host_triplet = @host@
 sbin_PROGRAMS = rsyslogd$(EXEEXT) $(am__EXEEXT_3)
 bin_PROGRAMS = $(am__EXEEXT_1) $(am__EXEEXT_2)
-@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_1 = $(LIBLOGGING_STDLOG_LIBS)
-@ENABLE_DIAGTOOLS_TRUE@am__append_2 = rsyslog_diag_hostname msggen
-@ENABLE_OMMONGODB_TRUE@@ENABLE_USERTOOLS_TRUE@am__append_3 = logctl
-@ENABLE_LIBGCRYPT_TRUE@@ENABLE_USERTOOLS_TRUE@am__append_4 = rscryutil
-@ENABLE_GENERATE_MAN_PAGES_TRUE@@ENABLE_LIBGCRYPT_TRUE@@ENABLE_USERTOOLS_TRUE@am__append_5 = rscryutil.1
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_1 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_2 = $(LIBLOGGING_STDLOG_LIBS)
+@ENABLE_DIAGTOOLS_TRUE@am__append_3 = rsyslog_diag_hostname msggen
+@ENABLE_OMMONGODB_TRUE@@ENABLE_USERTOOLS_TRUE@am__append_4 = logctl
+@ENABLE_LIBGCRYPT_TRUE@@ENABLE_USERTOOLS_TRUE@am__append_5 = rscryutil
 @ENABLE_GENERATE_MAN_PAGES_TRUE@@ENABLE_LIBGCRYPT_TRUE@@ENABLE_USERTOOLS_TRUE@am__append_6 = rscryutil.1
 @ENABLE_GENERATE_MAN_PAGES_TRUE@@ENABLE_LIBGCRYPT_TRUE@@ENABLE_USERTOOLS_TRUE@am__append_7 = rscryutil.1
+@ENABLE_GENERATE_MAN_PAGES_TRUE@@ENABLE_LIBGCRYPT_TRUE@@ENABLE_USERTOOLS_TRUE@am__append_8 = rscryutil.1
 subdir = tools
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ac_check_define.m4 \
@@ -289,6 +290,7 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CONF_FILE_PATH = @CONF_FILE_PATH@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CURL_CFLAGS = @CURL_CFLAGS@
@@ -391,6 +393,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PGSQL_CFLAGS = @PGSQL_CFLAGS@
 PGSQL_LIBS = @PGSQL_LIBS@
 PG_CONFIG = @PG_CONFIG@
+PID_FILE_PATH = @PID_FILE_PATH@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -482,8 +485,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-CLEANFILES = $(am__append_6)
-man1_MANS = $(am__append_5)
+CLEANFILES = $(am__append_7)
+man1_MANS = $(am__append_6)
 man_MANS = rsyslogd.8 rsyslog.conf.5
 rsyslogd_SOURCES = \
 	syslogd.c \
@@ -518,31 +521,32 @@ rsyslogd_SOURCES = \
 	\
 	../dirty.h
 
-rsyslogd_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS) -DSD_EXPORT_SYMBOLS
+rsyslogd_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(am__append_1) \
+	-DSD_EXPORT_SYMBOLS
+
 # note: it looks like librsyslog.la must be explicitely given on LDDADD,
 # otherwise dependencies are not properly calculated (resulting in a
 # potentially incomplete build, a problem we had several times...)
 rsyslogd_LDADD = ../grammar/libgrammar.la ../runtime/librsyslog.la \
 	../compat/compat.la $(ZLIB_LIBS) $(PTHREADS_LIBS) $(RSRT_LIBS) \
 	$(SOL_LIBS) $(LIBUUID_LIBS) $(HASH_XXHASH_LIBS) \
-	$(am__append_1)
-@AIX_TRUE@rsyslogd_LDFLAGS = -export-dynamic 
-#endif
-@OS_APPLE_TRUE@rsyslogd_LDFLAGS = -export-dynamic \
-@OS_APPLE_TRUE@	-Wl,$(top_builddir)/runtime/.libs/librsyslog.a
+	$(am__append_2)
+@OS_AIX_FALSE@@OS_APPLE_FALSE@@OS_LINUX_FALSE@rsyslogd_LDFLAGS = -export-dynamic
+@OS_AIX_TRUE@@OS_APPLE_FALSE@@OS_LINUX_FALSE@rsyslogd_LDFLAGS = -brtl -bexpall -f"aix_exports_list" -lsrc
+@OS_APPLE_TRUE@@OS_LINUX_FALSE@rsyslogd_LDFLAGS = -export-dynamic \
+@OS_APPLE_TRUE@@OS_LINUX_FALSE@	-Wl,$(top_builddir)/runtime/.libs/librsyslog.a
 
 
-# if you know how to do an "if AIX os OS_APPLE" or an elseif chain, let me now!
-#rsyslogd_LDFLAGS = -export-dynamic \
-#	-Wl,$(top_builddir)/runtime/.libs/librsyslog.a
-#if OS_LINUX
-rsyslogd_LDFLAGS = -export-dynamic \
-	#-Wl,--whole-archive,$(top_builddir)/runtime/.libs/librsyslog.a,--no-whole-archive
+# Note: do NOT indent the if chain - it will not work!
+@OS_LINUX_TRUE@rsyslogd_LDFLAGS = -export-dynamic \
+@OS_LINUX_TRUE@	#-Wl,--whole-archive,$(top_builddir)/runtime/.libs/librsyslog.a,--no-whole-archive
 
-#else
-#rsyslogd_LDFLAGS = -export-dynamic \
-#	#-Wl,--whole-archive,$(top_builddir)/runtime/.libs/librsyslog.a,--no-whole-archive
-EXTRA_DIST = $(man_MANS) rscryutil.rst recover_qi.pl $(am__append_7)
+@OS_AIX_FALSE@@OS_APPLE_FALSE@@OS_LINUX_FALSE@exports_list_file = 
+@OS_AIX_TRUE@@OS_APPLE_FALSE@@OS_LINUX_FALSE@exports_list_file = aix_exports_list
+@OS_APPLE_TRUE@@OS_LINUX_FALSE@exports_list_file = 
+@OS_LINUX_TRUE@exports_list_file = 
+EXTRA_DIST = $(man_MANS) rscryutil.rst recover_qi.pl $(am__append_8)
+EXTRA_rsyslogd_DEPENDENCIES = $(exports_list_file)
 @ENABLE_DIAGTOOLS_TRUE@rsyslog_diag_hostname_SOURCES = gethostn.c
 @ENABLE_DIAGTOOLS_TRUE@msggen_SOURCES = msggen.c
 @ENABLE_OMMONGODB_TRUE@@ENABLE_USERTOOLS_TRUE@logctl_SOURCES = logctl.c
@@ -1393,6 +1397,11 @@ uninstall-man: uninstall-man1 uninstall-man5 uninstall-man8
 
 @ENABLE_GENERATE_MAN_PAGES_TRUE@@ENABLE_LIBGCRYPT_TRUE@@ENABLE_USERTOOLS_TRUE@rscryutil.1: $(RSTMANFILE) 
 @ENABLE_GENERATE_MAN_PAGES_TRUE@@ENABLE_LIBGCRYPT_TRUE@@ENABLE_USERTOOLS_TRUE@	$(AM_V_GEN) $(RST2MAN) $(RSTMANFILE) $@
+
+aix_exports_list:
+	echo "$(top_builddir)/runtime/.libs/librsyslog_la-*.o" > $@
+	echo "$(top_builddir)/.libs/librsyslog_la-*.o" >> $@
+	echo "$(top_builddir)/grammar/.libs/libgrammar_la-*.o" >> $@
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

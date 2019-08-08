@@ -8,7 +8,7 @@
  * Please note that there currently is no glbl.c file as we do not yet
  * have any implementations.
  *
- * Copyright 2008-2018 Rainer Gerhards and Adiscon GmbH.
+ * Copyright 2008-2019 Rainer Gerhards and Adiscon GmbH.
  *
  * This file is part of the rsyslog runtime library.
  *
@@ -41,7 +41,6 @@
 #define glblOversizeMsgInputMode_Truncate 0
 #define glblOversizeMsgInputMode_Split 1
 #define glblOversizeMsgInputMode_Accept 2
-
 
 extern pid_t glbl_ourpid;
 extern int bProcessInternalMessages;
@@ -127,6 +126,11 @@ extern size_t glblDbgFilesNum;
 extern int glblDbgWhitelist;
 extern int glblPermitCtlC;
 extern int glblInputTimeoutShutdown;
+extern int glblIntMsgsSeverityFilter;
+extern int bTerminateInputs;
+#ifndef HAVE_ATOMIC_BUILTINS
+extern DEF_ATOMIC_HELPER_MUT(mutTerminateInputs);
+#endif
 
 /* Developer options enable some strange things for developer-only testing.
  * These should never be enabled in a user build, except if explicitly told
@@ -136,6 +140,7 @@ extern int glblInputTimeoutShutdown;
  * rgerhards, 2018-04-28
  */
 #define DEV_OPTION_KEEP_RUNNING_ON_HARD_CONF_ERROR 1
+#define DEV_OPTION_8_1905_HANG_TEST 2 // TODO: remove - temporary for bughunt
 extern uint64_t glblDevOptions;
 
 #define glblGetOurPid() glbl_ourpid
@@ -153,7 +158,9 @@ int GetGnuTLSLoglevel(void);
 int glblGetMaxLine(void);
 int bs_arrcmp_glblDbgFiles(const void *s1, const void *s2);
 uchar* glblGetOversizeMsgErrorFile(void);
+const uchar* glblGetOperatingStateFile(void);
 int glblGetOversizeMsgInputMode(void);
 int glblReportOversizeMessage(void);
+void glblReportChildProcessExit(const uchar *name, pid_t pid, int status);
 
 #endif /* #ifndef GLBL_H_INCLUDED */

@@ -1,11 +1,11 @@
 #!/bin/bash
 # addd 2017-01142 by RGerhards, released under ASL 2.0
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 global(parser.PermitSlashInProgramname="on")
 
 template(name="outfmt" type="string" string="%syslogtag%,%programname%\n")

@@ -5,7 +5,8 @@ here=$( pwd )
 set -euxo pipefail
 
 # must be listed in dependency order
-packages="librelp libestr libfastjson liblognorm librdkafka rsyslog"
+#packages="librelp libestr libfastjson liblognorm librdkafka rsyslog"
+packages="rsyslog"
 
 contents=$( mktemp )
 trap "rm -f $contents" EXIT

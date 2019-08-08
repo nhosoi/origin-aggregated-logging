@@ -1,10 +1,10 @@
 #!/bin/bash
 # addd 2016-03-22 by RGerhards, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 template(name="outfmt" type="list") {
 	property(name="timereported" dateformat="rfc3339" date.inUTC="on")

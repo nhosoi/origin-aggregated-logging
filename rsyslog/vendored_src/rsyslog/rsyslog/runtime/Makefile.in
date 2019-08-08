@@ -90,45 +90,58 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 sbin_PROGRAMS =
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_1 = ${LIBLOGGING_STDLOG_CFLAGS}
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_2 = $(LIBLOGGING_STDLOG_LIBS)
 
 #
 # regular expression support
 # 
-@ENABLE_REGEXP_TRUE@am__append_1 = lmregexp.la
-
-# generic stream server framework
+@ENABLE_REGEXP_TRUE@am__append_3 = lmregexp.la
+@ENABLE_LIBLOGGING_STDLOG_TRUE@@ENABLE_REGEXP_TRUE@am__append_4 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_LIBLOGGING_STDLOG_TRUE@@ENABLE_REGEXP_TRUE@am__append_5 = $(LIBLOGGING_STDLOG_LIBS)
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_6 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_7 = $(LIBLOGGING_STDLOG_LIBS)
 
 # netstream drivers
 
 # plain tcp driver - main driver
-@ENABLE_INET_TRUE@am__append_2 = lmnet.la lmnetstrms.la lmstrmsrv.la \
-@ENABLE_INET_TRUE@	lmnsd_ptcp.la
+@ENABLE_INET_TRUE@am__append_8 = lmnet.la lmnetstrms.la lmnsd_ptcp.la
+@ENABLE_INET_TRUE@@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_9 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_INET_TRUE@@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_10 = $(LIBLOGGING_STDLOG_LIBS)
+@ENABLE_INET_TRUE@@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_11 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_INET_TRUE@@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_12 = $(LIBLOGGING_STDLOG_LIBS)
+@ENABLE_INET_TRUE@@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_13 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_INET_TRUE@@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_14 = $(LIBLOGGING_STDLOG_LIBS)
 
 #
 # openssl netstream driver
 # 
-@ENABLE_OPENSSL_TRUE@am__append_3 = lmnsd_ossl.la
+@ENABLE_OPENSSL_TRUE@am__append_15 = lmnsd_ossl.la
 
 #
 # GnuTLS netstream driver
 # 
-@ENABLE_GNUTLS_TRUE@am__append_4 = lmnsd_gtls.la
+@ENABLE_GNUTLS_TRUE@am__append_16 = lmnsd_gtls.la
 
 #
 # support library for libgcrypt
 #
-@ENABLE_LIBGCRYPT_TRUE@am__append_5 = libgcry.la
-@ENABLE_LIBGCRYPT_TRUE@am__append_6 = lmcry_gcry.la
+@ENABLE_LIBGCRYPT_TRUE@am__append_17 = libgcry.la
+@ENABLE_LIBGCRYPT_TRUE@am__append_18 = lmcry_gcry.la
 
 #
 # gssapi support
 # 
-@ENABLE_GSSAPI_TRUE@am__append_7 = lmgssutil.la
+@ENABLE_GSSAPI_TRUE@am__append_19 = lmgssutil.la
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_20 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_21 = $(LIBLOGGING_STDLOG_LIBS)
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_22 = $(LIBLOGGING_STDLOG_CFLAGS)
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__append_23 = $(LIBLOGGING_STDLOG_LIBS)
 
 #
 # support library for Guardtime KSI-LS12
 #
-@ENABLE_KSI_LS12_TRUE@am__append_8 = lmsig_ksi_ls12.la
+@ENABLE_KSI_LS12_TRUE@am__append_24 = lmsig_ksi_ls12.la
 subdir = runtime
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ac_check_define.m4 \
@@ -185,10 +198,12 @@ am__v_lt_0 = --silent
 am__v_lt_1 = 
 @ENABLE_LIBGCRYPT_TRUE@am_libgcry_la_rpath =
 am__DEPENDENCIES_1 =
+@ENABLE_LIBLOGGING_STDLOG_TRUE@am__DEPENDENCIES_2 =  \
+@ENABLE_LIBLOGGING_STDLOG_TRUE@	$(am__DEPENDENCIES_1)
 librsyslog_la_DEPENDENCIES = $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_2)
 am__dirstamp = $(am__leading_dot)dirstamp
 am_librsyslog_la_OBJECTS = librsyslog_la-rsyslog.lo \
 	librsyslog_la-dnscache.lo librsyslog_la-glbl.lo \
@@ -198,10 +213,11 @@ am_librsyslog_la_OBJECTS = librsyslog_la-rsyslog.lo \
 	librsyslog_la-linkedlist.lo librsyslog_la-objomsr.lo \
 	librsyslog_la-stringbuf.lo librsyslog_la-datetime.lo \
 	librsyslog_la-srutils.lo librsyslog_la-errmsg.lo \
-	librsyslog_la-debug.lo librsyslog_la-obj.lo \
-	librsyslog_la-modules.lo librsyslog_la-statsobj.lo \
-	librsyslog_la-dynstats.lo librsyslog_la-stream.lo \
-	librsyslog_la-var.lo librsyslog_la-wtp.lo librsyslog_la-wti.lo \
+	librsyslog_la-operatingstate.lo librsyslog_la-debug.lo \
+	librsyslog_la-obj.lo librsyslog_la-modules.lo \
+	librsyslog_la-statsobj.lo librsyslog_la-dynstats.lo \
+	librsyslog_la-stream.lo librsyslog_la-var.lo \
+	librsyslog_la-wtp.lo librsyslog_la-wti.lo \
 	librsyslog_la-queue.lo librsyslog_la-ruleset.lo \
 	librsyslog_la-prop.lo librsyslog_la-ratelimit.lo \
 	librsyslog_la-lookup.lo librsyslog_la-cfsysline.lo \
@@ -305,16 +321,6 @@ lmsig_ksi_ls12_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_CFLAGS) $(CFLAGS) $(lmsig_ksi_ls12_la_LDFLAGS) $(LDFLAGS) \
 	-o $@
 @ENABLE_KSI_LS12_TRUE@am_lmsig_ksi_ls12_la_rpath = -rpath $(pkglibdir)
-lmstrmsrv_la_DEPENDENCIES =
-am__lmstrmsrv_la_SOURCES_DIST = strmsrv.c strmsrv.h strms_sess.c \
-	strms_sess.h
-@ENABLE_INET_TRUE@am_lmstrmsrv_la_OBJECTS = lmstrmsrv_la-strmsrv.lo \
-@ENABLE_INET_TRUE@	lmstrmsrv_la-strms_sess.lo
-lmstrmsrv_la_OBJECTS = $(am_lmstrmsrv_la_OBJECTS)
-lmstrmsrv_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(lmstrmsrv_la_LDFLAGS) $(LDFLAGS) -o $@
-@ENABLE_INET_TRUE@am_lmstrmsrv_la_rpath = -rpath $(pkglibdir)
 lmtcpclt_la_DEPENDENCIES =
 am_lmtcpclt_la_OBJECTS = lmtcpclt_la-tcpclt.lo
 lmtcpclt_la_OBJECTS = $(am_lmtcpclt_la_OBJECTS)
@@ -373,6 +379,7 @@ am__depfiles_remade = ../$(DEPDIR)/librsyslog_la-action.Plo \
 	./$(DEPDIR)/librsyslog_la-msg.Plo \
 	./$(DEPDIR)/librsyslog_la-obj.Plo \
 	./$(DEPDIR)/librsyslog_la-objomsr.Plo \
+	./$(DEPDIR)/librsyslog_la-operatingstate.Plo \
 	./$(DEPDIR)/librsyslog_la-parser.Plo \
 	./$(DEPDIR)/librsyslog_la-prop.Plo \
 	./$(DEPDIR)/librsyslog_la-queue.Plo \
@@ -406,8 +413,6 @@ am__depfiles_remade = ../$(DEPDIR)/librsyslog_la-action.Plo \
 	./$(DEPDIR)/lmsig_ksi_ls12_la-lib_ksi_queue.Plo \
 	./$(DEPDIR)/lmsig_ksi_ls12_la-lib_ksils12.Plo \
 	./$(DEPDIR)/lmsig_ksi_ls12_la-lmsig_ksi-ls12.Plo \
-	./$(DEPDIR)/lmstrmsrv_la-strms_sess.Plo \
-	./$(DEPDIR)/lmstrmsrv_la-strmsrv.Plo \
 	./$(DEPDIR)/lmtcpclt_la-tcpclt.Plo \
 	./$(DEPDIR)/lmtcpsrv_la-tcps_sess.Plo \
 	./$(DEPDIR)/lmtcpsrv_la-tcpsrv.Plo \
@@ -436,9 +441,8 @@ SOURCES = $(libgcry_la_SOURCES) $(librsyslog_la_SOURCES) \
 	$(lmnet_la_SOURCES) $(lmnetstrms_la_SOURCES) \
 	$(lmnsd_gtls_la_SOURCES) $(lmnsd_ossl_la_SOURCES) \
 	$(lmnsd_ptcp_la_SOURCES) $(lmregexp_la_SOURCES) \
-	$(lmsig_ksi_ls12_la_SOURCES) $(lmstrmsrv_la_SOURCES) \
-	$(lmtcpclt_la_SOURCES) $(lmtcpsrv_la_SOURCES) \
-	$(lmzlibw_la_SOURCES)
+	$(lmsig_ksi_ls12_la_SOURCES) $(lmtcpclt_la_SOURCES) \
+	$(lmtcpsrv_la_SOURCES) $(lmzlibw_la_SOURCES)
 DIST_SOURCES = $(am__libgcry_la_SOURCES_DIST) $(librsyslog_la_SOURCES) \
 	$(am__lmcry_gcry_la_SOURCES_DIST) \
 	$(am__lmgssutil_la_SOURCES_DIST) $(am__lmnet_la_SOURCES_DIST) \
@@ -447,8 +451,7 @@ DIST_SOURCES = $(am__libgcry_la_SOURCES_DIST) $(librsyslog_la_SOURCES) \
 	$(am__lmnsd_ossl_la_SOURCES_DIST) \
 	$(am__lmnsd_ptcp_la_SOURCES_DIST) \
 	$(am__lmregexp_la_SOURCES_DIST) \
-	$(am__lmsig_ksi_ls12_la_SOURCES_DIST) \
-	$(am__lmstrmsrv_la_SOURCES_DIST) $(lmtcpclt_la_SOURCES) \
+	$(am__lmsig_ksi_ls12_la_SOURCES_DIST) $(lmtcpclt_la_SOURCES) \
 	$(lmtcpsrv_la_SOURCES) $(lmzlibw_la_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
@@ -487,6 +490,7 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CONF_FILE_PATH = @CONF_FILE_PATH@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CURL_CFLAGS = @CURL_CFLAGS@
@@ -589,6 +593,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PGSQL_CFLAGS = @PGSQL_CFLAGS@
 PGSQL_LIBS = @PGSQL_LIBS@
 PG_CONFIG = @PG_CONFIG@
+PID_FILE_PATH = @PID_FILE_PATH@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -681,14 +686,14 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 man_MANS = 
-noinst_LTLIBRARIES = librsyslog.la $(am__append_5)
+noinst_LTLIBRARIES = librsyslog.la $(am__append_17)
 
 #
 # zlib support
 # 
-pkglib_LTLIBRARIES = $(am__append_1) lmzlibw.la $(am__append_2) \
-	$(am__append_3) $(am__append_4) $(am__append_6) \
-	$(am__append_7) lmtcpsrv.la lmtcpclt.la $(am__append_8)
+pkglib_LTLIBRARIES = $(am__append_3) lmzlibw.la $(am__append_8) \
+	$(am__append_15) $(am__append_16) $(am__append_18) \
+	$(am__append_19) lmtcpsrv.la lmtcpclt.la $(am__append_24)
 #pkglib_LTLIBRARIES = librsyslog.la
 librsyslog_la_SOURCES = \
 	rsyslog.c \
@@ -733,6 +738,8 @@ librsyslog_la_SOURCES = \
 	srUtils.h \
 	errmsg.c \
 	errmsg.h \
+	operatingstate.c \
+	operatingstate.h \
 	debug.c \
 	debug.h \
 	obj.c \
@@ -782,7 +789,7 @@ librsyslog_la_SOURCES = \
 	../outchannel.c \
 	../outchannel.h \
 	../template.c \
-	../template.h#
+	../template.h
 
 #librsyslog_la_LDFLAGS = -module -avoid-version
 @WITH_MODDIRS_FALSE@librsyslog_la_CPPFLAGS = -DSD_EXPORT_SYMBOLS \
@@ -790,8 +797,7 @@ librsyslog_la_SOURCES = \
 @WITH_MODDIRS_FALSE@	-I\$(top_srcdir) -I\$(top_srcdir)/grammar \
 @WITH_MODDIRS_FALSE@	$(PTHREADS_CFLAGS) $(RSRT_CFLAGS) \
 @WITH_MODDIRS_FALSE@	$(LIBUUID_CFLAGS) $(LIBFASTJSON_CFLAGS) \
-@WITH_MODDIRS_FALSE@	${LIBESTR_CFLAGS} \
-@WITH_MODDIRS_FALSE@	${LIBLOGGING_STDLOG_CFLAGS} \
+@WITH_MODDIRS_FALSE@	${LIBESTR_CFLAGS} $(am__append_1) \
 @WITH_MODDIRS_FALSE@	-I\$(top_srcdir)/tools
 # the files with ../ we need to work on - so that they either become part of the
 # runtime or will no longer be needed. -- rgerhards, 2008-06-13
@@ -804,24 +810,31 @@ librsyslog_la_SOURCES = \
 @WITH_MODDIRS_TRUE@	-D_PATH_MODDIR=\"$(pkglibdir)/:$(moddirs)\" \
 @WITH_MODDIRS_TRUE@	$(PTHREADS_CFLAGS) $(RSRT_CFLAGS) \
 @WITH_MODDIRS_TRUE@	$(LIBUUID_CFLAGS) $(LIBFASTJSON_CFLAGS) \
-@WITH_MODDIRS_TRUE@	${LIBESTR_CFLAGS} \
-@WITH_MODDIRS_TRUE@	${LIBLOGGING_STDLOG_CFLAGS} \
+@WITH_MODDIRS_TRUE@	${LIBESTR_CFLAGS} $(am__append_1) \
 @WITH_MODDIRS_TRUE@	-I\$(top_srcdir)/tools
-librsyslog_la_LIBADD = $(DL_LIBS) $(RT_LIBS) $(LIBUUID_LIBS) $(LIBFASTJSON_LIBS) ${LIBESTR_LIBS} ${LIBLOGGING_STDLOG_LIBS}
+librsyslog_la_LIBADD = $(DL_LIBS) $(RT_LIBS) $(LIBUUID_LIBS) \
+	$(LIBFASTJSON_LIBS) ${LIBESTR_LIBS} $(am__append_2)
 @ENABLE_REGEXP_TRUE@lmregexp_la_SOURCES = regexp.c regexp.h
-@ENABLE_REGEXP_TRUE@lmregexp_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-@ENABLE_REGEXP_TRUE@lmregexp_la_LDFLAGS = -module -avoid-version $(LIBLOGGING_STDLOG_LIBS)
+@ENABLE_REGEXP_TRUE@lmregexp_la_CPPFLAGS = $(PTHREADS_CFLAGS) \
+@ENABLE_REGEXP_TRUE@	$(RSRT_CFLAGS) $(am__append_4)
+@ENABLE_REGEXP_TRUE@lmregexp_la_LDFLAGS = -module -avoid-version \
+@ENABLE_REGEXP_TRUE@	$(am__append_5)
 @ENABLE_REGEXP_TRUE@lmregexp_la_LIBADD = 
 lmzlibw_la_SOURCES = zlibw.c zlibw.h
-lmzlibw_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-lmzlibw_la_LDFLAGS = -module -avoid-version $(LIBLOGGING_STDLOG_LIBS)
+lmzlibw_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) \
+	$(am__append_6)
+lmzlibw_la_LDFLAGS = -module -avoid-version $(ZLIB_LIBS) \
+	$(am__append_7)
 lmzlibw_la_LIBADD = 
 #
 # network support
 # 
 @ENABLE_INET_TRUE@lmnet_la_SOURCES = net.c net.h
-@ENABLE_INET_TRUE@lmnet_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-@ENABLE_INET_TRUE@lmnet_la_LDFLAGS = -module -avoid-version ../compat/compat_la-getifaddrs.lo $(LIBLOGGING_STDLOG_LIBS)
+@ENABLE_INET_TRUE@lmnet_la_CPPFLAGS = $(PTHREADS_CFLAGS) \
+@ENABLE_INET_TRUE@	$(RSRT_CFLAGS) $(am__append_9)
+@ENABLE_INET_TRUE@lmnet_la_LDFLAGS = -module -avoid-version \
+@ENABLE_INET_TRUE@	../compat/compat_la-getifaddrs.lo \
+@ENABLE_INET_TRUE@	$(am__append_10)
 @ENABLE_INET_TRUE@lmnet_la_LIBADD = 
 
 # network stream master class and stream factory
@@ -830,19 +843,19 @@ lmzlibw_la_LIBADD =
 @ENABLE_INET_TRUE@			nssel.c nssel.h \
 @ENABLE_INET_TRUE@			nspoll.c nspoll.h
 
-@ENABLE_INET_TRUE@lmnetstrms_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-@ENABLE_INET_TRUE@lmnetstrms_la_LDFLAGS = -module -avoid-version $(LIBLOGGING_STDLOG_LIBS)
+@ENABLE_INET_TRUE@lmnetstrms_la_CPPFLAGS = $(PTHREADS_CFLAGS) \
+@ENABLE_INET_TRUE@	$(RSRT_CFLAGS) $(am__append_11)
+@ENABLE_INET_TRUE@lmnetstrms_la_LDFLAGS = -module -avoid-version \
+@ENABLE_INET_TRUE@	$(am__append_12)
 @ENABLE_INET_TRUE@lmnetstrms_la_LIBADD = 
-@ENABLE_INET_TRUE@lmstrmsrv_la_SOURCES = strmsrv.c strmsrv.h strms_sess.c strms_sess.h
-@ENABLE_INET_TRUE@lmstrmsrv_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-@ENABLE_INET_TRUE@lmstrmsrv_la_LDFLAGS = -module -avoid-version $(LIBLOGGING_STDLOG_LIBS)
-@ENABLE_INET_TRUE@lmstrmsrv_la_LIBADD = 
 @ENABLE_INET_TRUE@lmnsd_ptcp_la_SOURCES = nsd_ptcp.c nsd_ptcp.h \
 @ENABLE_INET_TRUE@		  	nsdsel_ptcp.c nsdsel_ptcp.h \
 @ENABLE_INET_TRUE@			nsdpoll_ptcp.c nsdpoll_ptcp.h
 
-@ENABLE_INET_TRUE@lmnsd_ptcp_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-@ENABLE_INET_TRUE@lmnsd_ptcp_la_LDFLAGS = -module -avoid-version $(LIBLOGGING_STDLOG_LIBS)
+@ENABLE_INET_TRUE@lmnsd_ptcp_la_CPPFLAGS = $(PTHREADS_CFLAGS) \
+@ENABLE_INET_TRUE@	$(RSRT_CFLAGS) $(am__append_13)
+@ENABLE_INET_TRUE@lmnsd_ptcp_la_LDFLAGS = -module -avoid-version \
+@ENABLE_INET_TRUE@	$(am__append_14)
 @ENABLE_INET_TRUE@lmnsd_ptcp_la_LIBADD = 
 @ENABLE_OPENSSL_TRUE@lmnsd_ossl_la_SOURCES = nsd_ossl.c nsd_ossl.h nsdsel_ossl.c  nsdsel_ossl.h
 @ENABLE_OPENSSL_TRUE@lmnsd_ossl_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(OPENSSL_CFLAGS)
@@ -854,12 +867,10 @@ lmzlibw_la_LIBADD =
 @ENABLE_GNUTLS_TRUE@lmnsd_gtls_la_LIBADD = $(GNUTLS_LIBS)
 @ENABLE_LIBGCRYPT_TRUE@libgcry_la_SOURCES = libgcry.c libgcry_common.c libgcry.h
 @ENABLE_LIBGCRYPT_TRUE@libgcry_la_CPPFLAGS = $(RSRT_CFLAGS) $(LIBGCRYPT_CFLAGS)
-@ENABLE_LIBGCRYPT_TRUE@lmcry_gcry_la_DEPENDENCIES = librsyslog.la libgcry.la
+@ENABLE_LIBGCRYPT_TRUE@lmcry_gcry_la_DEPENDENCIES = libgcry.la
 @ENABLE_LIBGCRYPT_TRUE@lmcry_gcry_la_SOURCES = lmcry_gcry.c lmcry_gcry.h
 @ENABLE_LIBGCRYPT_TRUE@lmcry_gcry_la_CPPFLAGS = $(RSRT_CFLAGS) $(LIBGCRYPT_CFLAGS)
-@ENABLE_LIBGCRYPT_TRUE@lmcry_gcry_la_LDFLAGS = -module -avoid-version \
-@ENABLE_LIBGCRYPT_TRUE@	-Wl,--whole-archive,$(top_builddir)/runtime/.libs/librsyslog.a,--no-whole-archive
-
+@ENABLE_LIBGCRYPT_TRUE@lmcry_gcry_la_LDFLAGS = -module -avoid-version
 @ENABLE_LIBGCRYPT_TRUE@lmcry_gcry_la_LIBADD = libgcry.la $(LIBGCRYPT_LIBS)
 @ENABLE_GSSAPI_TRUE@lmgssutil_la_SOURCES = gss-misc.c gss-misc.h
 @ENABLE_GSSAPI_TRUE@lmgssutil_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS)
@@ -875,8 +886,9 @@ lmtcpsrv_la_SOURCES = \
 	tcpsrv.c \
 	tcpsrv.h
 
-lmtcpsrv_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-lmtcpsrv_la_LDFLAGS = -module -avoid-version $(LIBLOGGING_STDLOG_LIBS)
+lmtcpsrv_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) \
+	$(am__append_20)
+lmtcpsrv_la_LDFLAGS = -module -avoid-version $(am__append_21)
 lmtcpsrv_la_LIBADD = 
 
 #
@@ -886,8 +898,9 @@ lmtcpclt_la_SOURCES = \
 	tcpclt.c \
 	tcpclt.h
 
-lmtcpclt_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) $(LIBLOGGING_STDLOG_CFLAGS)
-lmtcpclt_la_LDFLAGS = -module -avoid-version $(LIBLOGGING_STDLOG_LIBS)
+lmtcpclt_la_CPPFLAGS = $(PTHREADS_CFLAGS) $(RSRT_CFLAGS) \
+	$(am__append_22)
+lmtcpclt_la_LDFLAGS = -module -avoid-version $(am__append_23)
 lmtcpclt_la_LIBADD = 
 @ENABLE_KSI_LS12_TRUE@lmsig_ksi_ls12_la_SOURCES = lmsig_ksi-ls12.c lmsig_ksi-ls12.h lib_ksils12.c \
 @ENABLE_KSI_LS12_TRUE@			lib_ksils12.h lib_ksi_queue.c lib_ksi_queue.h
@@ -1072,9 +1085,6 @@ lmregexp.la: $(lmregexp_la_OBJECTS) $(lmregexp_la_DEPENDENCIES) $(EXTRA_lmregexp
 lmsig_ksi_ls12.la: $(lmsig_ksi_ls12_la_OBJECTS) $(lmsig_ksi_ls12_la_DEPENDENCIES) $(EXTRA_lmsig_ksi_ls12_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(lmsig_ksi_ls12_la_LINK) $(am_lmsig_ksi_ls12_la_rpath) $(lmsig_ksi_ls12_la_OBJECTS) $(lmsig_ksi_ls12_la_LIBADD) $(LIBS)
 
-lmstrmsrv.la: $(lmstrmsrv_la_OBJECTS) $(lmstrmsrv_la_DEPENDENCIES) $(EXTRA_lmstrmsrv_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(lmstrmsrv_la_LINK) $(am_lmstrmsrv_la_rpath) $(lmstrmsrv_la_OBJECTS) $(lmstrmsrv_la_LIBADD) $(LIBS)
-
 lmtcpclt.la: $(lmtcpclt_la_OBJECTS) $(lmtcpclt_la_DEPENDENCIES) $(EXTRA_lmtcpclt_la_DEPENDENCIES) 
 	$(AM_V_CCLD)$(lmtcpclt_la_LINK) -rpath $(pkglibdir) $(lmtcpclt_la_OBJECTS) $(lmtcpclt_la_LIBADD) $(LIBS)
 
@@ -1116,6 +1126,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/librsyslog_la-msg.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/librsyslog_la-obj.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/librsyslog_la-objomsr.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/librsyslog_la-operatingstate.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/librsyslog_la-parser.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/librsyslog_la-prop.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/librsyslog_la-queue.Plo@am__quote@ # am--include-marker
@@ -1149,8 +1160,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmsig_ksi_ls12_la-lib_ksi_queue.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmsig_ksi_ls12_la-lib_ksils12.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmsig_ksi_ls12_la-lmsig_ksi-ls12.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmstrmsrv_la-strms_sess.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmstrmsrv_la-strmsrv.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtcpclt_la-tcpclt.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtcpsrv_la-tcps_sess.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lmtcpsrv_la-tcpsrv.Plo@am__quote@ # am--include-marker
@@ -1304,6 +1313,13 @@ librsyslog_la-errmsg.lo: errmsg.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='errmsg.c' object='librsyslog_la-errmsg.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(librsyslog_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o librsyslog_la-errmsg.lo `test -f 'errmsg.c' || echo '$(srcdir)/'`errmsg.c
+
+librsyslog_la-operatingstate.lo: operatingstate.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(librsyslog_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT librsyslog_la-operatingstate.lo -MD -MP -MF $(DEPDIR)/librsyslog_la-operatingstate.Tpo -c -o librsyslog_la-operatingstate.lo `test -f 'operatingstate.c' || echo '$(srcdir)/'`operatingstate.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/librsyslog_la-operatingstate.Tpo $(DEPDIR)/librsyslog_la-operatingstate.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='operatingstate.c' object='librsyslog_la-operatingstate.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(librsyslog_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o librsyslog_la-operatingstate.lo `test -f 'operatingstate.c' || echo '$(srcdir)/'`operatingstate.c
 
 librsyslog_la-debug.lo: debug.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(librsyslog_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT librsyslog_la-debug.lo -MD -MP -MF $(DEPDIR)/librsyslog_la-debug.Tpo -c -o librsyslog_la-debug.lo `test -f 'debug.c' || echo '$(srcdir)/'`debug.c
@@ -1585,20 +1601,6 @@ lmsig_ksi_ls12_la-lib_ksi_queue.lo: lib_ksi_queue.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lmsig_ksi_ls12_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lmsig_ksi_ls12_la-lib_ksi_queue.lo `test -f 'lib_ksi_queue.c' || echo '$(srcdir)/'`lib_ksi_queue.c
 
-lmstrmsrv_la-strmsrv.lo: strmsrv.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lmstrmsrv_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lmstrmsrv_la-strmsrv.lo -MD -MP -MF $(DEPDIR)/lmstrmsrv_la-strmsrv.Tpo -c -o lmstrmsrv_la-strmsrv.lo `test -f 'strmsrv.c' || echo '$(srcdir)/'`strmsrv.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lmstrmsrv_la-strmsrv.Tpo $(DEPDIR)/lmstrmsrv_la-strmsrv.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='strmsrv.c' object='lmstrmsrv_la-strmsrv.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lmstrmsrv_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lmstrmsrv_la-strmsrv.lo `test -f 'strmsrv.c' || echo '$(srcdir)/'`strmsrv.c
-
-lmstrmsrv_la-strms_sess.lo: strms_sess.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lmstrmsrv_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lmstrmsrv_la-strms_sess.lo -MD -MP -MF $(DEPDIR)/lmstrmsrv_la-strms_sess.Tpo -c -o lmstrmsrv_la-strms_sess.lo `test -f 'strms_sess.c' || echo '$(srcdir)/'`strms_sess.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lmstrmsrv_la-strms_sess.Tpo $(DEPDIR)/lmstrmsrv_la-strms_sess.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='strms_sess.c' object='lmstrmsrv_la-strms_sess.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lmstrmsrv_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o lmstrmsrv_la-strms_sess.lo `test -f 'strms_sess.c' || echo '$(srcdir)/'`strms_sess.c
-
 lmtcpclt_la-tcpclt.lo: tcpclt.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(lmtcpclt_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT lmtcpclt_la-tcpclt.lo -MD -MP -MF $(DEPDIR)/lmtcpclt_la-tcpclt.Tpo -c -o lmtcpclt_la-tcpclt.lo `test -f 'tcpclt.c' || echo '$(srcdir)/'`tcpclt.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/lmtcpclt_la-tcpclt.Tpo $(DEPDIR)/lmtcpclt_la-tcpclt.Plo
@@ -1788,6 +1790,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/librsyslog_la-msg.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-obj.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-objomsr.Plo
+	-rm -f ./$(DEPDIR)/librsyslog_la-operatingstate.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-parser.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-prop.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-queue.Plo
@@ -1821,8 +1824,6 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/lmsig_ksi_ls12_la-lib_ksi_queue.Plo
 	-rm -f ./$(DEPDIR)/lmsig_ksi_ls12_la-lib_ksils12.Plo
 	-rm -f ./$(DEPDIR)/lmsig_ksi_ls12_la-lmsig_ksi-ls12.Plo
-	-rm -f ./$(DEPDIR)/lmstrmsrv_la-strms_sess.Plo
-	-rm -f ./$(DEPDIR)/lmstrmsrv_la-strmsrv.Plo
 	-rm -f ./$(DEPDIR)/lmtcpclt_la-tcpclt.Plo
 	-rm -f ./$(DEPDIR)/lmtcpsrv_la-tcps_sess.Plo
 	-rm -f ./$(DEPDIR)/lmtcpsrv_la-tcpsrv.Plo
@@ -1896,6 +1897,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/librsyslog_la-msg.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-obj.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-objomsr.Plo
+	-rm -f ./$(DEPDIR)/librsyslog_la-operatingstate.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-parser.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-prop.Plo
 	-rm -f ./$(DEPDIR)/librsyslog_la-queue.Plo
@@ -1929,8 +1931,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/lmsig_ksi_ls12_la-lib_ksi_queue.Plo
 	-rm -f ./$(DEPDIR)/lmsig_ksi_ls12_la-lib_ksils12.Plo
 	-rm -f ./$(DEPDIR)/lmsig_ksi_ls12_la-lmsig_ksi-ls12.Plo
-	-rm -f ./$(DEPDIR)/lmstrmsrv_la-strms_sess.Plo
-	-rm -f ./$(DEPDIR)/lmstrmsrv_la-strmsrv.Plo
 	-rm -f ./$(DEPDIR)/lmtcpclt_la-tcpclt.Plo
 	-rm -f ./$(DEPDIR)/lmtcpsrv_la-tcps_sess.Plo
 	-rm -f ./$(DEPDIR)/lmtcpsrv_la-tcpsrv.Plo

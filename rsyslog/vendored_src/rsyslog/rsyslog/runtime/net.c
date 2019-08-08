@@ -12,7 +12,7 @@
  * long term, but it is good to have it out of syslogd.c. Maybe this here is
  * an interim location ;)
  *
- * Copyright 2007-2016 Rainer Gerhards and Adiscon GmbH.
+ * Copyright 2007-2018 Rainer Gerhards and Adiscon GmbH.
  *
  * This file is part of rsyslog.
  *
@@ -32,7 +32,6 @@
  */
 #include "config.h"
 
-#include "rsyslog.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -53,6 +52,7 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 
+#include "rsyslog.h"
 #include "syslogd-types.h"
 #include "module-template.h"
 #include "parse.h"
@@ -178,7 +178,7 @@ AddPermittedPeerWildcard(permittedPeers_t *pPeer, uchar* pszStr, size_t lenStr)
 		/* alloc memory for the domain component. We may waste a byte or
 		 * two, but that's ok.
 		 */
-		CHKmalloc(pNew->pszDomainPart = MALLOC(lenStr +1 ));
+		CHKmalloc(pNew->pszDomainPart = malloc(lenStr +1 ));
 	}
 
 	if(pszStr[0] == '*') {
@@ -693,14 +693,14 @@ static rsRetVal AddAllowedSender(struct AllowedSenders **ppRoot, struct AllowedS
 			        LogError(0, NO_ERRCODE, "DNS error: Can't resolve \"%s\"", iAllow->addr.HostWildcard);
 
 				if (ACLAddHostnameOnFail) {
-				        LogError(0, NO_ERRCODE, "Adding hostname \"%s\" to ACL as a wildcard "
-					"entry.", iAllow->addr.HostWildcard);
-				        iRet = AddAllowedSenderEntry(ppRoot, ppLast, iAllow, iSignificantBits);
+					LogError(0, NO_ERRCODE, "Adding hostname \"%s\" to ACL as a wildcard "
+						"entry.", iAllow->addr.HostWildcard);
+					iRet = AddAllowedSenderEntry(ppRoot, ppLast, iAllow, iSignificantBits);
 					FINALIZE;
 				} else {
-				        LogError(0, NO_ERRCODE, "Hostname \"%s\" WON\'T be added to ACL.",
-							iAllow->addr.HostWildcard);
-				        ABORT_FINALIZE(RS_RET_NOENTRY);
+					LogError(0, NO_ERRCODE, "Hostname \"%s\" WON\'T be added to ACL.",
+						iAllow->addr.HostWildcard);
+					ABORT_FINALIZE(RS_RET_NOENTRY);
 				}
 			}
 
@@ -710,7 +710,7 @@ static rsRetVal AddAllowedSender(struct AllowedSenders **ppRoot, struct AllowedS
 				case AF_INET: /* add IPv4 */
 					iSignificantBits = 32;
 					allowIP.flags = 0;
-					if((allowIP.addr.NetAddr = MALLOC(res->ai_addrlen)) == NULL) {
+					if((allowIP.addr.NetAddr = malloc(res->ai_addrlen)) == NULL) {
 						ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 					}
 					memcpy(allowIP.addr.NetAddr, res->ai_addr, res->ai_addrlen);
@@ -728,7 +728,7 @@ static rsRetVal AddAllowedSender(struct AllowedSenders **ppRoot, struct AllowedS
 						iSignificantBits = 32;
 						allowIP.flags = 0;
 						if((allowIP.addr.NetAddr = (struct sockaddr *)
-						MALLOC(sizeof(struct sockaddr))) == NULL) {
+						malloc(sizeof(struct sockaddr))) == NULL) {
 							ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 						}
 						SIN(allowIP.addr.NetAddr)->sin_family = AF_INET;
@@ -751,7 +751,7 @@ static rsRetVal AddAllowedSender(struct AllowedSenders **ppRoot, struct AllowedS
 
 						iSignificantBits = 128;
 						allowIP.flags = 0;
-						if((allowIP.addr.NetAddr = MALLOC(res->ai_addrlen)) == NULL) {
+						if((allowIP.addr.NetAddr = malloc(res->ai_addrlen)) == NULL) {
 							ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 						}
 						memcpy(allowIP.addr.NetAddr, res->ai_addr, res->ai_addrlen);
@@ -783,6 +783,7 @@ finalize_it:
 }
 
 
+static const char *SENDER_TEXT[4] = { "", "UDP", "TCP", "GSS" };
 /* Print an allowed sender list. The caller must tell us which one.
  * iListToPrint = 1 means UDP, 2 means TCP
  * rgerhards, 2005-09-27
@@ -792,34 +793,14 @@ PrintAllowedSenders(int iListToPrint)
 {
 	struct AllowedSenders *pSender;
 	uchar szIP[64];
-	
-#ifdef _AIX
 #ifdef USE_GSSAPI
-	assert((iListToPrint == 1) || (iListToPrint == 2) || (iListToPrint == 3));
-	dbgprintf("Allowed %s Senders:\n",
-	       (iListToPrint == 1) ? "UDP" :
-	       (iListToPrint == 3) ? "GSS" :
-	       "TCP");
+#define iListToPrint_MAX 3
 #else
-	assert((iListToPrint == 1) || (iListToPrint == 2));
-	dbgprintf("Allowed %s Senders:\n",
-	       (iListToPrint == 1) ? "UDP" :
-	       "TCP");
-#endif /* USE_GSSAPI */
-#else /* _AIX */
-	assert((iListToPrint == 1) || (iListToPrint == 2)
-#ifdef USE_GSSAPI
-	       || (iListToPrint == 3)
+#define iListToPrint_MAX 2
 #endif
-	       );
-
-	dbgprintf("Allowed %s Senders:\n",
-	       (iListToPrint == 1) ? "UDP" :
-#ifdef USE_GSSAPI
-	       (iListToPrint == 3) ? "GSS" :
-#endif
-	       "TCP");
-#endif /* End of _AIX */
+	assert((iListToPrint > 0) && (iListToPrint <= iListToPrint_MAX));
+	
+	dbgprintf("Allowed %s Senders:\n", SENDER_TEXT[iListToPrint]);
 
 	pSender = (iListToPrint == 1) ? pAllowedSenders_UDP :
 #ifdef USE_GSSAPI
@@ -834,8 +815,8 @@ PrintAllowedSenders(int iListToPrint)
 				dbgprintf ("\t%s\n", pSender->allowedSender.addr.HostWildcard);
 			else {
 				if(mygetnameinfo (pSender->allowedSender.addr.NetAddr,
-						     SALEN(pSender->allowedSender.addr.NetAddr),
-						     (char*)szIP, 64, NULL, 0, NI_NUMERICHOST) == 0) {
+							SALEN(pSender->allowedSender.addr.NetAddr),
+							(char*)szIP, 64, NULL, 0, NI_NUMERICHOST) == 0) {
 					dbgprintf ("\t%s/%u\n", szIP, pSender->SignificantBits);
 				} else {
 					/* getnameinfo() failed - but as this is only a
@@ -908,11 +889,11 @@ addAllowedSenderLine(char* pName, uchar** ppRestOfConfLine)
 			return(iRet);
 		}
 		if((iRet = AddAllowedSender(ppRoot, ppLast, uIP, iBits)) != RS_RET_OK) {
-		        if(iRet == RS_RET_NOENTRY) {
-			        LogError(0, iRet, "Error %d adding allowed sender entry "
-					    "- ignoring.", iRet);
-		        } else {
-			        LogError(0, iRet, "Error %d adding allowed sender entry "
+			if(iRet == RS_RET_NOENTRY) {
+				LogError(0, iRet, "Error %d adding allowed sender entry "
+				    "- ignoring.", iRet);
+			} else {
+				LogError(0, iRet, "Error %d adding allowed sender entry "
 					    "- terminating, nothing more will be added.", iRet);
 				rsParsDestruct(pPars);
 				free(uIP);
@@ -1000,6 +981,7 @@ MaskCmp(struct NetAddr *pAllow, uint8_t bits, struct sockaddr *pFrom, const char
 				/* Unsupported AF */
 				return 0;
 			}
+			/* fallthrough */
 		default:
 			/* Unsupported AF */
 			return 0;
@@ -1085,14 +1067,14 @@ should_use_so_bsdcompat(void)
 		 * where the first three are unsigned integers and the last
 		 * is an arbitrary string. We only care about the first two. */
 		if (sscanf(myutsname.release, "%u.%u", &version, &patchlevel) != 2) {
-		    dbgprintf("uname: unexpected release '%s'\r\n",
-			    myutsname.release);
-		    return 1;
+			dbgprintf("uname: unexpected release '%s'\r\n",
+				myutsname.release);
+			return 1;
 		}
 		/* SO_BSCOMPAT is deprecated and triggers warnings in 2.5
-		   kernels. It is a no-op in 2.4 but not in 2.2 kernels. */
+		 * kernels. It is a no-op in 2.4 but not in 2.2 kernels. */
 		if (version > 2 || (version == 2 && patchlevel >= 5))
-		    so_bsdcompat_is_obsolete = 1;
+			so_bsdcompat_is_obsolete = 1;
 	}
 	return !so_bsdcompat_is_obsolete;
 #else	/* #ifndef OS_BSD */
@@ -1113,18 +1095,22 @@ debugListenInfo(int fd, char *type)
 {
 	const char *szFamily;
 	int port;
-	struct sockaddr_storage sa;
-	socklen_t saLen = sizeof(sa);
+	union {
+	  struct sockaddr_storage sa;
+	  struct sockaddr_in sa4;
+	  struct sockaddr_in6 sa6;
+	} sockaddr;
+	socklen_t saLen = sizeof(sockaddr.sa);
 
-	if(getsockname(fd, (struct sockaddr *) &sa, &saLen) == 0) {
-		switch(sa.ss_family) {
+	if(getsockname(fd, (struct sockaddr *) &sockaddr.sa, &saLen) == 0) {
+		switch(sockaddr.sa.ss_family) {
 		case PF_INET:
 			szFamily = "IPv4";
-			port = ntohs(((struct sockaddr_in *) &sa)->sin_port);
+			port = ntohs(sockaddr.sa4.sin_port);
 			break;
 		case PF_INET6:
 			szFamily = "IPv6";
-			port = ntohs(((struct sockaddr_in6 *) &sa)->sin6_port);
+			port = ntohs(sockaddr.sa6.sin6_port);
 			break;
 		default:
 			szFamily = "other";
@@ -1152,7 +1138,7 @@ cvthname(struct sockaddr_storage *f, prop_t **localName, prop_t **fqdn, prop_t *
 {
 	DEFiRet;
 	assert(f != NULL);
-	iRet = dnscacheLookup(f, NULL, fqdn, localName, ip);
+	iRet = dnscacheLookup(f, fqdn, NULL, localName, ip);
 	RETiRet;
 }
 
@@ -1245,8 +1231,8 @@ closeUDPListenSockets(int *pSockArr)
 
 	assert(pSockArr != NULL);
 	if(pSockArr != NULL) {
-	        for (i = 0; i < *pSockArr; i++)
-	                close(pSockArr[i+1]);
+		for (i = 0; i < *pSockArr; i++)
+			close(pSockArr[i+1]);
 		free(pSockArr);
 	}
 }
@@ -1325,8 +1311,8 @@ create_single_udp_socket(int *const s, /* socket */
 	 * could flood our log files by sending us tons of ICMP errors.
 	 */
 	/* AIXPORT : SO_BSDCOMPAT socket option is depricated, and its usage
-	* has been discontinued on most unixes, AIX does not support this option,
-	* hence avoid the call.
+	 * has been discontinued on most unixes, AIX does not support this option,
+	 * hence avoid the call.
 	*/
 #	if !defined(OS_BSD) && !defined(__hpux)  && !defined(_AIX)
 	if (should_use_so_bsdcompat()) {
@@ -1499,7 +1485,7 @@ create_udp_socket(uchar *hostname,
 	/* Count max number of sockets we may open */
 	for (maxs = 0, r = res; r != NULL ; r = r->ai_next, maxs++)
 		/* EMPTY */;
-	socks = MALLOC((maxs+1) * sizeof(int));
+	socks = malloc((maxs+1) * sizeof(int));
 	if (socks == NULL) {
 		LogError(0, RS_RET_OUT_OF_MEMORY, "couldn't allocate memory for UDP "
 			"sockets, suspending UDP message reception");
@@ -1613,11 +1599,6 @@ finalize_it:
  * However, it caches entries in order to avoid too-frequent requery.
  * rgerhards, 2012-03-06
  */
-#if !defined(_AIX)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-align" /* TODO: how can we fix these warnings? */
-/* Problem with the warnings: they seem to stem back from the way the API is structured */
-#endif
 static rsRetVal
 getIFIPAddr(uchar *szif, int family, uchar *pszbuf, int lenBuf)
 {
@@ -1628,6 +1609,11 @@ getIFIPAddr(uchar *szif, int family, uchar *pszbuf, int lenBuf)
 	struct ifaddrs * ifaddrs = NULL;
 	struct ifaddrs * ifa;
 #endif
+	union {
+		struct sockaddr *sa;
+		struct sockaddr_in *ipv4;
+		struct sockaddr_in6 *ipv6;
+	} savecast;
 	void * pAddr;
 	DEFiRet;
 
@@ -1638,14 +1624,15 @@ getIFIPAddr(uchar *szif, int family, uchar *pszbuf, int lenBuf)
 	for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
 		if(strcmp(ifa->ifa_name, (char*)szif))
 			continue;
+		savecast.sa = ifa->ifa_addr;
 		if(   (family == AF_INET6 || family == AF_UNSPEC)
 		   && ifa->ifa_addr->sa_family == AF_INET6) {
-			pAddr = &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
+			pAddr = &(savecast.ipv6->sin6_addr);
 			inet_ntop(AF_INET6, pAddr, (char*)pszbuf, lenBuf);
 			break;
 		} else if(/*   (family == AF_INET || family == AF_UNSPEC)
 		         &&*/ ifa->ifa_addr->sa_family == AF_INET) {
-			pAddr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+			pAddr = &(savecast.ipv4->sin_addr);
 			inet_ntop(AF_INET, pAddr, (char*)pszbuf, lenBuf);
 			break;
 		}
@@ -1661,9 +1648,6 @@ finalize_it:
 	RETiRet;
 
 }
-#if !defined(_AIX)
-#pragma GCC diagnostic pop
-#endif
 
 
 /* queryInterface function

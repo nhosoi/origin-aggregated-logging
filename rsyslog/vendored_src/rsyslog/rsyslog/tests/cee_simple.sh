@@ -3,7 +3,7 @@
 # This file is part of the rsyslog project, released under ASL 2.0
 echo ===============================================================================
 echo \[cee_simple.sh\]: basic CEE property test
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="string" string="%$!usr!msg:F,58:2%\n")
@@ -14,7 +14,7 @@ add_conf 'then
 	action(type="omfile" file=`echo $RSYSLOG_OUT_LOG` template="outfmt")
 '
 startup
-. $srcdir/diag.sh injectmsg  0 5000
+injectmsg  0 5000
 echo doing shutdown
 shutdown_when_empty
 echo wait on shutdown

@@ -6,12 +6,12 @@ echo ===========================================================================
 echo \[cee_diskqueue.sh\]: CEE and diskqueue test
 
 uname
-if [ `uname` = "SunOS" ] ; then
+if [ $(uname) = "SunOS" ] ; then
    echo "This test currently does not work on all flavors of Solaris."
    exit 77
 fi
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 global(workDirectory="/tmp")
@@ -25,7 +25,7 @@ add_conf 'then
 	       queue.type="disk" queue.filename="rsyslog-act1")
 '
 startup
-. $srcdir/diag.sh injectmsg  0 5000
+injectmsg  0 5000
 echo doing shutdown
 shutdown_when_empty
 echo wait on shutdown

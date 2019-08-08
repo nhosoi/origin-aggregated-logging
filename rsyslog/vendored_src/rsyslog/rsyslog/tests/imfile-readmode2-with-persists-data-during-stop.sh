@@ -1,16 +1,14 @@
 #!/bin/bash
 # This is part of the rsyslog testbench, licensed under ASL 2.0
-echo ======================================================================
-echo [imfile-readmode2-with-persists-data-during-stop.sh]
 . $srcdir/diag.sh check-inotify
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
-global(workDirectory="test-spool")
+global(workDirectory="'${RSYSLOG_DYNNAME}'.spool")
 module(load="../plugins/imfile/.libs/imfile")
 
 input(type="imfile"
-      File="./rsyslog.input"
+      File="./'$RSYSLOG_DYNNAME'.input"
       Tag="file:"
       ReadMode="2")
 
@@ -31,8 +29,8 @@ startup
 
 # write the beginning of the file
 echo 'msgnum:0
- msgnum:1' > rsyslog.input
-echo 'msgnum:2' >> rsyslog.input
+ msgnum:1' > $RSYSLOG_DYNNAME.input
+echo 'msgnum:2' >> $RSYSLOG_DYNNAME.input
 
 # sleep a little to give rsyslog a chance to begin processing
 sleep 1
@@ -48,44 +46,19 @@ wait_shutdown
 # polling loop properly picks up that data. Note that even in
 # inotify case we do have one polling loop at startup, as this
 # is required to find data written while we were stopped.
-ls -l test-spool
+ls -l ${RSYSLOG_DYNNAME}.spool
 
 echo 'msgnum:3
- msgnum:4' >> rsyslog.input
+ msgnum:4' >> $RSYSLOG_DYNNAME.input
 
 echo restarting rsyslog
-
-generate_conf
-add_conf '
-global(workDirectory="test-spool")
-module(load="../plugins/imfile/.libs/imfile")
-
-input(type="imfile"
-      File="./rsyslog.input"
-      Tag="file:"
-      ReadMode="2")
-
-template(name="outfmt" type="list") {
-  constant(value="HEADER ")
-  property(name="msg" format="json")
-  constant(value="\n")
-}
-
-if $msg contains "msgnum:" then
- action(
-   type="omfile"
-   file=`echo $RSYSLOG_OUT_LOG`
-   template="outfmt"
- )
-'
-
 startup
 echo restarted rsyslog, continuing with test
 
-echo ' msgnum:5' >> rsyslog.input
+echo ' msgnum:5' >> $RSYSLOG_DYNNAME.input
 echo 'msgnum:6
  msgnum:7
-msgnum:8' >> rsyslog.input
+msgnum:8' >> $RSYSLOG_DYNNAME.input
 #msgnum:8 must NOT be written as it is unfinished
 
 # give it time to finish
@@ -104,12 +77,12 @@ NUMLINES=$(grep -c HEADER  $RSYSLOG_OUT_LOG 2>/dev/null)
 if [ -z $NUMLINES ]; then
   echo "ERROR: expecting at least a match for HEADER, maybe  $RSYSLOG_OUT_LOG wasn't even written?"
   cat $RSYSLOG_OUT_LOG
-  exit 1
+  error_exit 1
 else
   if [ ! $NUMLINES -eq 4 ]; then
     echo "ERROR: expecting 4 headers, got $NUMLINES"
     cat $RSYSLOG_OUT_LOG
-    exit 1
+    error_exit 1
   fi
 fi
 
@@ -120,7 +93,7 @@ for i in {1..7}; do
   if [ ! $? -eq 0 ]; then
     echo "ERROR: expecting the string 'msgnum:$i', it's not there"
     cat $RSYSLOG_OUT_LOG
-    exit 1
+    error_exit 1
   fi
 done
 

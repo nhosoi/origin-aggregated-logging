@@ -62,7 +62,9 @@ struct tcpsrv_s {
 	netstrms_t *pNS;	/**< pointer to network stream subsystem */
 	int iDrvrMode;		/**< mode of the stream driver to use */
 	uchar *gnutlsPriorityString;	/**< priority string for gnutls */
+	uchar *pszLstnPortFileName;	/**< File in which the dynamic port is written */
 	uchar *pszDrvrAuthMode;	/**< auth mode of the stream driver to use */
+	uchar *pszDrvrPermitExpiredCerts;/**< current driver setting for handlign expired certs */
 	uchar *pszDrvrName;	/**< name of stream driver to use */
 	uchar *pszInputName;	/**< value to be used as input name */
 	uchar *pszOrigin;		/**< module to be used as "origin" (e.g. for pstats) */
@@ -85,6 +87,7 @@ struct tcpsrv_s {
 	int maxFrameSize;	/**< max frame size for octet counted*/
 	int bDisableLFDelim;	/**< if 1, standard LF frame delimiter is disabled (*very dangerous*) */
 	int discardTruncatedMsg;/**< discard msg part that has been truncated*/
+	sbool bPreserveCase;	/**< preserve case in fromhost */
 	int ratelimitInterval;
 	int ratelimitBurst;
 	tcps_sess_t **pSessions;/**< array of all of our sessions */
@@ -140,6 +143,7 @@ BEGINinterface(tcpsrv) /* name must also be changed in ENDinterface macro! */
 	rsRetVal (*SetCBOnErrClose)(tcpsrv_t*, rsRetVal (*) (tcps_sess_t*));
 	rsRetVal (*SetDrvrMode)(tcpsrv_t *pThis, int iMode);
 	rsRetVal (*SetDrvrAuthMode)(tcpsrv_t *pThis, uchar *pszMode);
+	rsRetVal (*SetDrvrPermitExpiredCerts)(tcpsrv_t *pThis, uchar *pszMode);
 	rsRetVal (*SetDrvrPermPeers)(tcpsrv_t *pThis, permittedPeers_t*);
 	/* session specifics */
 	rsRetVal (*SetCBOnSessAccept)(tcpsrv_t*, rsRetVal (*) (tcpsrv_t*, tcps_sess_t*));
@@ -177,8 +181,12 @@ BEGINinterface(tcpsrv) /* name must also be changed in ENDinterface macro! */
 	rsRetVal (*SetbSPFramingFix)(tcpsrv_t*, sbool);
 	/* added v19 -- PascalWithopf, 2017-08-08 */
 	rsRetVal (*SetGnutlsPriorityString)(tcpsrv_t*, uchar*);
+	/* added v21 -- Preserve case in fromhost, 2018-08-16 */
+	rsRetVal (*SetPreserveCase)(tcpsrv_t *pThis, int bPreserveCase);
+	/* added v22 -- File for dynamic Port, 2018-08-29 */
+	rsRetVal (*SetLstnPortFileName)(tcpsrv_t*, uchar*);
 ENDinterface(tcpsrv)
-#define tcpsrvCURR_IF_VERSION 20 /* increment whenever you change the interface structure! */
+#define tcpsrvCURR_IF_VERSION 22 /* increment whenever you change the interface structure! */
 /* change for v4:
  * - SetAddtlFrameDelim() added -- rgerhards, 2008-12-10
  * - SetInputName() added -- rgerhards, 2008-12-10

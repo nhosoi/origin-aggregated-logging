@@ -7,18 +7,16 @@
 # We add a few messages after the initial run, just so that we can
 # check everything recovers from DA mode correctly.
 # added 2009-04-22 by Rgerhards
-# This file is part of the rsyslog project, released  under GPLv3
-echo ===============================================================================
-echo "[da-mainmsg-q.sh]: testing main message queue in DA mode (going to disk)"
-. $srcdir/diag.sh init
+# This file is part of the rsyslog project, released under ASL 2.0
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $ModLoad ../plugins/imtcp/.libs/imtcp
 $MainMsgQueueTimeoutShutdown 10000
-$InputTCPServerRun 13514
+$InputTCPServerRun '$TCPFLOOD_PORT'
 
 # set spool locations and switch queue to disk assisted mode
-$WorkDirectory test-spool
+$WorkDirectory '$RSYSLOG_DYNNAME'.spool
 $MainMsgQueueSize 200 # this *should* trigger moving on to DA mode...
 # note: we must set QueueSize sufficiently high, so that 70% (light delay mark)
 # is high enough above HighWatermark!
@@ -34,21 +32,18 @@ template(name="dynfile" type="string" string=`echo $RSYSLOG_OUT_LOG`) # trick to
 startup
 
 # part1: send first 50 messages (in memory, only)
-#tcpflood 127.0.0.1 13514 1 50
-. $srcdir/diag.sh injectmsg 0 50
-. $srcdir/diag.sh wait-queueempty # let queue drain for this test case
+injectmsg 0 50
+wait_file_lines $RSYSLOG_OUT_LOG 50 # let queue drain for this test case
 
 # part 2: send bunch of messages. This should trigger DA mode
-#. $srcdir/diag.sh injectmsg 50 20000
-. $srcdir/diag.sh injectmsg 50 2000
-ls -l test-spool	 # for manual review
+injectmsg 50 2000
+ls -l ${RSYSLOG_DYNNAME}.spool	 # for manual review
+wait_file_lines $RSYSLOG_OUT_LOG 2050 # wait to ensure DA queue is "empty"
 
 # send another handful
-. $srcdir/diag.sh injectmsg 2050 50
-#sleep 1 # we need this so that rsyslogd can receive all outstanding messages
+injectmsg 2050 50
 
-# clean up and check test result
-shutdown_when_empty # shut down rsyslogd when done processing messages
+shutdown_when_empty
 wait_shutdown
 seq_check  0 2099
 exit_test

@@ -3,11 +3,11 @@
 # This file is part of the rsyslog project, released  under ASL 2.0
 echo ===============================================================================
 echo \[stop.sh\]: testing stop statement
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 if $msg contains "00000001" then
 	stop

@@ -2,7 +2,7 @@
 # test many concurrent tcp connections
 # addd 2016-02-23 by RGerhards, released under ASL 2.0
 # requires faketime
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 echo \[now-utc-ymd\]: test \$year-utc, \$month-utc, \$day-utc
 
 . $srcdir/faketime_common.sh
@@ -12,7 +12,7 @@ export TZ=TEST-02:00
 generate_conf
 add_conf '
 $ModLoad ../plugins/imtcp/.libs/imtcp
-$InputTCPServerRun 13514
+$InputTCPServerRun '$TCPFLOOD_PORT'
 
 template(name="outfmt" type="string"
 	 string="%$year%-%$month%-%$day%,%$year-utc%-%$month-utc%-%$day-utc%\n")

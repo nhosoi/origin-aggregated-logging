@@ -24,7 +24,7 @@
 
 #include "nsd.h"
 
-#define NSD_GTLS_MAX_RCVBUF 8 * 1024 /* max size of buffer for message reception */
+#define NSD_GTLS_MAX_RCVBUF 16 * 1024 + 1/* TLS RFC 8449: max size of buffer for message reception */
 #define NSD_GTLS_MAX_CERT 10 /* max number of certs in our chain */
 
 typedef enum {
@@ -49,6 +49,11 @@ struct nsd_gtls_s {
 		GTLS_AUTH_CERTVALID = 2,
 		GTLS_AUTH_CERTANON = 3
 	} authMode;
+	enum {
+		GTLS_EXPIRED_PERMIT = 0,
+		GTLS_EXPIRED_DENY = 1,
+		GTLS_EXPIRED_WARN = 2
+	} permitExpiredCerts;
 	gtlsRtryCall_t rtryCall;/**< what must we retry? */
 	int bIsInitiator;	/**< 0 if socket is the server end (listener), 1 if it is the initiator */
 	gnutls_session_t sess;
@@ -85,5 +90,13 @@ rsRetVal gtlsRecordRecv(nsd_gtls_t *pThis);
 
 /* the name of our library binary */
 #define LM_NSD_GTLS_FILENAME "lmnsd_gtls"
+
+#if GNUTLS_VERSION_NUMBER <= 0x00030000
+#define GTLS_ANON_PRIO_NOTLSV13 "NORMAL:-VERS-TLS1.3:+ANON-DH:+COMP-ALL"
+#define GTLS_ANON_PRIO "NORMAL:+ANON-DH:+COMP-ALL"
+#else
+#define GTLS_ANON_PRIO_NOTLSV13 "NORMAL:-VERS-TLS1.3:+ANON-DH:+ANON-ECDH:+COMP-ALL"
+#define GTLS_ANON_PRIO "NORMAL:+ANON-DH:+ANON-ECDH:+COMP-ALL"
+#endif
 
 #endif /* #ifndef INCLUDED_NSD_GTLS_H */

@@ -7,13 +7,13 @@
 # rgerhards, 2013-11-20
 echo ===============================================================================
 echo \[rs_optimizer_pri.sh\]: testing RainerScript PRI optimizer
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="string" string="%msg:F,58:2%\n")
 
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 if $syslogfacility-text == "local4" then
 	action(type="omfile" template="outfmt" file=`echo $RSYSLOG_OUT_LOG`)

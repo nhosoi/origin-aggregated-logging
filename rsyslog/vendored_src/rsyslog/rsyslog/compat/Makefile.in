@@ -107,7 +107,7 @@ LTLIBRARIES = $(noinst_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 compat_la_DEPENDENCIES = $(am__DEPENDENCIES_1)
 am_compat_la_OBJECTS = compat_la-getifaddrs.lo compat_la-strndup.lo \
-	compat_la-solaris_elf_fix.lo
+	compat_la-asprintf.lo compat_la-solaris_elf_fix.lo
 compat_la_OBJECTS = $(am_compat_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -131,7 +131,8 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/compat_la-getifaddrs.Plo \
+am__depfiles_remade = ./$(DEPDIR)/compat_la-asprintf.Plo \
+	./$(DEPDIR)/compat_la-getifaddrs.Plo \
 	./$(DEPDIR)/compat_la-solaris_elf_fix.Plo \
 	./$(DEPDIR)/compat_la-strndup.Plo
 am__mv = mv -f
@@ -192,6 +193,7 @@ AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CONF_FILE_PATH = @CONF_FILE_PATH@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CURL_CFLAGS = @CURL_CFLAGS@
@@ -294,6 +296,7 @@ PATH_SEPARATOR = @PATH_SEPARATOR@
 PGSQL_CFLAGS = @PGSQL_CFLAGS@
 PGSQL_LIBS = @PGSQL_LIBS@
 PG_CONFIG = @PG_CONFIG@
+PID_FILE_PATH = @PID_FILE_PATH@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -386,7 +389,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 noinst_LTLIBRARIES = compat.la
-compat_la_SOURCES = getifaddrs.c ifaddrs.h strndup.c solaris_elf_fix.c
+compat_la_SOURCES = getifaddrs.c ifaddrs.h strndup.c asprintf.c solaris_elf_fix.c
 compat_la_CPPFLAGS = -I$(top_srcdir) $(PTHREADS_CFLAGS) $(RSRT_CFLAGS)
 compat_la_LDFLAGS = -module -avoid-version
 compat_la_LIBADD = $(IMUDP_LIBS)
@@ -444,6 +447,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compat_la-asprintf.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compat_la-getifaddrs.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compat_la-solaris_elf_fix.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compat_la-strndup.Plo@am__quote@ # am--include-marker
@@ -491,6 +495,13 @@ compat_la-strndup.lo: strndup.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='strndup.c' object='compat_la-strndup.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(compat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o compat_la-strndup.lo `test -f 'strndup.c' || echo '$(srcdir)/'`strndup.c
+
+compat_la-asprintf.lo: asprintf.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(compat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT compat_la-asprintf.lo -MD -MP -MF $(DEPDIR)/compat_la-asprintf.Tpo -c -o compat_la-asprintf.lo `test -f 'asprintf.c' || echo '$(srcdir)/'`asprintf.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/compat_la-asprintf.Tpo $(DEPDIR)/compat_la-asprintf.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='asprintf.c' object='compat_la-asprintf.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(compat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o compat_la-asprintf.lo `test -f 'asprintf.c' || echo '$(srcdir)/'`asprintf.c
 
 compat_la-solaris_elf_fix.lo: solaris_elf_fix.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(compat_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT compat_la-solaris_elf_fix.lo -MD -MP -MF $(DEPDIR)/compat_la-solaris_elf_fix.Tpo -c -o compat_la-solaris_elf_fix.lo `test -f 'solaris_elf_fix.c' || echo '$(srcdir)/'`solaris_elf_fix.c
@@ -630,7 +641,8 @@ clean-am: clean-generic clean-libtool clean-noinstLTLIBRARIES \
 	mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/compat_la-getifaddrs.Plo
+		-rm -f ./$(DEPDIR)/compat_la-asprintf.Plo
+	-rm -f ./$(DEPDIR)/compat_la-getifaddrs.Plo
 	-rm -f ./$(DEPDIR)/compat_la-solaris_elf_fix.Plo
 	-rm -f ./$(DEPDIR)/compat_la-strndup.Plo
 	-rm -f Makefile
@@ -678,7 +690,8 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/compat_la-getifaddrs.Plo
+		-rm -f ./$(DEPDIR)/compat_la-asprintf.Plo
+	-rm -f ./$(DEPDIR)/compat_la-getifaddrs.Plo
 	-rm -f ./$(DEPDIR)/compat_la-solaris_elf_fix.Plo
 	-rm -f ./$(DEPDIR)/compat_la-strndup.Plo
 	-rm -f Makefile

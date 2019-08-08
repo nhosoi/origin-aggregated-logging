@@ -56,9 +56,7 @@
 #include "unicode-helper.h"
 #include "errmsg.h"
 
-#if !defined(_AIX)
-#pragma GCC diagnostic ignored "-Wswitch-enum"
-#endif
+PRAGMA_INGORE_Wswitch_enum
 
 DEFobjCurrIf(obj)
 DEFobjCurrIf(regexp)
@@ -256,7 +254,7 @@ DecodePropFilter(uchar *pline, struct cnfstmt *stmt)
 	int iOffset; /* for compare operations */
 	DEFiRet;
 
-	ASSERT(pline != NULL);
+	assert(pline != NULL);
 
 	DBGPRINTF("Decoding property-based filter '%s'\n", pline);
 
@@ -1158,7 +1156,7 @@ done:	return r;
  * it is the caller's duty to free it when no longer needed.
  * NULL is returned on error, otherwise a pointer to the vals array.
  */
-struct cnfparamvals*
+struct cnfparamvals* ATTR_NONNULL(2)
 nvlstGetParams(struct nvlst *lst, struct cnfparamblk *params,
 	       struct cnfparamvals *vals)
 {
@@ -1215,8 +1213,12 @@ nvlstGetParams(struct nvlst *lst, struct cnfparamblk *params,
 	if((valnode = nvlstFindNameCStr(lst, "config.enabled")) != NULL) {
 		if(es_strbufcmp(valnode->val.d.estr, (unsigned char*) "on", 2)) {
 			dbgprintf("config object disabled by configuration\n");
-			valnode->bUsed = 1;
+			/* flag all params as used to not emit error mssages */
 			bInError = 1;
+			struct nvlst *val;
+			for(val = lst; val != NULL ; val = val->next) {
+				val->bUsed = 1;
+			}
 		}
 	}
 
@@ -1514,7 +1516,7 @@ doExtractFieldByChar(uchar *str, uchar delim, const int matchnbr, uchar **resstr
 		allocLen += (3 - (iLen % 4));
 		/*older versions of valgrind have a problem with strlen inspecting 4-bytes at a time*/
 #		endif
-		CHKmalloc(pBuf = MALLOC(allocLen));
+		CHKmalloc(pBuf = malloc(allocLen));
 		/* now copy */
 		memcpy(pBuf, pFld, iLen);
 		pBuf[iLen] = '\0'; /* terminate it */
@@ -1562,7 +1564,7 @@ doExtractFieldByStr(uchar *str, char *delim, const rs_size_t lenDelim, const int
 			iLen = pFldEnd - pFld;
 		}
 		/* we got our end pointer, now do the copy */
-		CHKmalloc(pBuf = MALLOC(iLen + 1));
+		CHKmalloc(pBuf = malloc(iLen + 1));
 		/* now copy */
 		memcpy(pBuf, pFld, iLen);
 		pBuf[iLen] = '\0'; /* terminate it */
@@ -1834,7 +1836,7 @@ doFunct_RandomGen(struct cnffunc *__restrict__ const func,
 		retVal = 0;
 		goto done;
 	}
-	x = randomNumber();
+	x = labs(randomNumber());
 	if (max > MAX_RANDOM_NUMBER) {
 		DBGPRINTF("rainerscript: desired random-number range [0 - %lld] "
 			"is wider than supported limit of [0 - %d)\n",
@@ -3424,7 +3426,7 @@ initFunc_re_match(struct cnffunc *func)
 
 	if((localRet = objUse(regexp, LM_REGEXP_FILENAME)) == RS_RET_OK) {
 		int errcode;
-		if((errcode = regexp.regcomp(re, (char*) regex, REG_EXTENDED) != 0)) {
+		if((errcode = regexp.regcomp(re, (char*) regex, REG_EXTENDED)) != 0) {
 			char errbuff[512];
 			regexp.regerror(errcode, re, errbuff, sizeof(errbuff));
 			parser_errmsg("cannot compile regex '%s': %s", regex, errbuff);
@@ -3556,6 +3558,7 @@ static struct scriptFunct functions[] = {
 	{"cstr", 1, 1, doFunct_CStr, NULL, NULL},
 	{"cnum", 1, 1, doFunct_CNum, NULL, NULL},
 	{"ip42num", 1, 1, doFunct_Ipv42num, NULL, NULL},
+	{"ipv42num", 1, 1, doFunct_Ipv42num, NULL, NULL},
 	{"re_match", 2, 2, doFunct_ReMatch, initFunc_re_match, regex_destruct},
 	{"re_extract", 5, 5, doFunc_re_extract, initFunc_re_match, regex_destruct},
 	{"field", 3, 3, doFunct_Field, NULL, NULL},
@@ -4034,7 +4037,6 @@ void
 cnfstmtPrint(struct cnfstmt *root, int indent)
 {
 	struct cnfstmt *stmt;
-	//dbgprintf("stmt %p, indent %d, type '%c'\n", expr, indent, expr->nodetype);
 	for(stmt = root ; stmt != NULL ; stmt = stmt->next) {
 		cnfstmtPrintOnly(stmt, indent, 1);
 	}

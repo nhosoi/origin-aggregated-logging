@@ -1,13 +1,13 @@
 #!/bin/bash
 # addd 2016-03-28 by RGerhards, released under ASL 2.0
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 
 echo "*** string template ****"
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 template(name="outfmt" type="string" string="-%msg:109:116:%-\n")
 :msg, contains, "msgnum:" action(type="omfile" template="outfmt"
@@ -31,7 +31,7 @@ rm  $RSYSLOG_OUT_LOG # cleanup previous run
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 template(name="outfmt" type="list") {
 	constant(value="-")
 	property(name="msg" position.from="109" position.to="116")

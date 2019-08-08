@@ -665,6 +665,8 @@ processBatch(batch_t *pBatch, wti_t *pWti)
 		 */
 		if(localRet == RS_RET_OK)
 			batchSetElemState(pBatch, i, BATCH_STATE_COMM);
+		else if(localRet == RS_RET_SUSPENDED)
+			--i;
 	}
 
 	/* commit phase */
@@ -1040,7 +1042,7 @@ doRulesetAddParser(ruleset_t *pRuleset, uchar *pName)
 	DBGPRINTF("added parser '%s' to ruleset '%s'\n", pName, pRuleset->pszName);
 
 finalize_it:
-	d_free(pName); /* no longer needed */
+	free(pName); /* no longer needed */
 
 	RETiRet;
 }

@@ -3,14 +3,14 @@
 # This file is part of the rsyslog project, released under ASL 2.0
 echo ===============================================================================
 echo \[json_array_subscripting.sh\]: basic test for json array subscripting
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="string" string="msg: %$!foo[1]% | %$.quux% | %$.corge% | %$.grault% | %$!foo[3]!bar[1]!baz%\n")
 
 module(load="../plugins/mmjsonparse/.libs/mmjsonparse")
 module(load="../plugins/imptcp/.libs/imptcp")
-input(type="imptcp" port="13514")
+input(type="imptcp" port="'$TCPFLOOD_PORT'")
 
 action(type="mmjsonparse")
 set $.quux = $!foo[2];
@@ -24,5 +24,5 @@ echo doing shutdown
 shutdown_when_empty
 echo wait on shutdown
 wait_shutdown 
-. $srcdir/diag.sh content-check 'msg: def1 | ghi2 | important_msg | { "baz": "other_msg" } | other_msg'
+content_check 'msg: def1 | ghi2 | important_msg | { "baz": "other_msg" } | other_msg'
 exit_test

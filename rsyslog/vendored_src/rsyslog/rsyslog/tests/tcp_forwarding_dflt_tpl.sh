@@ -1,12 +1,10 @@
 #!/bin/bash
 # This test tests tcp forwarding with assigned default template.
 # added 2015-05-30 by rgerhards. Released under ASL 2.0
-echo ======================================================================================
-echo \[tcp_forwarding_dflt_tpl.sh\]: test for tcp forwarding with assigned default template
 
 # create the pipe and start a background process that copies data from 
 # it to the "regular" work file
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $MainMsgQueueTimeoutShutdown 10000
@@ -17,16 +15,16 @@ template(name="outfmt" type="string" string="%msg:F,58:2%\n")
 module(load="builtin:omfwd" template="outfmt")
 
 if $msg contains "msgnum:" then
-	action(type="omfwd" target="127.0.0.1" port="13514" protocol="tcp")
+	action(type="omfwd" target="127.0.0.1" port="'$TCPFLOOD_PORT'" protocol="tcp")
 '
-./minitcpsrv -t127.0.0.1 -p13514 -f $RSYSLOG_OUT_LOG &
+./minitcpsrv -t127.0.0.1 -p$TCPFLOOD_PORT -f $RSYSLOG_OUT_LOG &
 BGPROCESS=$!
 echo background minitcpsrv process id is $BGPROCESS
 
 # now do the usual run
 startup
 # 10000 messages should be enough
-. $srcdir/diag.sh injectmsg 0 10000
+injectmsg 0 10000
 shutdown_when_empty # shut down rsyslogd when done processing messages
 wait_shutdown
 

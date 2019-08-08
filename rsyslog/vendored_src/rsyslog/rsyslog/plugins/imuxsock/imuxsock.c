@@ -6,7 +6,7 @@
  *
  * File begun on 2007-12-20 by RGerhards (extracted from syslogd.c)
  *
- * Copyright 2007-2018 Rainer Gerhards and Adiscon GmbH.
+ * Copyright 2007-2019 Rainer Gerhards and Adiscon GmbH.
  *
  * This file is part of rsyslog.
  *
@@ -29,7 +29,6 @@
 #define _XPG4_2
 #endif
 #include "config.h"
-#include "rsyslog.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -45,6 +44,10 @@
 #ifdef HAVE_LIBSYSTEMD
 #	include <systemd/sd-daemon.h>
 #endif
+#if defined(__FreeBSD__)
+	#include <sys/param.h>
+#endif
+#include "rsyslog.h"
 #include "dirty.h"
 #include "cfsysline.h"
 #include "unicode-helper.h"
@@ -64,9 +67,6 @@
 #include "hashtable.h"
 #include "ratelimit.h"
 
-#if !defined(_AIX)
-#pragma GCC diagnostic ignored "-Wswitch-enum"
-#endif
 
 MODULE_TYPE_INPUT
 MODULE_TYPE_NOKEEP
@@ -176,6 +176,11 @@ static int nfd = 1; /* number of active unix sockets  (socket 0 is always reserv
 			socket, even if it is not enabled. */
 static int sd_fds = 0;			/* number of systemd activated sockets */
 
+#if (defined(__FreeBSD__) && (__FreeBSD_version >= 1200061))
+	#define DFLT_bUseSpecialParser 0
+#else
+	#define DFLT_bUseSpecialParser 1
+#endif
 #define DFLT_bCreatePath 0
 #define DFLT_ratelimitInterval 0
 #define DFLT_ratelimitBurst 200
@@ -314,7 +319,7 @@ createInstance(instanceConf_t **pinst)
 {
 	instanceConf_t *inst;
 	DEFiRet;
-	CHKmalloc(inst = MALLOC(sizeof(instanceConf_t)));
+	CHKmalloc(inst = malloc(sizeof(instanceConf_t)));
 	inst->sockName = NULL;
 	inst->pLogHostName = NULL;
 	inst->pszBindRuleset = NULL;
@@ -323,7 +328,7 @@ createInstance(instanceConf_t **pinst)
 	inst->ratelimitBurst = DFLT_ratelimitBurst;
 	inst->ratelimitSeverity = DFLT_ratelimitSeverity;
 	inst->bUseFlowCtl = 0;
-	inst->bUseSpecialParser = 1;
+	inst->bUseSpecialParser = DFLT_bUseSpecialParser;
 	inst->bParseHost = UNSET;
 	inst->bIgnoreTimestamp = 1;
 	inst->bCreatePath = DFLT_bCreatePath;
@@ -554,8 +559,8 @@ openLogSocket(lstn_t *pLstn)
 #ifdef HAVE_LIBSYSTEMD
 	if (sd_fds > 0) {
 		/* Check if the current socket is a systemd activated one.
-	        * If so, just use it.
-		*/
+		 * If so, just use it.
+		 */
 		int fd;
 
 		for (fd = SD_LISTEN_FDS_START; fd < SD_LISTEN_FDS_START + sd_fds; fd++) {
@@ -1077,7 +1082,7 @@ static rsRetVal readSocket(lstn_t *pLstn)
 	if((size_t) iMaxLine < sizeof(bufRcv) - 1) {
 		pRcv = bufRcv;
 	} else {
-		CHKmalloc(pRcv = (uchar*) MALLOC(iMaxLine + 1));
+		CHKmalloc(pRcv = (uchar*) malloc(iMaxLine + 1));
 	}
 
 	memset(&msgh, 0, sizeof(msgh));
@@ -1243,7 +1248,7 @@ CODESTARTbeginCnfLoad
 	pModConf->bAnnotateSysSock = 0;
 	pModConf->bParseTrusted = 0;
 	pModConf->bParseHost = UNSET;
-	pModConf->bUseSpecialParser = 1;
+	pModConf->bUseSpecialParser = DFLT_bUseSpecialParser;
 	/* if we do not process internal messages, we will see messages
 	 * from ourselves, and so we need to permit this.
 	 */

@@ -25,58 +25,100 @@
  */
 #ifndef INCLUDED_RSYSLOG_H
 #define INCLUDED_RSYSLOG_H
-#ifndef _AIX
-#pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
-#pragma GCC diagnostic ignored "-Wredundant-decls" // TODO: remove!
-#pragma GCC diagnostic ignored "-Wstrict-prototypes" // TODO: remove!
-#pragma GCC diagnostic ignored "-Wswitch-default" // TODO: remove!
-#if __GNUC__ >= 8
-/* GCC, starting at least with version 8, is now really overdoing with it's
- * warning messages. We turn those off that either cause an enormous amount
- * of false positives or flag perfectly legal code as problematic.
- */
-/* That one causes warnings when we use variable buffers for error
- * messages which may be truncated in the very unlikely case of all
- * vars using max value. If going over the max size, the engine will
- * most likely truncate due to max message size anyhow. Also, sizing
- * the buffers for max-max message size is a wast of (stack) memory.
- */
-#pragma GCC diagnostic ignored "-Wformat-truncation"
-/* The next one flags variable initializations within out exception handling
- * (iRet system) as problematic, even though variables are not used in those
- * cases. This would be a good diagnostic if gcc would actually check that
- * a variable is used uninitialized. Unfortunately it does not do that. But
- * the static analyzers we use as part of CI do, so we are covered in any
- * case.
- * Unfortunately ignoring this diagnostic leads to two more info lines
- * being emitted where nobody knows what the mean and why they appear :-(
- */
-#pragma GCC diagnostic ignored "-Wjump-misses-init"
-#endif /* if __GNUC__ >= 8 */
-#endif /* ifndef AIX */
+#ifdef __GNUC__
+	#pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
+	#pragma GCC diagnostic ignored "-Wredundant-decls" // TODO: remove!
+	#pragma GCC diagnostic ignored "-Wstrict-prototypes" // TODO: remove!
+	#pragma GCC diagnostic ignored "-Wswitch-default" // TODO: remove!
+	#if __GNUC__ >= 8
+		/* GCC, starting at least with version 8, is now really overdoing with it's
+		 * warning messages. We turn those off that either cause an enormous amount
+		 * of false positives or flag perfectly legal code as problematic.
+		 */
+		/* That one causes warnings when we use variable buffers for error
+		 * messages which may be truncated in the very unlikely case of all
+		 * vars using max value. If going over the max size, the engine will
+		 * most likely truncate due to max message size anyhow. Also, sizing
+		 * the buffers for max-max message size is a wast of (stack) memory.
+		 */
+		#pragma GCC diagnostic ignored "-Wformat-truncation"
+		/* The next one flags variable initializations within out exception handling
+		 * (iRet system) as problematic, even though variables are not used in those
+		 * cases. This would be a good diagnostic if gcc would actually check that
+		 * a variable is used uninitialized. Unfortunately it does not do that. But
+		 * the static analyzers we use as part of CI do, so we are covered in any
+		 * case.
+		 * Unfortunately ignoring this diagnostic leads to two more info lines
+		 * being emitted where nobody knows what the mean and why they appear :-(
+		 */
+		#pragma GCC diagnostic ignored "-Wjump-misses-init"
+	#endif /* if __GNUC__ >= 8 */
 
-#include <pthread.h>
-#include "typedefs.h"
+	/* define a couple of attributes to improve cross-platform builds */
+	#if __GNUC__ > 6
+		#define CASE_FALLTHROUGH __attribute__((fallthrough));
+	#else
+		#define CASE_FALLTHROUGH
+	#endif
+
+	#define ATTR_NORETURN __attribute__ ((noreturn))
+	#define ATTR_UNUSED __attribute__((unused))
+	#define ATTR_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+
+#else /* ifdef __GNUC__ */
+
+	#define CASE_FALLTHROUGH
+	#define ATTR_NORETURN
+	#define ATTR_UNUSED
+	#define ATTR_NONNULL(...)
+
+#endif /* ifdef __GNUC__ */
 
 #if defined(_AIX)
 #include <sys/select.h>
 /* AIXPORT : start*/
 #define SRC_FD          13
 #define SRCMSG          (sizeof(srcpacket))
-extern int src_exists;
 #endif
 /* src end */
 
-/* define a couple of attributes to improve cross-platform builds */
-#if __GNUC__ > 6
-	#define CASE_FALLTHROUGH __attribute__((fallthrough));
-#else
-	#define CASE_FALLTHROUGH
-#endif
+#include <pthread.h>
+#include "typedefs.h"
 
-#define ATTR_NORETURN __attribute__ ((noreturn))
-#define ATTR_UNUSED __attribute__((unused))
-#define ATTR_NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#if defined(__GNUC__)
+	#define PRAGMA_INGORE_Wswitch_enum	_Pragma("GCC diagnostic ignored \"-Wswitch-enum\"")
+	#define PRAGMA_IGNORE_Wcast_align	_Pragma("GCC diagnostic ignored \"-Wcast-align\"")
+	#define PRAGMA_IGNORE_Wempty_body	_Pragma("GCC diagnostic ignored \"-Wempty-body\"")
+	#define PRAGMA_IGNORE_Wsign_compare	_Pragma("GCC diagnostic ignored \"-Wsign-compare\"")
+	#define PRAGMA_IGNORE_Wpragmas		_Pragma("GCC diagnostic ignored \"-Wpragmas\"")
+	#define PRAGMA_IGNORE_Wmissing_noreturn _Pragma("GCC diagnostic ignored \"-Wmissing-noreturn\"")
+	#define PRAGMA_IGNORE_Wexpansion_to_defined \
+						_Pragma("GCC diagnostic ignored \"-Wexpansion-to-defined\"")
+	#define PRAGMA_IGNORE_Wunknown_warning_option \
+						_Pragma("GCC diagnostic ignored \"-Wunknown-warning-option\"")
+	#define PRAGMA_IGNORE_Wunknown_attribute \
+						_Pragma("GCC diagnostic ignored \"-Wunknown-attribute\"")
+	#define PRAGMA_IGNORE_Wformat_nonliteral \
+						_Pragma("GCC diagnostic ignored \"-Wformat-nonliteral\"")
+	#define PRAGMA_IGNORE_Wdeprecated_declarations \
+						_Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+	#define PRAGMA_DIAGNOSTIC_PUSH		_Pragma("GCC diagnostic push")
+	#define PRAGMA_DIAGNOSTIC_POP		_Pragma("GCC diagnostic pop")
+#else
+	#define PRAGMA_INGORE_Wswitch_enum
+	#define PRAGMA_IGNORE_Wcast_align
+	#define PRAGMA_IGNORE_Wsign_compare
+	#define PRAGMA_IGNORE_Wformat_nonliteral
+	#define PRAGMA_IGNORE_Wpragmas
+	#define PRAGMA_IGNORE_Wmissing_noreturn
+	#define PRAGMA_IGNORE_Wempty_body
+	#define PRAGMA_IGNORE_Wdeprecated_declarations
+	#define PRAGMA_IGNORE_Wexpansion_to_defined
+	#define PRAGMA_IGNORE_Wunknown_attribute
+	#define PRAGMA_IGNORE_Wunknown_warning_option
+	#define PRAGMA_DIAGNOSTIC_PUSH
+	#define PRAGMA_DIAGNOSTIC_POP
+#endif
 
 /* ############################################################# *
  * #                 Some constant values                      # *
@@ -133,6 +175,7 @@ extern int src_exists;
 /* make sure we uses consistent macros, no matter what the
  * platform gives us.
  */
+#undef LOG_NFACILITIES /* may be system defined, override */
 #define LOG_NFACILITIES 24+1 /* plus one for our special "invld" facility! */
 #define LOG_MAXPRI 191	/* highest supported valid PRI value --> RFC3164, RFC5424 */
 #undef LOG_MAKEPRI
@@ -220,9 +263,9 @@ enum rsRetVal_				/** return value. All methods return this if not specified oth
 	/* begin regular error codes */
 	RS_RET_NOT_IMPLEMENTED = -7,	/**< implementation is missing (probably internal error or lazyness ;)) */
 	RS_RET_OUT_OF_MEMORY = -6,	/**< memory allocation failed */
-	RS_RET_PROVIDED_BUFFER_TOO_SMALL = -50,
-/*< the caller provided a buffer, but the called function sees the size of this buffer is too small -
-operation not carried out */
+	RS_RET_PROVIDED_BUFFER_TOO_SMALL = -50, /*< the caller provided a buffer, but the called function sees
+						  the size of this buffer is too small - operation not carried out */
+	RS_RET_FILE_TRUNCATED = -51,	/**< (input) file was truncated, not an error but a status */
 	RS_RET_TRUE = -3,		/**< to indicate a true state (can be used as TRUE, legacy) */
 	RS_RET_FALSE = -2,		/**< to indicate a false state (can be used as FALSE, legacy) */
 	RS_RET_NO_IRET = -8,	/**< This is a trick for the debuging system - it means no iRet is provided  */
@@ -430,7 +473,7 @@ operation not carried out */
 	RS_RET_OK_WARN = -2186, /**<  config part: everything was OK, but a warning message was emitted */
 
 	RS_RET_INVLD_CONF_OBJ= -2200,	/**< invalid config object (e.g. $Begin conf statement) */
-	RS_RET_ERR_LIBEE_INIT = -2201,	/**< cannot obtain libee ctx */
+	/* UNUSED, WAS; RS_RET_ERR_LIBEE_INIT = -2201,	< cannot obtain libee ctx */
 	RS_RET_ERR_LIBLOGNORM_INIT = -2202,/**< cannot obtain liblognorm ctx */
 	RS_RET_ERR_LIBLOGNORM_SAMPDB_LOAD = -2203,/**< liblognorm sampledb load failed */
 	RS_RET_CMD_GONE_AWAY = -2204,/**< config directive existed, but no longer supported */
@@ -533,6 +576,12 @@ operation not carried out */
 	RS_RET_FS_ERR = -2443, /**< file-system error */
 	RS_RET_POLL_ERR = -2444, /**< error in poll() system call */
 	RS_RET_OVERSIZE_MSG = -2445, /**< message is too long (above configured max) */
+	RS_RET_TLS_KEY_ERR = -2446, /**< TLS KEY has problems */
+	RS_RET_RABBITMQ_CONN_ERR = -2447, /**< RabbitMQ Connection error */
+	RS_RET_RABBITMQ_LOGIN_ERR = -2448, /**< RabbitMQ Login error */
+	RS_RET_RABBITMQ_CHANNEL_ERR = -2449, /**< RabbitMQ Connection error */
+	RS_RET_NO_WRKDIR_SET = -2450, /**< working directory not set, but desired by functionality */
+	RS_RET_ERR_QUEUE_FN_DUP = -2451, /**< duplicate queue file name */
 
 	/* RainerScript error messages (range 1000.. 1999) */
 	RS_RET_SYSVAR_NOT_FOUND = 1001, /**< system variable could not be found (maybe misspelled) */
@@ -573,8 +622,8 @@ operation not carried out */
 #define CHKmalloc(operation) if((operation) == NULL) ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY)
 /* macro below is used in conjunction with CHKiRet_Hdlr, else use ABORT_FINALIZE */
 #define FINALIZE goto finalize_it;
-#define DEFiRet BEGINfunc rsRetVal iRet = RS_RET_OK
-#define RETiRet do{ ENDfuncIRet return iRet; }while(0)
+#define DEFiRet rsRetVal iRet = RS_RET_OK
+#define RETiRet return iRet
 
 #define ABORT_FINALIZE(errCode)			\
 	do {					\
@@ -671,7 +720,7 @@ struct actWrkrIParams {
 #  define  __attribute__(x)  /*NOTHING*/
 #endif
 
-#ifndef O_CLOEXEC
+#if !defined(O_CLOEXEC) && !defined(_AIX)
 /* of course, this limits the functionality... */
 #  define O_CLOEXEC 0
 #endif
@@ -679,10 +728,6 @@ struct actWrkrIParams {
 /* some constants */
 #define MUTEX_ALREADY_LOCKED	0
 #define LOCK_MUTEX		1
-
-/* The following prototype is convenient, even though it may not be the 100%
-correct place.. -- rgerhards 2008-01-07 */
-//void dbgprintf(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 
 #include "debug.h"

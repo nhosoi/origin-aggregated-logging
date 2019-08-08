@@ -1,6 +1,6 @@
 #!/bin/bash
 # add 2016-11-22 by Pascal Withopf, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 . $srcdir/faketime_common.sh
 
 export TZ=TEST+01:00
@@ -9,7 +9,7 @@ generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
 module(load="../plugins/mmnormalize/.libs/mmnormalize")
-input(type="imtcp" port="13514" ruleset="ruleset1")
+input(type="imtcp" port="'$TCPFLOOD_PORT'" ruleset="ruleset1")
 
 template(name="t_file_record" type="string" string="%timestamp:::date-rfc3339% %timestamp:::date-rfc3339% %hostname% %$!v_tag% %$!v_msg%\n")
 template(name="t_file_path" type="string" string="/sb/logs/incoming/%$year%/%$month%/%$day%/svc_%$!v_svc%/ret_%$!v_ret%/os_%$!v_os%/%fromhost-ip%/r_relay1/%$!v_file:::lowercase%.gz\n")

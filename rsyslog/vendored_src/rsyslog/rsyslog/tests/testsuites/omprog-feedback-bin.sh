@@ -1,15 +1,15 @@
 #!/bin/bash
 
-outfile=rsyslog.out.log
+outfile=$RSYSLOG_OUT_LOG
 
 status="OK"
 echo "<= $status" >> $outfile
-echo $status
+echo "$status"
 
 retry_count=0
 
 read line
-while [[ "x$line" != "x" ]]; do
+while [[ -n "$line" ]]; do
     message=${line//$'\n'}
     echo "=> $message" >> $outfile
 
@@ -26,7 +26,7 @@ while [[ "x$line" != "x" ]]; do
     fi
 
     echo "<= $status" >> $outfile
-    echo $status
+    echo "$status"
     read line
 done
 

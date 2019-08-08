@@ -1,16 +1,12 @@
 [Unit]
 Description=System Logging Service
 Requires=syslog.socket
-Wants=network.target network-online.target
-After=network.target network-online.target
 Documentation=man:rsyslogd(8)
-Documentation=http://www.rsyslog.com/doc/
+Documentation=https://www.rsyslog.com/doc/
 
 [Service]
 Type=notify
-EnvironmentFile=-/etc/sysconfig/rsyslog
-ExecStart=@sbindir@/rsyslogd -n $SYSLOGD_OPTIONS
-UMask=0066
+ExecStart=@sbindir@/rsyslogd -n -iNONE
 StandardOutput=null
 Restart=on-failure
 

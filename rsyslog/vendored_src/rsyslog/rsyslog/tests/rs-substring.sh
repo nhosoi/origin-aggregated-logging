@@ -1,10 +1,10 @@
 #!/bin/bash
 # add 2018-04-04 by Pascal Withopf, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 set $!var = substring($msg, 3, 2);
 

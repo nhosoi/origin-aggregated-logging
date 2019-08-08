@@ -1,9 +1,9 @@
 #!/bin/bash
-# This file is part of the rsyslog project, released under GPLv3
+# This file is part of the rsyslog project, released under ASL 2.0
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 
-psql -h localhost -U postgres -f testsuites/pgsql-basic.sql
+psql -h localhost -U postgres -f ${srcdir}/testsuites/pgsql-basic.sql
 
 generate_conf
 add_conf '
@@ -21,12 +21,13 @@ if $msg contains "msgnum" then {
 }'
 
 startup
-. $srcdir/diag.sh injectmsg  0 5000
+injectmsg  0 5000
 shutdown_when_empty
 wait_shutdown
 
 
-psql -h localhost -U postgres -d syslogtest -f testsuites/pgsql-select-syslogtag.sql -t -A > $RSYSLOG_OUT_LOG 
+psql -h localhost -U postgres -d syslogtest -f ${srcdir}/testsuites/pgsql-select-syslogtag.sql -t -A > $RSYSLOG_OUT_LOG 
+
 
 seq_check  0 4999
 

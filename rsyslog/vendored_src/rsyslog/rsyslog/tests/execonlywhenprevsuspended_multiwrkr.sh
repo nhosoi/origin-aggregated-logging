@@ -2,7 +2,7 @@
 # rgerhards, 2013-12-05
 echo =====================================================================================
 echo \[execonlywhenprevsuspended_multiwrkr.sh\]: test execonly...suspended functionality multiworker case
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 # omtesting provides the ability to cause "SUSPENDED" action state
@@ -13,16 +13,16 @@ $template outfmt,"%msg:F,58:2%\n"
 
 :msg, contains, "msgnum:" :omtesting:fail 2 0
 $ActionExecOnlyWhenPreviousIsSuspended on
-&			   ./rsyslog.out.log;outfmt
+&			   ./'"${RSYSLOG_OUT_LOG}"';outfmt
 '
 startup
 # we initially send only 10 messages. It has shown that if we send more,
 # we cannot really control which are the first two messages imdiag sees,
 # and so we do not know for sure which numbers are skipped. So we inject
 # those 10 to get past that point.
-. $srcdir/diag.sh injectmsg 0 10
+injectmsg 0 10
 ./msleep 500
-. $srcdir/diag.sh injectmsg 10 990
+injectmsg 10 990
 shutdown_when_empty
 wait_shutdown
 seq_check 1 999

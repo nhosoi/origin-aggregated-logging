@@ -1,11 +1,11 @@
 #!/bin/bash
 # addd 2017-03-31 by Pascal Withopf, released under ASL 2.0
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imptcp/.libs/imptcp")
-input(type="imptcp" port="13514" notifyonconnectionclose="on" notifyonconnectionopen="on")
+input(type="imptcp" port="'$TCPFLOOD_PORT'" notifyonconnectionclose="on" notifyonconnectionopen="on")
 
 :msg, contains, "msgnum:" {
 	action(type="omfile" file=`echo $RSYSLOG2_OUT_LOG`)

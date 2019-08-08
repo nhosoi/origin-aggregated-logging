@@ -1,14 +1,14 @@
 #!/bin/bash
 # add 2016-11-22 by Jan Gerhards, released under ASL 2.0
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="string" string="%msg%\n")
 
 module(load="../plugins/mmanon/.libs/mmanon")
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514" ruleset="testing")
+input(type="imtcp" port="'$TCPFLOOD_PORT'" ruleset="testing")
 
 ruleset(name="testing") {
 	action(type="mmanon" ipv6.bits="129" ipv6.anonmode="zero")
@@ -41,10 +41,10 @@ if [ ! $? -eq 0 ]; then
 fi;
 
 
-grep 'invalid number of ipv6.bits (129), corrected to 128' rsyslog2.out.log > /dev/null
+grep 'invalid number of ipv6.bits (129), corrected to 128' ${RSYSLOG2_OUT_LOG} > /dev/null
 if [ $? -ne 0 ]; then
-  echo "invalid correction of bits parameter generated, rsyslog2.out.log is:"
-  cat rsyslog2.out.log
+  echo "invalid correction of bits parameter generated, ${RSYSLOG2_OUT_LOG} is:"
+  cat ${RSYSLOG2_OUT_LOG}
   error_exit  1
 fi;
 

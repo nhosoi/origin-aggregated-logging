@@ -6,14 +6,14 @@ echo ======================================================================
 # Check if inotify header exist
 echo [imfile-truncate-line.sh]
 . $srcdir/diag.sh check-inotify
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $MaxMessageSize 128
 global(oversizemsg.input.mode="accept" oversizemsg.report="on")
 module(load="../plugins/imfile/.libs/imfile")
 input(type="imfile"
-      File="./rsyslog.input"
+      File="./'$RSYSLOG_DYNNAME'.input"
       discardTruncatedMsg="off"
       Tag="file:"
       startmsg.regex="^[^ ]"
@@ -40,11 +40,11 @@ msgnum:2 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 msgnum:6 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
  msgnum:7 ffffffffffffffffffffffffffffffffffffffffffff
  msgnum:8 gggggggggggggggggggggggggggggggggggggggggggg
-msgnum:9' > rsyslog.input
+msgnum:9' > $RSYSLOG_DYNNAME.input
 # the next line terminates our test. It is NOT written to the output file,
 # as imfile waits whether or not there is a follow-up line that it needs
 # to combine.
-echo 'END OF TEST' >> rsyslog.input
+echo 'END OF TEST' >> $RSYSLOG_DYNNAME.input
 # sleep a little to give rsyslog a chance to begin processing
 ./msleep 500
 
@@ -64,11 +64,11 @@ if [ ! $? -eq 0 ]; then
   error_exit 1
 fi;
 
-grep "imfile error:.*message will be split and processed" rsyslog2.out.log > /dev/null
+grep "imfile error:.*message will be split and processed" ${RSYSLOG2_OUT_LOG} > /dev/null
 if [ $? -ne 0 ]; then
         echo
-        echo "FAIL: expected error message from missing input file not found. rsyslog2.out.log is:"
-        cat rsyslog2.out.log
+        echo "FAIL: expected error message from missing input file not found. ${RSYSLOG2_OUT_LOG} is:"
+        cat ${RSYSLOG2_OUT_LOG}
         error_exit 1
 fi
 

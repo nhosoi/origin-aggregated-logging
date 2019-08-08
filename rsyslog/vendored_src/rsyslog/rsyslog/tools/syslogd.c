@@ -10,7 +10,7 @@
  * *****************************************************
  *
  * Please visit the rsyslog project at
- * http://www.rsyslog.com
+ * https://www.rsyslog.com
  * to learn more about it and discuss any questions you may have.
  *
  * rsyslog had initially been forked from the sysklogd project.
@@ -102,91 +102,6 @@
 #include "unicode-helper.h"
 #include "dnscache.h"
 #include "ratelimit.h"
-
-/* forward defintions from rsyslogd.c (ASL 2.0 code) */
-extern ratelimit_t *internalMsg_ratelimiter;
-extern uchar *ConfFile;
-extern ratelimit_t *dflt_ratelimiter;
-extern void rsyslogd_usage(void);
-extern rsRetVal rsyslogdInit(void);
-extern void rsyslogd_destructAllActions(void);
-extern void rsyslogd_sigttin_handler();
-extern int forkRsyslog(void);
-void rsyslogd_submitErrMsg(const int severity, const int iErr, const uchar *msg);
-rsRetVal rsyslogd_InitGlobalClasses(void);
-rsRetVal rsyslogd_InitStdRatelimiters(void);
-rsRetVal rsyslogdInit(void);
-void rsyslogdDebugSwitch();
-void rsyslogdDoDie(int sig);
-
-
-#define LIST_DELIMITER	':'		/* delimiter between two hosts */
-/* rgerhards, 2005-10-24: crunch_list is called only during option processing. So
- * it is never called once rsyslogd is running. This code
- * contains some exits, but they are considered safe because they only happen
- * during startup. Anyhow, when we review the code here, we might want to
- * reconsider the exit()s.
- * Note: this stems back to sysklogd, so we cannot put it under ASL 2.0. But
- * we may want to check if the code inside the BSD sources is exactly the same
- * (remember that sysklogd forked the BSD sources). If so, the BSD license applies
- * and permits us to move to ASL 2.0 (but we need to check the fine details).
- * Probably it is best just to rewrite this code.
- */
-char **syslogd_crunch_list(char *list);
-char **syslogd_crunch_list(char *list)
-{
-	int count, i;
-	char *p, *q;
-	char **result = NULL;
-
-	p = list;
-
-	/* strip off trailing delimiters */
-	while (p[strlen(p)-1] == LIST_DELIMITER) {
-		p[strlen(p)-1] = '\0';
-	}
-	/* cut off leading delimiters */
-	while (p[0] == LIST_DELIMITER) {
-		p++;
-	}
-
-	/* count delimiters to calculate elements */
-	for (count=i=0; p[i]; i++)
-		if (p[i] == LIST_DELIMITER) count++;
-
-	if ((result = (char **)MALLOC(sizeof(char *) * (count+2))) == NULL) {
-		printf ("Sorry, can't get enough memory, exiting.\n");
-		exit(0); /* safe exit, because only called during startup */
-	}
-
-	/*
-	 * We now can assume that the first and last
-	 * characters are different from any delimiters,
-	 * so we don't have to care about this.
-	 */
-	count = 0;
-	while ((q=strchr(p, LIST_DELIMITER))) {
-		result[count] = (char *) MALLOC(q - p + 1);
-		if (result[count] == NULL) {
-			printf ("Sorry, can't get enough memory, exiting.\n");
-			exit(0); /* safe exit, because only called during startup */
-		}
-		strncpy(result[count], p, q - p);
-		result[count][q - p] = '\0';
-		p = q; p++;
-		count++;
-	}
-	if ((result[count] = \
-	     (char *)MALLOC(strlen(p) + 1)) == NULL) {
-		printf ("Sorry, can't get enough memory, exiting.\n");
-		exit(0); /* safe exit, because only called during startup */
-	}
-	strcpy(result[count],p);
-	result[++count] = NULL;
-
-	return result;
-}
-
 
 #ifndef HAVE_SETSID
 /* stems back to sysklogd in whole */

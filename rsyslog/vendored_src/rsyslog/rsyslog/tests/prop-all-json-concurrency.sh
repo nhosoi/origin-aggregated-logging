@@ -4,11 +4,11 @@
 # This file is part of the rsyslog project, released  under ASL 2.0
 echo ===============================================================================
 echo \[prop-all-json-concurrency.sh\]: testing concurrency of $!all-json variables
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 template(name="interim" type="string" string="%$!tree!here!nbr%")
 template(name="outfmt" type="string" string="%$.interim%\n")

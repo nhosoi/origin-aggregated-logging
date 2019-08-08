@@ -1,7 +1,7 @@
 #!/bin/bash
 # add 2018-04-26 by Pascal Withopf, released under ASL 2.0
 echo [imrelp-maxDataSize-error.sh]
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imrelp/.libs/imrelp")
@@ -10,7 +10,7 @@ global(
 	maxMessageSize="300"
 )
 
-input(type="imrelp" port="13514" maxDataSize="250")
+input(type="imrelp" port="'$TCPFLOOD_PORT'" maxDataSize="250")
 
 action(type="omfile" file=`echo $RSYSLOG_OUT_LOG`)
 '

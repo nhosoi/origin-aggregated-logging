@@ -1,8 +1,9 @@
 #!/bin/bash
 # addd 2016-03-24 by RGerhards, released under ASL 2.0
 
+. ${srcdir:=.}/diag.sh init
 uname
-if [ `uname` = "SunOS" ] ; then
+if [ $(uname) = "SunOS" ] ; then
    echo "Solaris: FIX ME"
    exit 77
 fi
@@ -10,7 +11,6 @@ fi
 . $srcdir/privdrop_common.sh
 rsyslog_testbench_setup_testuser
 
-. $srcdir/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="list") {

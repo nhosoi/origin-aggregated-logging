@@ -11,7 +11,7 @@
  * e.g. search. Further refactoring and simplificytin may make
  * sense.
  *
- * Copyright (C) 2005-2018 Adiscon GmbH
+ * Copyright (C) 2005-2019 Adiscon GmbH
  *
  * This file is part of the rsyslog runtime library.
  *
@@ -44,6 +44,8 @@
 #include "regexp.h"
 #include "errmsg.h"
 #include "unicode-helper.h"
+
+#define DEV_DEBUG 0	/* set to 1 to enable very verbose developer debugging messages */
 
 
 /* ################################################################# *
@@ -93,7 +95,7 @@ rsCStrConstructFromszStr(cstr_t **const ppThis, const uchar *const sz)
 
 	pThis->iStrLen = strlen((char *) sz);
 	pThis->iBufSize = strlen((char *) sz) + 1;
-	if((pThis->pBuf = (uchar*) MALLOC(pThis->iBufSize)) == NULL) {
+	if((pThis->pBuf = (uchar*) malloc(pThis->iBufSize)) == NULL) {
 		RSFREEOBJ(pThis);
 		ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 	}
@@ -132,7 +134,7 @@ rsCStrConstructFromszStrv(cstr_t **const ppThis, const char *const fmt, va_list 
 	pThis->iStrLen = len;
 	pThis->iBufSize = len + 1;
 	len++; /* account for the \0 written by vsnprintf */
-	if((pThis->pBuf = (uchar*) MALLOC(pThis->iBufSize)) == NULL) {
+	if((pThis->pBuf = (uchar*) malloc(pThis->iBufSize)) == NULL) {
 		RSFREEOBJ(pThis);
 		ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 	}
@@ -173,7 +175,7 @@ cstrConstructFromESStr(cstr_t **const ppThis, es_str_t *const str)
 
 	pThis->iStrLen = es_strlen(str);
 	pThis->iBufSize = pThis->iStrLen + 1;
-	if((pThis->pBuf = (uchar*) MALLOC(pThis->iBufSize)) == NULL) {
+	if((pThis->pBuf = (uchar*) malloc(pThis->iBufSize)) == NULL) {
 		RSFREEOBJ(pThis);
 		ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 	}
@@ -202,7 +204,7 @@ rsCStrConstructFromCStr(cstr_t **const ppThis, const cstr_t *const pFrom)
 	if(pFrom->iStrLen > 0) {
 		pThis->iStrLen = pFrom->iStrLen;
 		pThis->iBufSize = pFrom->iStrLen + 1;
-		if((pThis->pBuf = (uchar*) MALLOC(pThis->iBufSize)) == NULL) {
+		if((pThis->pBuf = (uchar*) malloc(pThis->iBufSize)) == NULL) {
 			RSFREEOBJ(pThis);
 			ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 		}
@@ -252,7 +254,9 @@ rsCStrExtendBuf(cstr_t *const __restrict__ pThis, const size_t iMinNeeded)
 	}
 	iNewSize += pThis->iBufSize; /* add current size */
 
-	/* DEV debugging only: dbgprintf("extending string buffer, old %d, new %d\n", pThis->iBufSize, iNewSize); */
+	#if DEV_DEBUG == 1
+	dbgprintf("extending string buffer, old %d, new %d\n", pThis->iBufSize, iNewSize);
+	#endif
 	CHKmalloc(pNewBuf = (uchar*) realloc(pThis->pBuf, iNewSize));
 	pThis->iBufSize = iNewSize;
 	pThis->pBuf = pNewBuf;
@@ -439,7 +443,7 @@ rsRetVal cstrConvSzStrAndDestruct(cstr_t **ppThis, uchar **ppSz, int bRetNULL)
 
 	if(pThis->pBuf == NULL) {
 		if(bRetNULL == 0) {
-			CHKmalloc(pRetBuf = MALLOC(1));
+			CHKmalloc(pRetBuf = malloc(1));
 			*pRetBuf = '\0';
 		} else {
 			pRetBuf = NULL;

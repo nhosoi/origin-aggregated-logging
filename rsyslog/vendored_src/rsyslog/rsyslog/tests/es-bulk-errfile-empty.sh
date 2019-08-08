@@ -1,39 +1,40 @@
 #!/bin/bash
 # This file is part of the rsyslog project, released under ASL 2.0
+. ${srcdir:=.}/diag.sh init
 export ES_DOWNLOAD=elasticsearch-6.0.0.tar.gz
 export ES_PORT=19200
-. $srcdir/diag.sh download-elasticsearch
-. $srcdir/diag.sh stop-elasticsearch
-. $srcdir/diag.sh prepare-elasticsearch
-. $srcdir/diag.sh start-elasticsearch
+export NUMMESSAGES=10000
+export QUEUE_EMPTY_CHECK_FUNC=es_shutdown_empty_check
+download_elasticsearch
+prepare_elasticsearch
+start_elasticsearch
 
-. $srcdir/diag.sh init
-. $srcdir/diag.sh es-init
+init_elasticsearch
 generate_conf
 add_conf '
 template(name="tpl" type="string"
 	 string="{\"msgnum\":\"%msg:F,58:2%\"}")
 
 module(load="../plugins/omelasticsearch/.libs/omelasticsearch")
-:msg, contains, "msgnum:" action(type="omelasticsearch"
+:msg, contains, "msgnum:" {
+			action(type="omelasticsearch"
 				 template="tpl"
 				 serverport=`echo $ES_PORT`
 				 searchIndex="rsyslog_testbench"
 				 bulkmode="on"
-				 errorFile="./rsyslog.errorfile")
+				 errorFile="./'${RSYSLOG_DYNNAME}'.errorfile")
+}
 '
 startup
-. $srcdir/diag.sh injectmsg  0 10000
+injectmsg  0 $NUMMESSAGES
 shutdown_when_empty
 wait_shutdown 
-. $srcdir/diag.sh es-getdata 10000 $ES_PORT
-if [ -f rsyslog.errorfile ]
-then
-    echo "error: error file exists!"
-    cat rsyslog.errorfile
+es_getdata $NUMMESSAGES $ES_PORT
+if [ -f ${RSYSLOG_DYNNAME}.errorfile ]; then
+    printf 'error: error file exists!\n'
+    cat -n ${RSYSLOG_DYNNAME}.errorfile
     error_exit 1
 fi
-seq_check  0 9999 19200
-. $srcdir/diag.sh stop-elasticsearch
-. $srcdir/diag.sh cleanup-elasticsearch
+seq_check
+cleanup_elasticsearch
 exit_test

@@ -136,7 +136,8 @@ finalize_it:
  */
 static rsRetVal
 LstnInit(netstrms_t *pNS, void *pUsr, rsRetVal(*fAddLstn)(void*,netstrm_t*),
-	 uchar *pLstnPort, uchar *pLstnIP, int iSessMax)
+	 uchar *pLstnPort, uchar *pLstnIP, int iSessMax,
+	 uchar *pszLstnPortFileName)
 {
 	DEFiRet;
 
@@ -144,7 +145,7 @@ LstnInit(netstrms_t *pNS, void *pUsr, rsRetVal(*fAddLstn)(void*,netstrm_t*),
 	assert(fAddLstn != NULL);
 	assert(pLstnPort != NULL);
 
-	CHKiRet(pNS->Drvr.LstnInit(pNS, pUsr, fAddLstn, pLstnPort, pLstnIP, iSessMax));
+	CHKiRet(pNS->Drvr.LstnInit(pNS, pUsr, fAddLstn, pLstnPort, pLstnIP, iSessMax, pszLstnPortFileName));
 
 finalize_it:
 	RETiRet;
@@ -198,6 +199,17 @@ SetDrvrAuthMode(netstrm_t *pThis, uchar *mode)
 	RETiRet;
 }
 
+
+/* set the driver permitexpiredcerts mode -- alorbach, 2018-12-20
+ */
+static rsRetVal
+SetDrvrPermitExpiredCerts(netstrm_t *pThis, uchar *mode)
+{
+	DEFiRet;
+	ISOBJ_TYPE_assert(pThis, netstrm);
+	iRet = pThis->Drvr.SetPermitExpiredCerts(pThis->pDrvrData, mode);
+	RETiRet;
+}
 
 /* set the driver's permitted peers -- rgerhards, 2008-05-19 */
 static rsRetVal
@@ -384,6 +396,7 @@ CODESTARTobjQueryInterface(netstrm)
 	pIf->GetRemAddr = GetRemAddr;
 	pIf->SetDrvrMode = SetDrvrMode;
 	pIf->SetDrvrAuthMode = SetDrvrAuthMode;
+	pIf->SetDrvrPermitExpiredCerts = SetDrvrPermitExpiredCerts;
 	pIf->SetDrvrPermPeers = SetDrvrPermPeers;
 	pIf->CheckConnection = CheckConnection;
 	pIf->GetSock = GetSock;

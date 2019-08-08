@@ -1,3 +1,1191 @@
+----------------------------------------------------------------------------------------
+Version 8.1908.0 (aka 2019.08) 2019-08-20
+- 2019-08-07: testbench: add basic tests for omusrmsg
+- 2019-08-05: omhttp bugfix: enable checkpath configuration parameter
+  omhttp, 'checkpath' option, was not configurable in the past.
+  - add 'checkpath' to the cnfparamdescr table.
+  - fix issue with checkpath passing extra garbage characters in string.
+  - add 'checkpath' into unit test - omhttp-retry.sh
+  Thanks to Nelson Yen for the fix.
+- 2019-08-05: testbench bugfix: some tests were executed when req module was missing
+  In actual case if --enable-impstats was not given some other tests failed.
+- 2019-08-03: iminternal bugfix: race on termination
+  This could in theory lead to loss of shutdown messages, but was mostly a
+  cosmetic issues. We primarily fixed it to get TSAN-clean so that we can
+  utilize LLVM TSAN in CI.
+- 2019-08-02: testbench: new test for omfile outchannel functionality
+- 2019-08-02: core/janitor bugfix: properly maintain dynafile cache
+  When the janitor cleans out timed-out files, it does not
+  properly indicate the entry is gone. Especially when running
+  in async mode this can lead to use-after-free and thus
+  memory corruption or segfault.
+  see also https://github.com/rsyslog/rsyslog/issues/3756
+- 2019-08-01: omfile bugfix: race file when async writing is enabled
+  This seems to be a long-standing bug, introduced around 7 years ago.
+  It became more visible by properly closing files during HUP, which
+  was done in 8.1905.0 (and was another bugfix). Note that due to this
+  race a memory corruption can occur under bad circumstances. As such,
+  this may have also caused segfaults or system hangs (mutexes could
+  have been affected).
+  closes https://github.com/rsyslog/rsyslog/issues/3772
+- 2019-08-01: testbench: additional tests for HUP
+- 2019-07-31: imrelp bugfix: hang after HUP
+  termination condition was not properly checked; this lead to
+  premature termination after patch 1c8712415b9 was applied.
+  It is open to debate if patch 1c8712415b9 changed the module
+  interface. Actually it looks like this was previously not
+  well thought out.
+  closes https://github.com/rsyslog/rsyslog/issues/3760
+- 2019-07-24: mmdarwin: add new module
+  This is a contributed module. For details see doc.
+  Thanks to the Advens team for contributing it.
+- 2019-07-23 iminternal bugfix: suppress mutex double-unlock
+  If there is a burst of log messages during a time when rsyslog is unable
+  to output (either during log rotation, an out-of-space condition, or
+  some other similar condition), rsyslog can SEGFAULT due to a mutex
+  double-unlock.
+- 2019-07-23 imtcp: enable listenPortFileName parameter
+  this parameter was added, but it had no effect as it was not
+  passed down to the driver layer. This has been fixed. That also
+  now enables us to use dynamically-assigned port, which are
+  very useful for further testbench stabilization. Quite some
+  false positives occurred because the pre-selected port was
+  already in use again when rsyslog started.
+- 2019-07-19 imtcp: enable listenPortFileName parameter
+  this parameter was added, but it had no effect as it was not
+  passed down to the driver layer. This has been fixed. That also
+  now enables us to use dynamically-assigned port, which are
+  very useful for further testbench stabilization. Quite some
+  false positives occurred because the pre-selected port was
+  already in use again when rsyslog started.
+- 2019-07-18 core/action: no error file written if act suspended on TX commit
+  when an action was already disabled while the action was tried to be
+  committed, no error file was written. Note that this state is highly
+  unlikely to happen. Most probably, it can only happen if parameter
+  action.externalstate.file is used.
+----------------------------------------------------------------------------------------
+Version 8.1907.0 (aka 2019.07) 2019-07-09
+NOTE TO MAINTAINERS: libee is not used by rsyslog for quite some while.
+However, we never included this info into the changelog. So if you still
+make rsyslog depend on libee (some do this), you should stop doing so now.
+Libee is dead and no longer been maintained nor hosted by us. Old versions
+can still be found at github for those in need.
+
+GENERAL NOTE: during 8.1907 scheduled release timeframe we changed the ChangeLog
+format to include the date a change went into master branch. This is to provide
+an easy way to identify which changes went into the respective daily stable.
+
+- 2019-07-05 imuxsock: support FreeBSD 12 out of the box
+  FreeBSD 12 uses RFC5424 on the system log socket by default. This
+  format is not supported by the special parser used in imuxsock.
+  Thus for FreeBSD the default needs to be changed to use the
+  regular parser chain by default. That is all this commit does.
+  closes https://github.com/rsyslog/rsyslog/issues/3694
+- 2019-07-05 function bugfix: "ipv42num" misspelled as "ip42mum" (without "v")
+  To fix the issue but keep compatible with existing deployments
+  both function names are now supported.
+  closes https://github.com/rsyslog/rsyslog/issues/3676
+- 2019-07-04 fix leading double space in rsyslog startup messages
+  see also https://github.com/rsyslog/rsyslog/issues/2979
+- omamqp1: port to latest api, add tests
+  This brings omamqp1 up-to-date with the latest qpid-proton-c
+  api version.  This also adds a test for the plugin, to test
+  the basic functionality.  The test requires the user to
+  install qdrouterd and the python qpid-proton library in order
+  to use the simple_recv.py test program.
+  Thanks to Richard Megginson for the patch.
+- omclickhouse bugfix: potential segfault on omclickhouse batchmode
+  segfault happened when the template did not containt the string
+  "VALUES".
+  Thanks to github user wdjwxh for the fix.
+- core bugfix: message duplication copied incorrect timestamp
+  MsgDup() placed timereported into timegenerated property, resulting
+  in invalid property values. Orignal timegenerated was lost. This
+  occured always when a message needed to be duplicated. Most
+  importantly this is the case when queues are used.
+  closes https://github.com/rsyslog/rsyslog/issues/3716
+- core bugfix: segfault on startup depending on queue file names
+  rsyslog will segfault on startup when a main queue file name has
+  been set and at least on other queue contains a file name. This
+  was cased by too-early freeing config error-detection data
+  structures. It is a regression caused by commit e22fb205a3.
+  Thanks to Wade Simmons for reporting this issue and providing
+  detailled analysis. That greatly helps fixing it quickly.
+  closes https://github.com/rsyslog/rsyslog/issues/3681
+- core "bugfix": alignment issue
+  This was not a hard error on current platforms, but a
+  to-be-considered compiler warning regarding invalid alignment.
+  While it works well on current platforms, alignment issues may
+  turn into real issues in future platforms. So we try to fix them
+  if possible. As not only a side-effect this resolves compiler
+  warnings even on current platforms.
+  This fix has some regression potential. If so, the problems
+  may occur during IP address resolution.
+  see also https://github.com/rsyslog/rsyslog/issues/2608
+- omfile bugfix: potential hang/segfault on HUP of dynafile action
+  when omfile was HUPed it did not sufficiently clear all dynafile
+  cache maintenance data structures. This usually lead to misadressing
+  and could result in various issues, including a hang of rsyslog
+  processing or segfaults. It could also have "no effect" by pure
+  luck of not hitting anything important. This actually seems to
+  have been the most frequent case.
+  This seems to be a long-standing bug, but the likelyhood of its
+  appearance seems to have been increased by commit 62fbef7
+  introduced in 8.1905. Note: the commit itself has no regression,
+  just increases the likelyhood to trigger the pre-existing bug.
+  special thanks to Alexandre Guédon for his help in analyzing
+  the issue - without him, we would probably still not know
+  what actually went wrong.
+  closes https://github.com/rsyslog/rsyslog/issues/3686
+- imjournal bugfix: potential message duplication
+  When journal was preloaded from previously saved cursor it was not advanced
+  to next entry so reading begun from last message which was therefore
+  duplicated.
+  Thanks to Jiri Vymazal for the patch.
+- rfc5424 parser bugfix: leading space sometimes lost
+  if structured data is present a leading space in MSG field is lost
+- queue subsystem bugfix: oversize queue warning message shown as error
+  The warning message was emitted as an error message, which is misleading
+  and may also break some automatted procedures.
+- core bugfix: HUP did not work reliable on all platforms
+  most notably not on FreeBSD, maybe others. The reason was obviously
+  different handling of signals in respect to multiple threads.
+- build system bugfix: missing files in distribution tarball
+- testbench
+  * fixed "make distcheck" settings which were missing some modules
+    This lead to incomple "make distcheck" run; some errors were not
+    detected due to that.
+  * testbench framework: use ip tool instead of outdated ifconfig
+    The framework now first checks if "ip" is available and falls back
+    to "ifconfig" only if this is not the case.
+    Thanks to Michael Biebl for the suggestion.
+    closes https://github.com/rsyslog/rsyslog/issues/3682
+------------------------------------------------------------------------------
+Version 8.1905.0 (aka 2019.05) 2019-05-28
+- templates: add datatype template option for JSON generation
+  The new "datatype" and "onEmpty"  template options permits to
+  generate non-string data rather easily. It works together with
+  jsonf formatting, which is what people should use nowadays.
+  closes https://github.com/rsyslog/rsyslog/issues/2827
+- config processing: check disk queue file is unique
+  If the same name is specified for multiple queues, the queue files
+  will become corrupted. This commit adds a check during config parsing.
+  If duplicate names are detected the config parser errors out and the
+  related object is not created.
+  Note: this may look to a change-of-behaviour to some users. However,
+  this never worked and it was pure luck that these users did not run
+  into big problems (e.g. DA queues were never going to disk at the
+  same time). So it is acceptable to error out in this hard error case.
+  closes https://github.com/rsyslog/rsyslog/issues/1385
+- global config: new parameters for ruleset queue defaults
+  specifically:
+  * default.ruleset.queue.timeoutshutdown
+  * default.ruleset.queue.timeoutactioncompletion
+  * default.ruleset.queue.timeoutenqueue
+  * default.ruleset.queue.timeoutworkerthreadshutdown
+  closes https://github.com/rsyslog/rsyslog/issues/3656
+- add capability to write full config file (-o cmdline option)
+  Introduces the capability to create an output config file that explodes
+  all "includes" into a single file. This provides a much better overview
+  of how exactly the configuration is crafted. That could often be a great
+  troubleshooting aid.
+  This commit also contains some slight not-really-related cleanup.
+  closes https://github.com/rsyslog/rsyslog/issues/3634
+- queue subsystem: permit to disable "light delay mark"
+  New semantic: if lightDelayMark is 0, it is set to the max queue
+  size, effectively disabling the "light delay" functionality.
+  Thanks to Yury Bushmelev to mentioning issues related to light
+  delay mark and propsing the solution (which actually is what
+  this commit does).
+  closes https://github.com/rsyslog/rsyslog/issues/1778
+- queue subsystem: provide better user status messages
+  The queue subsystem now provides additional information messages which
+  may help a regular user to maintain system healt. Most importantly,
+  DA queues now output when they persist queue data at end of run and
+  when they restart the queue based on persisted data.
+- core: emit a warning message for ultra-large queue size definitions
+  We see error reports from users who have configured excessively large queues
+  and receive an OOM condition or other problems.
+  With that patcjh we generate a warnomg message if a queue is configured very
+  large. "Very large" is defined to be in excess of 500000 messages.
+  see also https://github.com/rsyslog/rsyslog/issues/3314
+  closes https://github.com/rsyslog/rsyslog/issues/3334
+- new global config parameter "internalmsg.severity"
+  permits to specify a severity filter for internal message. Only
+  messages with this severity level or more severe are logged.
+  Orignally this was done in rsyslog.conf as usual: you can filter
+  rsyslog messages on severity, just like any other. But with systemd,
+  we now emit primarily to the journal, and this is outside of rsyslog's
+  rule engine and so regular filters do not apply (at least in regard
+  to the journal). Logging to journal is good, because finally
+  folks begin to see the messages (traditional distro configs discard
+  them, for whatever is the reason).
+  This commit implements a global setting for a severity-based filter
+  for internal messages, before submitted to journal. So it's not 100%
+  of what rsyslog can do, but at least some way to customize.
+  see also https://github.com/rsyslog/rsyslog/issues/3639
+- config processing bugfix: error messages if config.enabled="off" is used
+  Using config.enabled="off" could lead to error messages on
+  "parameter xxx not known", which were invalid. They occured
+  because the config handler expected them to be used, which
+  was not the case due to being disabled.
+  This commit fixes that issue.
+  closes https://github.com/rsyslog/rsyslog/issues/2520
+- core portability bugfix: harden shutdown processing on FreeBSD
+  On FreeBSD, rsyslog does not always terminate immediately on SIGTEM.
+  Root cause seems to be that SIGTERM is delivered differently under
+  FreeBSD. This causes the main thread to not be awaken, and so it
+  takes until the next janitor interval to come back to life - which
+  can be far too long. Fixed this bug explicitley awaking the main
+  thread.
+- imtcp bugfix: oversize message truncation causes log to be garbled
+  The actual problem is in the tcpserver component. However, the prime user
+  is imtcp and so users will likely experience this as imtcp problem.
+  When a too-long message is truncated, the byte after the truncation
+  position becomes the first byte of the next message. This will garble
+  the next messages and in almost all cases render it is syslog-incompliant.
+  The same problem does NOT occur when the message is split.
+  This commit fixes the issue. It also includes a testbench fix.
+  Unfortunately the test for exactly this feature was not properly
+  crafted and so could not detect the problem.
+  closes https://github.com/rsyslog/rsyslog/issues/3580
+- omfile bugfix: FlushOnTXEnd does not work reliably with dynafiles
+  The flush was only done to the last dynafile in use at end of
+  transactions. Dynafiles that were also modified during the
+  transaction were not flushed.
+  Special thanks to Duy Nguyen for pointing us to the bug and
+  suggesting a solution.
+  This commit also contains a bit of cosmetic cleanup inside
+  the file stream class.
+  closes https://github.com/rsyslog/rsyslog/issues/2502
+- lmcry_gcry build bugfix: was not always properly build
+  Due to an invalid definition in build system this seems to have not
+  been correctly build on at least some platforms (but it worked on
+  others as it passed CI testing). This has now been corrected.
+  Thanks to Remi Locherer for the patch.
+- dnscache bufix: very unlikely memory leak
+  This fixes a memory leak that can only occur under OOM conditions.
+  Detected by Coverity Scan, CID 203717
+- testbench bugfix: wrong parameter check in diag.sh (tcpflood())
+  When first parameter is check_only, the tcpflood funtion shall not
+  abort the test itself (The fail is intended if this option is set).
+  closes issue #3625
+- testbench bugfix: imfile-symlink test failed w/ parallel test run
+  The test sometimes failed. It used a symlinkl to a hardcoded name
+  rsyslog-link.*.log. This symlink was created but then disappears.
+  The reason is that upon (every!) test exit, rsyslog-link.*.log is
+  deleted. So a parallel test running the exit procedure just at the
+  "right" time can removed that file.
+  The bug is that the file name should be created using the tests's
+  dynamic name. This is done now.
+  closes https://github.com/rsyslog/rsyslog/issues/3550
+------------------------------------------------------------------------------
+Version 8.1904.0 (aka 2019.04) 2019-04-16
+- omfile: provide more helpful error message on file write errors
+  now contains actual file name plus a link to probable causes for this type
+  of problem
+- imfile: emit error on startup if no working directory is set
+  When the work directory has not been set or is invalid, state files
+  are created in the root of the file system. This is neither expected
+  nor desirable. We now complain loudly about this fact. For backwards
+  compatibility reasons, we still need to support running imfile in
+  this case.
+  closes https://github.com/rsyslog/rsyslog/issues/1296
+- dnscache: add global parameter dnscache.default.ttl
+  This permits to control default TTL for cache entries. If set
+  to 0, the DNS cache is effectively disabled.
+  closes https://github.com/rsyslog/rsyslog/issues/49
+  closes https://github.com/rsyslog/rsyslog/issues/1487
+- omelasticsearch: new parameter rebindinterval
+  Thanks to Richard Megginson for the patch.
+- omelasticsearch: new parameter skipverifyhost
+  Add ability to specify the libcurl CURLOPT_SSL_VERIFYHOST
+  option to skip verification of the hostname in the peer cert.
+  WARNING: This option is insecure, and should only be used
+  for testing. The default value is off, meaning, the hostname
+  will be verified by default.
+  Thanks to Richard Megginson for the patch.
+- omelasticsearch: set rawmsg to data from original request
+  Previously, when constructing the message to submit for a retry
+  for an original request, if the original request did not contain
+  the field `message`, the system property `rawmsg` was set to
+  the entire metadata + data from the original request.  This was
+  causing problems with Elasticsearch.  This patch changes
+  the code so that the `rawmsg` will be set to only the data part
+  of the original request if there is no `message` field.
+  closes https://github.com/rsyslog/rsyslog/issues/3573
+  Thanks to Richard Megginson for the patch.
+- mmkubernetes - support for metadata cache expiration
+  New parameters for mmkubernetes (module and action):
+  * `cacheexpireinterval`
+    If `cacheexpireinterval` is -1, then do not check for cache expiration.
+    If `cacheexpireinterval` is 0, then check for cache expiration.
+    If `cacheexpireinterval` is greater than 0, check for cache expiration
+    if the last time we checked was more than this many seconds ago.
+  * `cacheentryttl` - maximum age in seconds for cache entries
+  New statistics counters:
+  * `podcachenumentries` - the number of entries in the pod metadata cache.
+  * `namespacecachenumentries` - the number of entries in the namespace
+      metadata cache.
+  * `podcachehits` - the number of times a requested entry was found in the
+      pod metadata cache.
+  * `namespacecachehits` - the number of times a requested entry was found
+      in the namespace metadata cache.
+  * `podcachemisses` - the number of times a requested entry was not found
+      in the pod metadata cache, and had to be requested from Kubernetes.
+  * `namespacecachemisses` - the number of times a requested entry was not
+      found in the namespace metadata cache, and had to be requested from
+      Kubernetes.
+- imdocker: new contributed module
+  imdocker will get (docker) container logs from a host as well as filling
+  out some basic container metadata as id, name, image, labels.
+  Thanks to Nelson Yen for the contribution.
+- mmtaghostname: new contributed module
+  This module allows to force hostname after parsing to the localhostname of
+  rsyslog and/or add a tag to messages received from input modules without
+  tag parameter.
+  Thanks to Philippe Duveau for the contribution.
+- imbatchreport: new contributed input module
+  This input module manage batches' reports : complete file as a single log.
+  Thanks to Philippe Duveau for the contribution.
+- imtuxedolog: new contributed input module for Tuxedu ULOG
+  Thanks to Philippe Duveau for the contribution.
+- openssl network driver: Added support setting openssl configcommands
+  We are using the gnutlsPriorityString setting variable, to pass
+  configuration commands to openssl.
+  closes: https://github.com/rsyslog/rsyslog/issues/3605
+- omkafka: drop messages rejected due to being too large
+  Drop messages that were rejected due to
+  'RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE' error
+  Thanks to Nelson Yen for the patch
+- core/action: implement capability to resume/suspend via external file
+  It has been reported that some TCP receivers exists that accept syslog tcp
+  messages at any rate, even if they do not manage to actually process them.
+  Instead, they silently drop the message. This behavior is not configurable.
+  All in all, it can lead to considerate message loss.
+  To support such use cases, we need to provide an ability to externally
+  trigger actions suspension and resumption.
+  We do this via a configured file which contains the status of the action.
+  Rsyslog periodically reads the file and if it contains "SUSPEND", it
+  suspend the action (and likewise for resume).
+  closes https://github.com/rsyslog/rsyslog/issues/2924
+- improg bugfix: some memory leaks
+  Thanks to Philippe Duveau for the contribution.
+- msg object bugfix: regression from 1255a67
+  closes https://github.com/rsyslog/rsyslog/issues/3570
+- pmnormalize: fix memory leaks, improve tests
+  This patch fixes a set of problems plus provides more and enhanced
+  tests for the module.
+  Most important problem was a memory leak that occured when a message
+  could not be passed at all. For each message that could not be parsed
+  memory of at least the size the message is leaked. Depending on
+  traffic pattern this can quickly lead to OOM. Note, however, that
+  this leak was never reported - it was discovered as part of code
+  review.
+  closes https://github.com/rsyslog/rsyslog/issues/2007
+- omkafka bugfix: build failure due to inconsistent type
+  failes depending on platform and settings; was somehow undetected by CI
+- imjournal bugfix: potential segfault on some API failure returns
+  In one case there was possibility of free()'d value of journal
+  cursor not being reset, causing double-free and crash later on.
+  closes https://github.com/rsyslog/rsyslog/issues/3537
+- openssl subsystem bugfix: better error handling
+  Handling of SSL_ERROR_SYSCALL has been hardened.
+  Handling for SSL_Shutdown errors has been corrected.
+  Also fixed SSL Shutdown handling in tcpflood (openssl code).
+  If SSL_Shutdown returns error, we call SSL_read as described in
+  the documentation to do a bidirectional shutdown.
+  Closes https://github.com/rsyslog/rsyslog/issues/3561
+- imjournal bugfix: Fetching journal cursor only for valid journal
+  The sd_journal_get_cursor() got called regradless of previous
+  retcodes from other jorunal calls which flooded logs with journald
+  errors. Now skipping the call in case of previous journal call
+  non-zero result. Fixed success checking of get_cursor() call
+  to eliminate double-free possibility.
+  Also, making WorkAroundJournalBug true by default, as there were no
+  confirmed performance regressions for a quite long time.
+  Thanks to Jiri Vymazal for the patch.
+- omamqp: fix build errors
+  They occur on some, newer, platforms. We do not really fix them, but rather
+  make the compiler ignore them. This is not really good, but the module is
+  contributed and so that's for now the best thing we can do.
+- testbench: change manytcp.sh to use a larger connection count again
+  not sure why it was reduced, maybe related to
+  https://github.com/rsyslog/rsyslog/issues/1108
+  also, modernize this and another test
+- tcpflood bugfix: make soft connection limit work again
+  It looks like the soft limit became defunct when tcpflood was enhanced to
+  request more open file handles from OS.
+  closes https://github.com/rsyslog/rsyslog/issues/1108
+- testbench bugfix: omhttp tests were not run during "make distcheck"
+- build system bugfix: omhttp test files were not included in dist tarball
+  Thanks to Thomas D. (whissi) for the patch.
+------------------------------------------------------------------------------
+Version 8.1903.0 (aka 2019.03) 2019-03-05
+- omrabbitmq: add features (RabbitMQ HA management, templatize routing_key, 
+  populate amqp message headers, delivery_mode and expiration parameters) 
+- improg: create input module to use external program as input datas
+- imtuxedoulog: create input module to consume Tuxedo ULOG files
+- omhttp: rewritten with large feature enhancements
+  Many thanks to Gabriel Intrator for this work. Gabriel also has adopted the
+  module and plans to support it in the future.
+- pmdb2diag: create parser module for DB2 diag logs
+- TLS subsystem: add support for certless communication
+  both openssl and GnuTLS drivers have been updated to support certless
+  communications. In this case e.g. Diffie-Helman is used.
+  NOTE: this is an insecure mode, as it does NOT guard against
+  man-in-the-middle attacks. We implemented it because of the large demand,
+  not because we think it makes sense to use this mode. We strongly recommend
+  against it.
+  closes https://github.com/rsyslog/rsyslog/issues/1068
+- imrelp/omrelp: add capability to specify tlslib for librelp
+  closes https://github.com/rsyslog/rsyslog/issues/3451
+- build system: introduce a better way to handle compiler pragmas
+  we now use macros and _Pragma(). This requires less code lines and is more
+  portable.
+- omkafka: add support for dynamic keys
+  A new configuration property "dynaKey" is added that, when "on", changes the
+  value of property "key" to a template names instead of a constant value.
+  This is similar in approach to the DynaTopic implementation.
+  Thanks to Ludo Brands for the patch.
+- AIX port: add AIX linking extensions on many plugins and contibutions to
+  allow building them on this os.
+- template: add Time-Related System Property $wday which is the day of week
+  This allow to get a week based rotation of log as AIX does.
+- ksi subsystem: add high avalability mode
+  Note: ksi subsystem now REQUIRES libksi 3.19.0 or above
+  Thanks to Allan Park for the patch.
+  closes https://github.com/rsyslog/rsyslog/issues/3338
+- imfile bugfix: file reader could get stuck
+  State file handling was invalid. When a file was moved and re-created
+  rsyslog could use the file_id if the new file to write the old files'
+  state file. This could make the file reader stuck until it reached the
+  previous offset. Depending on file sizes this could never happen AND
+  would cause large message loss. This situation was timing dependent
+  (a race) and most frequently occurred under log rotation. In polling
+  mode the bug was less likely, but could also occur.
+  closes: https://github.com/rsyslog/rsyslog/issues/3465
+  closes: https://github.com/rsyslog/rsyslog/issues/3468
+- imfile bugfix: potential segfault when working with directories or symlinks
+  see also https://github.com/rsyslog/rsyslog/pull/3496
+  Thanks to Nelson Yen for the patch
+- omhttp bugfix: header items could not have spaces in them
+  Thanks to Nathan Brown for the patch.
+- core bugfix: enlarged msg offset types for bigger structured messages
+  using a large enough (dozens of kBs) structured message
+  it is possible to overflow the signed short type which leads
+  to rsyslog crash. (applies to msg.c, the message object)
+  Thanks to Jiri Vymazal for the patch.
+- core bugfix for AIX: timeval2syslogTime now handle the bias according to
+  local time zone as documented by IBM.
+- imfile feature: add configuration parameter to force parsing of read logs
+- imczmq bugfix:
+  Release zframe following read from socket
+  Make the 0MQ frame pointer local to the receive loop and destroy the
+  frame as soon as the contents have been copied. This avoids:
+  * a memory leak should the receive loop execute more than once
+  * referencing an un-initialised value during cleanup (finalize_it)
+  Thanks to Mark Gillott for the patch.
+- omclickhouse bugfix: default template unusable
+  STDSQL option added to the default template used in output module of clickhouse
+  Thanks to gagandeep trivedi for the patch.
+- omclickhouse "bugfix": work-around failed error detection
+  omclickhouse uses a questionable method to check if a request generated
+  an error. We have seen the method to fail when we slightly upgraded clickhouse
+  server in CI testing.
+  This commit makes the method a bit more reliable without really fixing it.
+  But it's at least a short-term solution.
+  This should be changed to a proper status check. I assume such is possible.
+  see also https://github.com/rsyslog/rsyslog/issues/3485
+- imptcp bugfix: overly long socket bind path can lead to segfault
+  if the `path` input parameter is overly long (e.g. more than 108
+  characters on some platforms) a non-terminated string is generated
+  and then passed to OS API. This can lead to all sorts of problems
+  including segfault.
+  We detected that based on gcc-8 warnings during code inspection.
+  No real-world problem case is known.
+- ommongodb bugfix: improper stpncpy() calls
+- testbench tcpflood: add new transport option relp-tls
+  Tcpflood can now send messages via relp with tls support.
+  closes https://github.com/rsyslog/rsyslog/issues/3448
+- testbench: mmdb valgrind tests failed is srcdir env was not set
+- testbench: add omclickhouse tests
+- testbench bugfix: some long-running tests had too low runtime allowance
+  closes https://github.com/rsyslog/rsyslog/issues/3493
+- testbench bugfix: daqueue-dirty-shutdown test
+  This test occasionally failed with left-over spool files. As far as we
+  have analyzed, this is due to the use of an invalid shutdown timeout
+  (very short) in the second phase of the test. It looks like this is
+  actually a copy&paste error from phase one. Behaviour of rsyslog was
+  correct, but the test itself created a false positive.
+  We have corrected the timeout now and also modernized the test
+  a bit.
+  closes https://github.com/rsyslog/rsyslog/issues/2122
+- testbench bugfix: some omhttp tests had compatibility issues with Python 3
+  Thanks to Thomas D. (whissi) for the patch.
+------------------------------------------------------------------------------
+Version 8.1901.0 (aka 2019.01) 2019-01-22
+- new version scheme: 8.yymm.0 - version now depends on release date
+  see also https://rainer.gerhards.net/2018/12/rsyslog-version-numbering-change.html
+- queue: add support for minimum batch sizes
+  closes https://github.com/rsyslog/rsyslog/issues/495
+- change queue.timeoutshutdown default to 10 for action queues
+  The previous default of 0 gave action queues no real chance to
+  shutdown - at the time they were applied, they were usually already
+  expired (computing the absolute timeout took a small amount of time).
+  So we change this now to 10ms, which still is very quick but gives
+  the queue at least a chance to shutdown itself. That in turn
+  smoothens the whole shutdown process.
+  If a very large number of action queues is used this may lead
+  to a very slightly longer shutdown time, albeit this is very
+  improbable.
+- omclickhouse: new output module for clickhouse
+  This output module adds the posibility to send
+  INSERT querys to a Clickhouse database. See doc for details.
+  The messages are sent via a REST interface.
+  This commit also adds support of the testbench
+  for clickhouse tests, as well as  various tests.
+  Closes https://github.com/rsyslog/rsyslog/issues/2272
+- omkafka: Add ability to dump librdkafka statistics to a file
+  Use statsFile to specify statistics output file; also requires
+  setting statistics.interval.ms confparam to a non-zero value.
+  Thanks to github user pcullen65 for the contribution.
+- tls(ossl/gtls): add new Option "StreamDriver.PermitExpiredCerts"
+  The new Option can have one of the following values:
+  on = Expired certificates are allowed
+  off = Expired certificates are not allowed
+  warn = Expired certificates are allowed but warning will be logged (Default)
+  Includes necessary tests to validate new code.
+  closes https://github.com/rsyslog/rsyslog/issues/3364
+- action: add "action.resumeIntervalMax" parameter
+  This parameter permits to set an upper limit on the growth of the
+  retry interval. This is most useful when a target has extended
+  outage, in which case retries can happen very infrequently.
+  closes https://github.com/rsyslog/rsyslog/issues/3401
+- report child process exit status according to config parameter
+  Add new global setting 'reportChildProcessExits' with possible values
+  'none|errors|all' (default 'errors'), and new global function
+  'glblReportChildProcessExit' to report the exit status of a child
+  process according to the setting.
+  Invoke the report function whenever rsyslog reaps a child, namely in:
+  - rsyslogd.c (SIGCHLD signal handler)
+  - omprog
+  - mmexternal
+  - srutils.c (execProg function, invoked from stream.c and omshell)
+  Remove redundant "reaped by main loop" info log in omprog.
+  Promote debug message in mmexternal indicating that the child has
+  terminated prematurely to a warning log, like in omprog.
+  closes https://github.com/rsyslog/rsyslog/issues/3281
+  Thanks to Joan Sala for contributing this.
+- build system: add capability to turn off helgrind tests
+  we add configure switch --enable-helgrind. We need to turn helgrind off
+  when we use clang coverage instrumentation. The instrumentation injects
+  mt-unsafe counter updates which we seem to be unable to suppress.
+  Note: for gcc this was possible, because they all occured in a utility
+  function. For clang, they are inlined so we get many -and changing- violations.
+  see also https://github.com/rsyslog/rsyslog/issues/3361#issuecomment-450502569
+- imzmq3/omzmq3: remove modules
+  according to @brianknox (their author) these modules are outdated:
+  https://twitter.com/taotetek/status/931860786959540224
+  They are replaced by imczmq/omczmq and are no longer maintained. We put a
+  deprication notice into the modules a year ago, and now it finally is time
+  to remove them. They do NOT build in any case, except if very old versions
+  of the 0mq ecosystem are used.
+  see also https://github.com/rsyslog/rsyslog/issues/2100
+  closes https://github.com/rsyslog/rsyslog/issues/2103
+- bugfix omusrmsg: don't overwrite previous set _PATH_DEV value
+  Since commit 56ace5e418d149af27586c7c1264fccfbc6badf1, omusrmsg was broken
+  because "memcpy()" is not a suitable substitute for "strncat()" in this
+  context, it is actually replacing the previous added content.
+  Bug: https://bugs.gentoo.org/673004
+  Closes: https://github.com/rsyslog/rsyslog/issues/3346
+  Thanks to Thomas D. (whissi) for the patch.
+- bugfix ossl TLS driver: fixed authentication mode anon
+  authentication mode "anon" was not properly supported in ossl TLS
+  driver; if selected, did still require a full certificate.
+  closes: https://github.com/rsyslog/rsyslog/issues/3037
+- bugfix tls subsystem: Receiver hang due to insufficient TLS buffersize.
+  gtls and ossl driver used a default buffersize of 8KiB to store received
+  TLS packets. When tls read returned more than buffersize, the additional
+  buffer was not processed until new data arrived on the socket again.
+  TLS RFCs require up to 16KiB+1 buffer size for a single TLS record.
+  closes https://github.com/rsyslog/rsyslog/issues/3325
+- bugfix pmpanngfw: build issue due to non-matching data types in comparison
+  Thanks to Narasimha Datta for the patch.
+- omfile: work-around for "Bad file descriptor" errors
+  This works-around an issue we can reproduce e.g. via the
+  imtcp-tls-ossl-x509fingerprint.sh test. Here, omfile gets a write
+  error with reason EBADF. So far, I was not able to see an actual
+  coding error. However I traced this down to a multithreaded race
+  on open and close calls. I am very surprised to see this type
+  of issue, as I think the kernel guarantees that it does not happen.
+  Here is what I see in strace -f:
+  openssl accepts a socket:
+  [pid 66386] accept(4, {sa_family=AF_INET, sin_port=htons(59054), sin_addr=inet_addr("127.0.0.1")}, [128->16]) = 10
+  then, it works a bit with that socket, detects a failure and shuts it down. Sometimes, at the very same instant omfile on another thread tries to open on output file. Then the following happens:
+  [pid 66386] close(10)                   = 0
+  [pid 66389] openat(AT_FDCWD, "./rstb_356100_31fa9d20.out.log", O_WRONLY|O_CREAT|O_NOCTTY|O_APPEND|O_CLOEXEC, 0644 <unfinished ...>
+  [pid 66386] close(10 <unfinished ...>
+  [pid 66389] <... openat resumed> )      = 10
+  [pid 66386] <... close resumed> )       = 0
+  [pid 66386] poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}], 2, -1 <unfinished ...>
+  [pid 66389] write(2, "file './rstb_356100_31fa9d20.out"..., 66file './rstb_356100_31fa9d20.out.log' opened as #10 with mode 420
+  ) = 66
+  [pid 66389] ioctl(10, TCGETS, 0x7f59aeb89540) = -1 EBADF (Bad file descriptor)
+  This is **literally** from the log, without deleting or reordering
+  lines. I read it so that there is a race between `open` and `close`
+  where fd 10 is reused, but seemingly closed - resulting in the `EBADF`
+  While it smells like a kernel issue, it may be a well-hidden program
+  bug - if so, one I currently do not find. HOWEVER, this commit
+  works around the issue by reopening the file when we receive EBADF.
+  That's the best thing to do in that case, especially if it really is
+  a kernel bug. Data loss should not occur, as the previous writes
+  succeeded in that case.
+  The backdraw of this work-around is that it only "fixes" omfile. In
+  theory every part of rsyslog can be affected by this issues (queue
+  files, for example). So this is not to be considered a final solution
+  of the root issues (but a big step forward for known problem cases).
+  see also https://github.com/rsyslog/rsyslog/issues/3404
+- omhttp bugfix: segfault due to NULL pointer access
+  many thanks to Gerardo Puerta for the patch
+- omkafka bugfix: segfault when running in debug mode using dynamic topics
+  This should only affect test environments, as debug mode is not
+  suitable for production (and really does not work when running for
+  extended period of time).
+- testbench bugfix: TLS syslog tests for "anon" mode were broken
+  They did not detect when "anon" mode was not properly supported by the
+  drivers.
+- test tooling bugfix: correct tcpflood error messages
+  it looks like tcpflood's openssl code stems partly back to tcpdump, at
+  least the error messages indicate this. Thankfully tcpdump is BSD licensed,
+  so this should not be a big issue. Nevertheless, the incorect program name
+  in error messages needs to be corrected, and this is what this commit does.
+- tcpflood bugfix: tool did not terminate on certificate error
+  when tcpflood detected a certificate error, it reported an
+  error message but did not abort. This could make errors undetectable
+  during CI runs.
+  also fix tests which did not properly provide CA cert (which than
+  caused the error).
+- testbench: fix issues with journal testing
+  The configure/Makefile checks were not correct, leading to the
+  build of journal components when not necessary, even if not
+  supported by the platform. Thus lead to invald build and test
+  failures.
+- testbench: add tests for "certless" tcp/tls
+  This adds a test to ensure that a client without certificate can
+  connect to a server with certificates. So it is not exactly
+  "certless".
+  The prime intent of this test is to match config suggestions given
+  by log hosting companies (like loggly) and so ensure that we do
+  not accidently break them. This is espcially important as the
+  capability for certless clients was not properly documented and
+  also become forgotten by the rsyslog team.
+  see also https://github.com/rsyslog/rsyslog/issues/3413
+- CI
+  - further improve testbench robustness against slow machines
+  - testbench: add tests for parser.EscapeControlCharacterTab global option
+  - testbench: Updated all expired x.509 certs
+    Closes https://github.com/rsyslog/rsyslog/issues/3348
+  - fix a potential race in CI debug mode which can lead to segfault
+    only when instructed to do so, rsyslog may emit a "final worker thread shutdown"
+    messages. This is usually only enabled in CI and/or other testing. If enabled,
+    the code has a race on the pWti object which can lead to segfault or abort.
+    Only system which explicitly enable this CI aid are affected (running in debug
+    mode alone is NOT sufficient).
+    This is a regression from 8.40.0.
+  - testbench: improve robustness against slow CI, gen. improvements
+    * add an overall timeout value for tests - if running longer,
+      testbench framework tries to FAIL and end test. Note that
+      this is not bullet-proof and not intended to be so.
+    * guard against hanging rsyslog instances via a new imdiag
+      feature to abort after n number of seconds; among others,
+      this guards as against timeout-cancel in CI, which is always
+      pretty hard to diagnose - now we see these errors in test-suite.log
+    * fix a bug in tcp zip test, which actually did not use zip mode
+    * experimnentalls add debug output to better understand
+      shutdown_when_empty operation; goal is to improve understanding
+      and then remove that code again.
+    * improve shutdown predicate for a couple of tests
+    * made travis run make check with two parallel threads, for which
+      we seem ready now. Nevertheless, it's still experimental and we
+      may roll this back if required.
+    * testbench: disable omprog tests that hang under coverage instrumentation
+      When gcc coverage instrumentation is used, these tests hang. They work
+      with clang coverage instrumentation, but for some reason clang does not
+      give us full reports (at least not when used together with CodeCov.io).
+      We have tried to troubleshoot this for hours and hours - now is time to
+      give up until someone comes up with a bright idea. So we make the affected
+      tests skip themselves when they detect gcc with coverage instrumentation.
+   * testbench: add new test for imfile and logrotate in copytruncate mode
+   * testbench: add new omkafka tests for dynamic topics
+   * travis: do no longer run 0mq tests
+     This often causes trouble when the packages are rebuild by the 0mq project
+     (which happens frequently). We already do intensive testing of the 0mq
+     components in the buildbot infrastructure, where we use dedicated containers.
+     This is reliable, as the containers already contain everything needed and so
+     do not need to reach out to the 0mq package archives. In the light of this,
+     let's save us the trouble of Travis failures. The only downside is that
+     users cannot pre-test with their local Travis when modifying 0mq modules,
+     which is quite acceptable.
+------------------------------------------------------------------------------
+Version 8.40.0 [v8-stable] 2018-12-11
+- mmkubernetes: add support for sslpartialchain for openssl
+  If `"on"`, this will set the OpenSSL certificate store flag
+  `X509_V_FLAG_PARTIAL_CHAIN`.   This will allow you to verify the Kubernetes API
+  server cert with only an intermediate CA cert in your local trust store, rather
+  than having to have the entire intermediate CA + root CA chain in your local
+  trust store.  See also `man s_client` - the `-partial_chain` flag.
+  This option is only available if rsyslog was built with support for OpenSSL and
+  only if the `X509_V_FLAG_PARTIAL_CHAIN` flag is available.  If you attempt to
+  set this parameter on other platforms, you will get an `INFO` level log
+  message.  This was done so that you could use the same configuration on
+  different platforms.
+- openssl driver: improved error messages
+  also fixes misleading wording of some error messages
+  closes https://github.com/rsyslog/rsyslog/issues/3238
+- imfile: disable file vs directory error on symlinks
+  The file/directory node-object alignment now ignores symlinks. Previously
+  it reported error on each directory symlink spamming user error logs.
+  Thanks to Jiri Vymazal for the patch.
+- cleanup: remove no longer needed --enable-rtinst code
+  configure option --enable-rtinst is gone-away since a while, but there were
+  still some supporting code left. It required careful anaylsis what could
+  actually be removed. This is now done and the code fully cleaned up. This
+  greatly simplifies the code and also makes it better readable for
+  developers which are not deep inside the rsyslog code base.
+  As a positive side effect, we could eliminate mutex calls inside
+  the debug system. This means we are more likely to reproduce race
+  conditions in runs with debugging enabled.
+  closes https://github.com/rsyslog/rsyslog/issues/2211
+- bugfix imfile: rsyslog re-sends data for files larger 2GiB
+  This occurs always if and only if
+  - reopenOnTruncate="on" is set
+  - file grows over 2GiB in size
+  Then, the data is continously re-sent until the file becomes smaller
+  2GiB (due to truncation) or is deleted.
+  It is a regression introduced by 2d15cbc8221e385c5aa821e4a851d7498ed81850
+  closes https://github.com/rsyslog/rsyslog/issues/3249
+- config: fix segfault in backticks "echo" expansion of undefined variables
+  The bug was introduced in commit abe0434 (config: enhance backticks "echo"
+  capability). The getenv() result passed to strlen() and es_addBuf() may be
+  NULL if the environment variable does not exist, resulting in a segfault.
+  Thanks to Julien Thomas for the patch.
+  fixes https://github.com/rsyslog/rsyslog/issues/3006
+- bugfix imsolaris: message timestamps on Solaris
+  On Solaris messages don't have their time directly in the raw body but in
+  a separate log_ctl structure which is currently not used.
+  When message is logged and processed, rsyslogd gives it current time because
+  it ignores the actual one. That means that old messages (e.g. from system
+  reboot) get timestamp of processing instead of the reboot itself (it is
+  not a problem for live logging where now is used anyway).
+  Thanks to Jakub Kulik for the patch.
+- bugfix build system: "make distcheck" did not work for mysql tests
+- bugfix build system: don't link liblogging-stdlog when available but not enabled
+  When liblogging-stdlog was available but configure option "--disable-liblogging-stdlog"
+  was set, rsyslog was still linking against liblogging-stdlog.
+  This commit will ensure that rsyslog will only link against liblogging-stdlog when
+  "--enable-liblogging-stdlog" was set.
+  see also: https://bugs.gentoo.org/667836
+- bugfix RainerScript: abs() could return negative value, now in range [0..max]
+  Thanks to Harshvardhan Shrivastava for providing the patch
+- bugfix debug output: date property options output wrongly
+  inside debug logging, the date property options were not all
+  properly converted into strings. Some of the newer ones were
+  invalidly flagged as "UNKNOWN". This is primarily a cosmetic
+  problem and has no effect other than puzzling folks looking at
+  the debug log.
+- bugfix omhttp: did not compile on some platforms
+- CI
+   * made mysql-based tests (ommysql and omlibdbi) work inside containers
+   * bugfix testbench: do not execute libgcrypt tests if disabled
+     closes https://github.com/rsyslog/rsyslog/issues/3228
+   * testbench: grep failed when string starting with "-" was used
+     The search term was mistakenly interpreted as an option.
+   * testbench: support auto-start/-stop of mysqld
+     This is required to run mysql/mariadb tests inside containers.
+     closes https://github.com/rsyslog/rsyslog/issues/3223
+   * improve bash coding style and fix a some bug in testbench
+     - duplicate diag.sh init call was not detected due to typo
+     - queue-persits test did not work correctly
+     - some general testbench framework improvements
+     issues found be shellcheck, fixes brought up other work to do
+   * testbench: improve journal tests and testbench framework
+     improving both style and reliability of journal tests; along that way
+     also improve testbench framework:
+     - do cleanup on error_exit and skip
+     - explicit skip handler (vs exit 77)
+       this permits us to do better cleanup
+     - new testbench functions for journal-specific functionality
+       reduce code duplication and make things easier to maintain in the
+       future
+     - provide a way to do valgrind and non-valgrind tests with a single
+       test file
+     see also https://github.com/rsyslog/rsyslog/issues/2564
+   * testbench: improve framework, harden rscript http test
+     - the test now tries to detect unavailable http server, which
+       should not result in test failure
+     - equivalent valgrind test changed to new methode, removing code
+       duplication
+     - testbench supports
+       * new exit code 177, which indicates environment error, makes
+         test SKIP but still reports the failure
+       * new exitcode, logurl stats reporting fields
+       * report buildbot builder (if provided) in failure report
+   * testbench: add test for mmjsonparse with unparsable data
+   * testbench: make es-bulk-retry test more reliable
+     We now no longer depend on a fixed 'sleep' command but rather
+     check the output file for what we expect. This is much more
+     robust on slow test machines.
+     We believe this closes the below-mentioned issue. If not, it
+     should be re-opened.
+     closes https://github.com/rsyslog/rsyslog/issues/3104
+   * testbench: suppress valgrind error caused by pthreads lib
+     finally I give up and honestly think this is a problem in pthreads and
+     not in rsyslog code. See issue below and pervious commit for more
+     information.
+     Unfortunately, this will also mask off cases where we do not properly
+     call pthread_join() albeit it is needed. Neverthless, this bug is
+     causing so much CI grief that it is definitely worth it.
+     closes https://github.com/rsyslog/rsyslog/issues/2902
+   * testbench: made a couple of (unnamed due to too many) test more robust
+     against slow (CI) machines
+------------------------------------------------------------------------------
+Version 8.39.0 [v8-stable] 2018-10-30
+- imfile: improve truncation detection
+  previously, truncation was only detected at end of file. Especially with
+  busy files that could cause loss of data and possibly also stall imfile
+  reading. The new code now also checks during each read. Obviously, there
+  is some additional overhead associated with that, but this is unavoidable.
+  It still is highly recommended NOT to turn on "reopenOnTruncate" in imfile.
+  Note that there are also inherant reliability issues. There is no way to
+  "fix" these, as they are caused by races between the process(es) who truncate
+  and rsyslog reading the file. But with the new code, the "problem window"
+  should be much smaller and, more importantly, imfile should not stall.
+  see also https://github.com/rsyslog/rsyslog/issues/2659
+  see also https://github.com/rsyslog/rsyslog/issues/1605
+- imjournal: work around journald excessive reloading behavior
+  This is workaround for possible imjournal interaction with systemd
+  where journal invalidate fix is not present. The code tries to
+  detect SD_JOURNAL_INVALIDATE loop and not reload after each call.
+  Thanks to Jiri Vymazal for the patch.
+- errmsg: remove no longer needed code
+  refectored code (over a long time) so that object-ish style is no longer
+  needed and could now finally be removed; We also refactored the last
+  component (omhttp contrib module) that used the old interface.
+  closes https://github.com/rsyslog/rsyslog/issues/1684
+- queue bugfix: invalid error message on queue startup
+  due to some old regression (commit not exactly identified, but for
+  sure a regression, 9 years ago it was correct) an error message
+  is emitted when no .qi file exists on startup of the queue, which
+  is a normal condition.
+  Actually, the code should not have tried to open the .qi file in
+  the first place because it detected that it did not exist. That
+  (necessary) shortcut had been removed a while ago.
+  closes https://github.com/rsyslog/rsyslog/issues/3117
+- bugfix imrelp: regression with legacy configuration startup fail
+  Startup of a relp listener failed if legacy configuration was used.
+  caused by commit: 32b71daa8aadb8f16fe0ca2945e54d593f47a824
+  closes https://github.com/rsyslog/rsyslog/issues/3106
+- bugfix imudp: stall of connection and/or potential segfault
+  There was a regression in 493279b790a8cdace8ccbc2c5136985e820dd2fa.
+  This regression may cause stop (or delay) of reception from some systems
+  and may also caus a segfault. Triggering condition is that at least
+  one listener could not be created.
+  Thanks to Jens Låås for the patch.
+- bugfix gcry crypto driver: small memleak
+  If a crypto key is specified directly via the key="" parameter,
+  the storage for that key is not freed, causing a small memleak.
+  Note that the problem occurs only once per context, so this
+  should not cause real issues. Even more so, as specifying a
+  key directly is meant only for testing purposes and is strongly
+  discouraged for production use.
+  Detected by internal testing, no actual fail case known.
+- fix potential misadressing in encryption subsystem
+  could happen if e.g. disk queues were encrypted
+  not seen in practice but caught by testbench test
+- ksi subsystem changes
+  * enhance debug logging
+  * disable unsafe SHA1 algorithm
+  Thanks to Allan Park for the patch.
+- bugfix core: regex compile error messages could be incorrect
+- bugfix core: potential hang on rsyslog termination
+  The root cause was a deadlock during worker startup. This could
+  happen for example when a DA queue needed to persist data during
+  shutdown.
+  Fail condition:
+  * startup request for a new worker
+  * initialization of that worker
+  * immediate detection that the worker can or must shutdown
+  * main thread waiting for worker running state, which it skips,
+    and so the main thread hangs inside a loop
+  closes https://github.com/rsyslog/rsyslog/issues/3094
+-  bugfix imkafka: system hang when backgrounded
+  imkafka intializes librdkafka too early (before the fork). This leads
+  to hangs in various parts of the system - not only im imkafka but
+  other functions as well (e.g. getaddrinfo() calls).
+  closes https://github.com/rsyslog/rsyslog/issues/3180
+- bugfix imfile: file change was not reliably detected
+  A change in the inode was not detected under all circumstances,
+  most importantly not in some logrotate cases.
+  Includes new tests made by Andre Lorbach. They now use the
+  logrotate tool natively to reproduce the issue.
+  closes https://github.com/rsyslog/rsyslog/issues/2659
+  closes https://github.com/rsyslog/rsyslog/issues/1605
+- bugfix imrelp: do not fail build if librelp does not have relpSrvSetLstnAddr
+  closes https://github.com/rsyslog/rsyslog/issues/2938
+- bugfix queue subsystem: DA queue did ignore encryption settings
+  closes https://github.com/rsyslog/rsyslog/issues/3066
+  closes https://github.com/rsyslog/rsyslog/issues/2575
+- bugfix KSI: lmsig-ksils12 module skips signing the last block
+  Thanks to Allan Park for the patch.
+  closes https://github.com/rsyslog/rsyslog/issues/3105
+- bugfix fmhash: function hash64mod sometimes returned wrong result
+  Thanks to Harshvardhan Shrivastava for providing the patch
+  closes https://github.com/rsyslog/rsyslog/issues/3025
+- bugfix core/debug: data written to random fd 2 under some debug settings
+  This happens only during auto-backgrouding, where we cannot any longer
+  access stderr. Whatever is opened with fd2 receives some debug messages.
+  Note that the specific feature is usually turned on only in CI runs.
+- cleanup: removed no longer needed code
+  Code that was unused for quite a while or did not really belong to the
+  project identified and removed.
+- overall code cleanup
+  e.g. remove unused code, replace bad bash constructs, etc...
+- CI:
+  * some small improvements in testbench plumbing
+    e.g. (`cmd` replaced by $(cmd), removed useless use of cat, ...)
+  * testbench: improve plumbing for kafka tests
+    - Removed all sleeps where possible.
+    - Moved all kafka start/stop/download logic into functions.
+    - Moved kafka/zookeeper stop into error_exit and exit_test.
+    - Kafka/Zookeeper cleanup only done on success now.
+    - Kafka/Zookeeper logfiles automatically dumped on error_exit only now.
+    - Added cleanup for Kafka/Zookeeper instances into CI/buildbot_cleanup.sh
+    - added new tests
+  * testbench: fix incompatibility of one omprog test with Python3
+    Python3 writes to stderr immediately, and this caused the
+    captured output to differ with respect to Python2. Simplified
+    the test to do a single write to stderr. Also a cast to int
+    was needed when calculating 'numRepeats'.
+    closes https://github.com/rsyslog/rsyslog/issues/3030
+  * testbench: fixed imfile parallel issues
+   - Fixed timing issues in some imfile wildcard/regex tests
+   - Added touch command in imfile wildcard tests to make sure directories
+     exist before files are created in it if IO is under stress.
+   - changed content checking in some tests to use "content_check_with_count"
+     with check timeouts instead of using fixed sleeptimes.
+  * testbench: new basic tests
+    These ensure that for some modules that did not have any tests at all
+    we have at least a minimal coverage (module loads, activates, is able
+    to emit error messages). Of course, further improvements would make
+    much sense. Modules:
+    - ommail
+  - testbench: new tests for disk queue encryption
+  - testbench: improved auto-diagnostics for hanging instance
+  - testbench: hardened kafka test against failing kafka subsyste,
+    not in 100% of the cases, but at least in some that frequently occur
+  - failing tests now report failure status so that we can get stats
+    on unreliable tests
+  - testbench tooling: fix incorrect tcpflood TLS parameter check
+    could lead to segfault when started
+  - bugfix testbench tooling: tcpflood invalid type in calloc (openssl mode)
+    It is unlikley that this has caused a real issue, as long as pointers
+    are all of the same size (what is highly probable).
+    detected by cppcheck via Codacy.com
+------------------------------------------------------------------------------
+Version 8.38.0 [v8-stable] 2018-09-18
+- AIX: make basic modules work again
+- make rsyslog build on AIX again
+  ... at least for a limited set of default modules
+-  imfile: support for endmsg.regex
+  This adds support for endmsg.regex.  It is similar to
+  startmsg.regex except that it matches the line that denotes
+  the end of the message, rather than the start of the next message.
+  This is primarily for container log file use cases such as this:
+      date stdout P start of message
+      date stdout P  middle of message
+      date stdout F  end of message
+  The `F` means this is the line which contains the final part of
+  the message.  The fully assembled message should be
+  `start of message middle of message end of message`.
+  `startmsg.regex="^[^ ]+ stdout F "` will match.
+  Thanks to Richard Megginson for the patch.
+- imkafka: add parameter "parseHostName"
+  This enables imkafka to parse the hostname from log message.
+  Previously that was not possible. It was most likely a bug, but
+  one that users may count on. The new parameter "ParseHostName"
+  (default is off) controls this behaviour. Default is to NOT
+  parse the hostname.
+  Thanks to github user snaix for the contribution.
+- im[p]tcp: improve error message on connect failure
+  Now a message with the actual OS error is emitted, making things far
+  easier to troubleshoot.
+- imkafka: implement multithreading support for kafka consumers.
+  Each consumer runs in it's own consumer thread now. New tests have also
+  been added for this.
+- omelasticsearch: write all header metadata to $.omes for retries
+  Write all of the original request metadata fields to $.omes for
+  the retry, if present. This may include all of the following:
+  _index, _type, _id, _parent, pipeline
+  This is in addition to the fields from the response. If the same
+  field name exists in the request metadata and the response, the
+  field from the request will be used, in order to facilitate
+  retrying the exact same request.
+  Thanks to Richard Megginson for the patch.
+- core: improve error message on module load fail
+  The error message now lists all dlopen() errors in depth. This is
+  especially useful if the error is due to missing symbols or file
+  format errors.
+- core/queue: add error message if queue file cannot be accessed
+  When having a disk-assisted queue without permission to write to the specified
+  queue file an error will now be generated.
+  closes https://github.com/rsyslog/rsyslog/issues/323
+- imtcp/imudp: new option preservecase for managing the case of FROMHOST value
+  default is left at current behavior
+  see also https://github.com/rsyslog/rsyslog/pull/2774
+  see also https://bugzilla.redhat.com/show_bug.cgi?id=1309698
+- omprog: add feedback timeout and keep-alive feature
+  - Restart the program if it does not respond within timeout.
+  - New setting 'confirmTimeout' (default 10 seconds).
+  - Allow the program to provide keep-alive feedback when a
+    message requires long-running processing.
+  - Improve efficiency when reading feedback line (use buffer).
+    Retry interrupted writes/reads to/from pipe.
+  - New setting 'reportFailures' for reporting error messages
+    from the program.
+  - Report child termination when writing to pipe.
+  - Minor refactor: renamed writePipe function to sendMessage,
+    renamed readPipe to readStatus.
+  Thanks to Joan Sala for contributing this.
+- omprog: fix forceSingleInstance configuration option
+  The foriceSingleInstance option did not work as intended. Even
+  if set multiple instances were spawned. This most probably
+  was a regression from 0453b1670fc34c96d31ee7c9a370f0f5ec24744a
+  The code was broken roughly 3.5yrs ago, so it looks like the
+  issue was little-noticed. This also means that potentially some users
+  may see the bugfix as change of behaviour. If so, just remove
+  the option.
+  closes https://github.com/rsyslog/rsyslog/issues/2813
+  closes https://github.com/rsyslog/rsyslog/issues/2468
+  Thanks to Joan Sala for contributing this.
+- imfile: implement file-id, used in state file
+  This ensures that files with the same inodes are not accidently treated
+  as equal, at least within the limits of the file id hash (see doc for
+  details).
+  We use the siphash reference implementation to generate our non-cryptographic
+  hash.
+  closes https://github.com/rsyslog/rsyslog/issues/2530
+  closes https://github.com/rsyslog/rsyslog/issues/2231
+- imfile: experimental input throtteling feature
+  The new input parameter delay.message has been added. It specifies
+  a delay in microseconds after each line read.
+  closes https://github.com/rsyslog/rsyslog/issues/2960
+- core: emit TZ warning on startup not on Linux non-container
+  On Linux it seems common that the TZ variable is NOT properly set.
+  There are some concerns that the warning related to rsyslog correcting
+  this confuses users. It also seems that the corrective action rsyslog
+  takes is right, and so there is no hard need to inform users on that.
+  In Linux containers, however, the warning seems to be useful as the
+  timezone setup there seems to be frequently-enough different and
+  rsyslog's corrective action may not be correct.
+  So we now check if we are running under Linux and not within a container.
+  If so, we do not emit the warning. In all other case, we do. This is
+  based on the assumption that other unixoid systems still should have
+  TZ properly set.
+  closes https://github.com/rsyslog/rsyslog/issues/2994
+- omkafka:
+  * better debug information
+  * Fixed minor issue in omkafka producing wrong kafka timestamps when
+    msgTimestamp was NULL.
+  * Setting RD_KAFKA_V_KEY(NULL, 0) in rd_kafka_producev now when KEY is not
+    configured.
+  * Fixed minor issue when rsyslog is compiled with --enable-debug and
+    librdkafka is too old.
+- omfile bugfix: errant error message when dynafile param needed
+  also fixes related message in contributed module omfile-hardened
+  closes https://github.com/rsyslog/rsyslog/issues/2975
+  Thanks to Frank Bicknell for the patch
+- omhttp: new contribued module
+  Thanks to Christian Tramnitz for contributing it.
+  Some more info at https://github.com/rsyslog/rsyslog/pull/2782
+- mmkubertnetes: action fails preparation cycle if kubernetes API ...
+  ... destroys resource during bootup sequence
+  The plugin was not handling 404 Not Found correctly when looking
+  up pods and namespaces.  In this case, we assume the pod/namespace
+  was deleted, annotate the record with whatever metadata we have,
+  and cache the fact that the pod/namespace is missing so we don't
+  attempt to look it up again.
+  In addition, the plugin was not handling error 429 Busy correctly.
+  In this case, it should also annotate the record with whatever
+  metadata it has, and _not_ cache anything.  By default the plugin
+  will retry every 5 seconds to connect to Kubernetes.  This
+  behavior is controlled by the new config param `busyretryinterval`.
+  This commit also adds impstats counters so that admins can
+  view the state of the plugin to see if the lookups are working
+  or are returning errors.  The stats are reported per-instance
+  or per-action to facilitate using multiple different actions
+  for different Kubernetes servers.
+  This commit also adds support for client cert auth to
+  Kubernetes via the two new config params `tls.mycert` and
+  `tls.myprivkey`.
+  Thanks to Richard Megginson for the patch.
+- bugfix pmnormalize/core: several memory leaks, invld property handling
+  - major memory leak which occurred once per message processed
+    So this could lead to OOM. Caused by improper free of json
+    structure
+  - another two major leaks of similar magnitued could occur if
+    "fromhost-ip" and/or "fromhost" properties were set
+  - minor leaks upon termination. these were unproblematic as
+    static and only occured immediately before shutdown.
+    But they triggered memory debugger errors.
+  - fixed test which did not check for mem leaks albeit it should
+  - core invalid handling of the "fromhost" property, if set via
+    the MsgSetPropsViaJSON() call. This was primarily of concern
+    for pmnormalize and mmexternal, and only if these properties
+    were used by either the rulebase or the external program
+    response.
+  Actually, most of the leaks go back to rsyslog core, but that
+  core functionality was not used by other modules in the same
+  way. But if some other would have used it, the effects would
+  have been the same (so be aware if you wrote custom modules).
+- bugfix imptcp: fixed pointers for session counting
+  imptcp open, failedopen, and closed pstats counters were assigned the wrong
+  name, thus pstats values did provide a totally wrong picture of what was
+  going on.
+  Thanks to github user jeverakes for the patch.
+- bugfix omprog: invalid memory access on partial writes to pipe
+  When sending logs to the program, in case of a partial write to the pipe,
+  invalid data was sent, or an invalid memory access could occur. (A
+  partial write can occur if the syscall is interrupted or the pipe is full.)
+  Thanks to Joan Sala for contributing this.
+- bugfix omprog: rsyslog's environment was not passed to script
+  closes https://github.com/rsyslog/rsyslog/issues/2921
+- bugfix omprog: severity of some log messages in waitForChild corrected
+  Log some messages related to child process termination as info/warn
+  instead of error.
+- bugfix imfile: files which were loaded via symlink were not always followed
+  They were stopped watching after being rotated.
+  closes https://github.com/rsyslog/rsyslog/issues/2229
+  Thanks to Jiri Vymazal for the patch.
+- bugfix imfile: potential misadressing when processing symlinks
+  Fixed parent name when processing symlinks. Detected during code review.
+  There was a garbage byte left before which could cause errors down the
+  road.
+  Thanks to Jiri Vymazal for the patch.
+- bugfix ommongodb: build issue if mongo-c-driver is not compiled with TLS
+  Let ommongodb module works even if mongo-c-driver is not compiled with SSL support.
+  Thanks to Jérémie Jourdin for the patch.
+  closes https://github.com/rsyslog/rsyslog/issues/2907
+- CI:
+  * many changes with the goal to support parallel test execution, e.g.
+    use dynamic ports and file names, changes to testing tools, etc.
+  * kafka tests re-enabled, as they should now no longer be racy. However,
+    this has yet to be prooven in practice.
+  * upgrading kafka server version to current
+  * Fixed server configuration issues holding the kafka tests back from working
+  * Fixed some config issues in all sndrcv kafka tests.
+  * Generating dynamically kafka topics now for each kafka test.
+  * Renabled kafka_multi test which runs a test on 3 kafka/zookeeper instances
 ------------------------------------------------------------------------------
 Version 8.37.0 [v8-stable] 2018-08-07
 - build system: add --enable-default-tests ./configure option
@@ -70,6 +1258,16 @@ Version 8.37.0 [v8-stable] 2018-08-07
   to specify an address to bind to.
   Based on support added by rsyslog/librelp@96eb5be
   Thanks to Simon Wachter for the patch.
+- omrelp: permit all authmodes; updated tests
+  omrelp for some time limited authentication modes to those
+  that were known. While this was OK, it prevented the easy
+  introduction of new auth modes into librel.
+  This has now been changed; omrelp now checks the validity of
+  the authmode directly via librelp by doing some librelp calls
+  upon processing the configuration.
+  Also, some tests have been updated to check this feature and
+  also ensure that the new librelp mode "certvalid" works
+  (if it is available).
 - regexp.c: reduce lock contention when using glibc.
   When using glibc, we enable per-thread regex to avoid lock contention.
   See:
@@ -153,6 +1351,10 @@ Version 8.37.0 [v8-stable] 2018-08-07
   it does not properly free memory returned by glob(). This is a cosmetic
   bug as the process terminates within the next few milliseconds. However,
   it causes memory analyzer reports and thus makes CI fail.
+- bugfix core msg: potential deadlock (and rsyslog hang)
+  can happen e.g. with headerless messages when app-name
+  property is used
+  closes https://github.com/rsyslog/rsyslog/issues/3135
 - bugfix core: do not abort startup on problems setting scheduling policy
   rsyslog creates a default scheduling policy on startup. This code
   invalidly used CHKiRet (our exception handler) to check pthreads
@@ -2594,7 +3796,7 @@ Version 8.21.0 [v8-stable] 2016-08-23
      rsyslog.conf (method 1). Note that the environment variable must be
      set in your **startup script**.
   For more information, please visit
-  http://www.rsyslog.com/rsyslog-error-reporting-improved/
+  https://www.rsyslog.com/rsyslog-error-reporting-improved/
 - slightly improved TLS syslog error messages
 - queue subsystem: improved robustness
   The .qi file is now persisted whenever an existing queue file is fully
@@ -5497,7 +6699,7 @@ Version 7.1.1  [devel] 2012-09-11
   including if ... then ... else ... constructs. This is a big change
   and it obviously has a lot of bug potential.
 - BSD-style (filter) blocks are no longer supported
-  see http://www.rsyslog.com/g/BSD for details and solution
+  see https://www.rsyslog.com/g/BSD for details and solution
 - imuxsock now stores trusted properties by default in the CEE root
   This was done in order to keep compatible with other implementations of
   the lumberjack schema
@@ -8181,7 +9383,7 @@ Version 4.1.3  [DEVEL] (rgerhards), 2008-12-17
 Version 4.1.2  [DEVEL] (rgerhards), 2008-12-04
 - bugfix: code did not compile without zlib
 - security bugfix: $AllowedSender was not honored, all senders were
-  permitted instead (see http://www.rsyslog.com/Article322.phtml)
+  permitted instead (see https://www.rsyslog.com/Article322.phtml)
 - security fix: imudp emitted a message when a non-permitted sender
   tried to send a message to it. This behaviour is operator-configurable.
   If enabled, a message was emitted each time. That way an attacker could
@@ -8350,7 +9552,7 @@ Version 3.21.9 [BETA] (rgerhards), 2008-12-04
 Version 3.21.8  [BETA] (rgerhards), 2008-12-04
 - bugfix: imklog did not compile on FreeBSD
 - security bugfix: $AllowedSender was not honored, all senders were
-  permitted instead (see http://www.rsyslog.com/Article322.phtml)
+  permitted instead (see https://www.rsyslog.com/Article322.phtml)
 - merged in all other changes from 3.20.1 (see there)
 ---------------------------------------------------------------------------
 Version 3.21.7  [BETA] (rgerhards), 2008-11-11
@@ -8740,7 +9942,7 @@ Version 3.18.7 (rgerhards), 2008-12-??
 ---------------------------------------------------------------------------
 Version 3.18.6 (rgerhards), 2008-12-08
 - security bugfix: $AllowedSender was not honored, all senders were
-  permitted instead (see http://www.rsyslog.com/Article322.phtml)
+  permitted instead (see https://www.rsyslog.com/Article322.phtml)
   (backport from v3-stable, v3.20.9)
 - minor bugfix: dual close() call on tcp session closure
 ---------------------------------------------------------------------------

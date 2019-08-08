@@ -1,10 +1,7 @@
 /* ommongodb.c
  * Output module for mongodb.
- * Note: this module uses the libmongo-client library. The original 10gen
- * mongodb C interface is crap. Obtain the library here:
- * https://github.com/algernon/libmongo-client
  *
- * Copyright 2007-2016 Rainer Gerhards and Adiscon GmbH.
+ * Copyright 2007-2019 Rainer Gerhards and Adiscon GmbH.
  *
  * Copyright 2017 Jeremie Jourdin and Hugo Soszynski and aDvens
  * Remove deprecated libmongo-client and use libmongoc (mongo-c-driver)
@@ -38,20 +35,17 @@
 #include <stdint.h>
 #include <time.h>
 #include <json.h>
+#include "rsyslog.h"
 /* we need this to avoid issues with older versions of libbson */
-#ifndef AIX
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Wunknown-attributes"
-#pragma GCC diagnostic ignored "-Wexpansion-to-defined"
-#endif
+PRAGMA_DIAGNOSTIC_PUSH
+PRAGMA_IGNORE_Wpragmas
+PRAGMA_IGNORE_Wunknown_warning_option
+PRAGMA_IGNORE_Wunknown_attribute
+PRAGMA_IGNORE_Wexpansion_to_defined
 #include <mongoc.h>
 #include <bson.h>
-#ifndef AIX
-#pragma GCC diagnostic pop
-#endif
+PRAGMA_DIAGNOSTIC_POP
 
-#include "rsyslog.h"
 #include "conf.h"
 #include "syslogd-types.h"
 #include "srUtils.h"
@@ -204,11 +198,15 @@ static rsRetVal initMongoDB(instanceData *pData, int bSilent)
 	mongoc_init ();
 	pData->client = mongoc_client_new (pData->uristr);
 	if (pData->ssl_cert && pData->ssl_ca) {
+#ifdef HAVE_MONGOC_CLIENT_SET_SSL_OPTS
 		mongoc_ssl_opt_t ssl_opts;
 		memset(&ssl_opts, 0, sizeof(mongoc_ssl_opt_t));
 		ssl_opts.pem_file = pData->ssl_cert;
 		ssl_opts.ca_file = pData->ssl_ca;
 		mongoc_client_set_ssl_opts (pData->client, &ssl_opts);
+#else
+		dbgprintf("ommongodb: mongo-c-driver was not built with SSL options, ssl directives will not be used.");
+#endif
 	}
 	if(pData->client == NULL) {
 		if(!bSilent) {
@@ -681,7 +679,7 @@ CODESTARTnewActInst
 		 * Formatting string "by hand" is a lot faster on execution than a snprintf for example.
 		 */
 		CHKmalloc(pData->uristr = malloc(uri_len + 1));
-		tmp = stpncpy(pData->uristr, "mongodb://", 10);
+		tmp = stpncpy(pData->uristr, "mongodb://", 11);
 		if(pData->uid && pData->pwd){
 			dbgprintf("ommongodb: Adding uid & pwd to uristr.\n");
 			tmp = stpncpy(tmp, pData->uid, uid);
@@ -701,9 +699,9 @@ CODESTARTnewActInst
 		if(pData->ssl_ca && pData->ssl_cert){
 			dbgprintf("ommongodb: Adding ssl to uristr.\n");
 			if(pData->uid && pData->pwd)
-				tmp = stpncpy(tmp, "&ssl=true", 9);
+				tmp = stpncpy(tmp, "&ssl=true", 10);
 			else
-				tmp = stpncpy(tmp, "?ssl=true", 9);
+				tmp = stpncpy(tmp, "?ssl=true", 10);
 		}
 		*tmp = '\0';
 	}

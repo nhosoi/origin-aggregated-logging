@@ -2,7 +2,7 @@
 # Check that invalid variable names are detected.
 # Copyright 2017-01-24 by Rainer Gerhards
 # This file is part of the rsyslog project, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="json" type="string" string="%$!%\n")
@@ -16,7 +16,7 @@ action(type="omfile" file=`echo $RSYSLOG_OUT_LOG`)
  
 '
 startup
-. $srcdir/diag.sh injectmsg  0 10
+injectmsg  0 10
 shutdown_when_empty
 wait_shutdown
 

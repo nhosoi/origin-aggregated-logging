@@ -1,11 +1,11 @@
 #!/bin/bash
 # add 2018-06-29 by Pascal Withopf, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../contrib/pmsnare/.libs/pmsnare")
 module(load="../plugins/imudp/.libs/imudp")
-input(type="imudp" port="13514" ruleset="ruleset1")
+input(type="imudp" port="'$TCPFLOOD_PORT'" ruleset="ruleset1")
 
 global(localHostname="localhost"
        parser.escapeControlCharactersCStyle="on")

@@ -1,14 +1,14 @@
 #!/bin/bash
 # a very basic test for omjournal.
 # addd 2016-03-18 by RGerhards, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 . $srcdir/diag.sh require-journalctl
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
 module(load="../plugins/omjournal/.libs/omjournal")
 
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 template(name="outfmt" type="string" string="%msg%")
 action(type="omjournal" template="outfmt")

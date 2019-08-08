@@ -6,8 +6,7 @@
 # test in case message does not make it even to journal which may 
 # sometimes happen in some environments.
 # addd 2017-10-25 by RGerhards, released under ASL 2.0
-
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 . $srcdir/diag.sh require-journalctl
 generate_conf
 add_conf '
@@ -15,36 +14,33 @@ module(load="../plugins/imjournal/.libs/imjournal" IgnorePreviousMessages="on"
 	RateLimit.Burst="1000000")
 
 template(name="outfmt" type="string" string="%msg%\n")
-action(type="omfile" template="outfmt" file=`echo $RSYSLOG_OUT_LOG`)
+action(type="omfile" template="outfmt" file="'$RSYSLOG_OUT_LOG'")
 '
+TESTMSG="TestBenCH-RSYSLog imjournal This is a test message - $(date +%s) - $RSYSLOG_DYNNAME"
+
 startup
-TESTMSG="TestBenCH-RSYSLog imjournal This is a test message - $(date +%s)"
+
+printf 'a quick glimpse at journal content at rsyslog startup:\n'
+journalctl -n 20 --no-pager
+printf '\n\n'
+
+# inject message into journal and check that it is recorded
 ./journal_print "$TESTMSG"
-if [ $? -ne 0 ]; then
-	echo "SKIP: failed to put test into journal."
+journal_write_state=$?
+if [ $journal_write_state -ne 0 ]; then
+	printf 'SKIP: journal_print returned state %d writing message: %s\n' "$journal_write_state" "$TESTMSG"
+	printf 'skipping test, journal probably not working\n'
 	exit 77
 fi
-journalctl -an 200 | fgrep -qF "$TESTMSG"
-if [ $? -ne 0 ]; then
-	echo "SKIP: cannot read journal."
-	exit 77
-fi
-./msleep 500
+
+# check state later - we must not terminate the test until we have terminated rsyslog
+
+# give the journal ~5 minutes to forward the message, see
+# https://github.com/rsyslog/rsyslog/issues/2564#issuecomment-435849660
+content_check_with_count "$TESTMSG" 1 300
+
 shutdown_when_empty # shut down rsyslogd when done processing messages
 wait_shutdown
-cat $RSYSLOG_OUT_LOG | fgrep -qF "$TESTMSG"
-if [ $? -ne 0 ]; then
-  echo "FAIL:  $RSYSLOG_OUT_LOG content (tail -n200):"
-  tail -n200 $RSYSLOG_OUT_LOG
-  echo "======="
-  echo "last entries from journal:"
-  journalctl -an 200
-  echo "======="
-  echo "NOTE: last 200 lines may be insufficient on busy systems!"
-  echo "======="
-  echo "FAIL: imjournal test message could not be found!"
-  echo "Expected message content was:"
-  echo "$TESTMSG"
-  error_exit 1
-fi;
+
+check_journal_testmsg_received
 exit_test

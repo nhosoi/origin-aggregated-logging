@@ -11,17 +11,17 @@ echo ===========================================================================
 echo \[omruleset-queue.sh\]: test for omruleset functionality with a ruleset queue
 
 uname
-if [ `uname` = "SunOS" ] ; then
+if [ $(uname) = "SunOS" ] ; then
    echo "This test currently does not work on all flavors of Solaris."
    exit 77
 fi
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $ModLoad ../plugins/omruleset/.libs/omruleset
 $ModLoad ../plugins/imtcp/.libs/imtcp
-$InputTCPServerRun 13514
+$InputTCPServerRun '$TCPFLOOD_PORT'
 
 $ruleset rsinclude
 # create ruleset main queue with default parameters
@@ -37,7 +37,7 @@ $ActionOmrulesetRulesetName rsinclude
 *.* :omruleset:
 '
 startup
-. $srcdir/diag.sh injectmsg  0 20000
+injectmsg  0 20000
 echo doing shutdown
 shutdown_when_empty
 echo wait on shutdown

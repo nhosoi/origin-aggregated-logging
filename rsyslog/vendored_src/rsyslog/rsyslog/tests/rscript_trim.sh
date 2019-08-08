@@ -1,10 +1,10 @@
 #!/bin/bash
 # add 2017-08-14 by Jan Gerhards, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 set $!str!l1 = ltrim("");
 set $!str!l2 = ltrim("test");

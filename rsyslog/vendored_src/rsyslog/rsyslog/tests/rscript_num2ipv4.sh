@@ -1,11 +1,11 @@
 #!/bin/bash
 # add 2017-02-09 by Jan Gerhards, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
 module(load="../plugins/fmhttp/.libs/fmhttp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 set $!ip!v0 = num2ipv4("");
 set $!ip!v1 = num2ipv4("0");

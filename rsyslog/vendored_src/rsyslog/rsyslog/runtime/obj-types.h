@@ -5,7 +5,7 @@
  * that loop somehow and I've done that by moving the typedefs
  * into this file here.
  *
- * Copyright 2008-2012 Rainer Gerhards and Adiscon GmbH.
+ * Copyright 2008-2019 Rainer Gerhards and Adiscon GmbH.
  *
  * This file is part of the rsyslog runtime library.
  *
@@ -98,12 +98,12 @@ struct obj_s {	/* the dummy struct that each derived class can be casted to */
 		obj_t objData
 #	define ISOBJ_assert(pObj) \
 		do { \
-		ASSERT((pObj) != NULL); \
-		ASSERT((unsigned) ((obj_t*)(pObj))->iObjCooCKiE == (unsigned) 0xBADEFEE); \
+		assert((pObj) != NULL); \
+		assert((unsigned) ((obj_t*)(pObj))->iObjCooCKiE == (unsigned) 0xBADEFEE); \
 		} while(0);
 #	define ISOBJ_TYPE_assert(pObj, objType) \
 		do { \
-		ASSERT(pObj != NULL); \
+		assert(pObj != NULL); \
 		if(strcmp((char*)(((obj_t*)pObj)->pObjInfo->pszID), #objType)) { \
 			dbgprintf("%s:%d ISOBJ assert failure: invalid object type, expected '%s' " \
 				  "actual '%s', cookie: %X\n", __FILE__, __LINE__, #objType, \
@@ -114,7 +114,7 @@ struct obj_s {	/* the dummy struct that each derived class can be casted to */
 			fflush(stderr); \
 			assert(!strcmp((char*)(((obj_t*)pObj)->pObjInfo->pszID), #objType)); \
 		} \
-		ASSERT((unsigned) ((obj_t*)(pObj))->iObjCooCKiE == (unsigned) 0xBADEFEE); \
+		assert((unsigned) ((obj_t*)(pObj))->iObjCooCKiE == (unsigned) 0xBADEFEE); \
 		} while(0)
 	/* now the same for pointers to "regular" objects (like wrkrInstanceData) */
 #	define PTR_ASSERT_DEF unsigned int _Assert_type;
@@ -152,7 +152,6 @@ struct obj_s {	/* the dummy struct that each derived class can be casted to */
 #define DEFpropSetMethPTR(obj, prop, dataType)\
 	rsRetVal obj##Set##prop(obj##_t *pThis, dataType *pVal)\
 	{ \
-		/* DEV debug: dbgprintf("%sSet%s()\n", #obj, #prop); */\
 		pThis->prop = pVal; \
 		return RS_RET_OK; \
 	}
@@ -161,7 +160,6 @@ struct obj_s {	/* the dummy struct that each derived class can be casted to */
 #define DEFpropSetMethFP(obj, prop, dataType)\
 	rsRetVal obj##Set##prop(obj##_t *pThis, dataType)\
 	{ \
-		/* DEV debug: dbgprintf("%sSet%s()\n", #obj, #prop); */\
 		pThis->prop = pVal; \
 		return RS_RET_OK; \
 	}
@@ -171,7 +169,6 @@ struct obj_s {	/* the dummy struct that each derived class can be casted to */
 	rsRetVal obj##Set##prop(obj##_t *pThis, dataType pVal);\
 	rsRetVal obj##Set##prop(obj##_t *pThis, dataType pVal)\
 	{ \
-		/* DEV debug: dbgprintf("%sSet%s()\n", #obj, #prop); */\
 		pThis->prop = pVal; \
 		return RS_RET_OK; \
 	}
@@ -262,7 +259,7 @@ rsRetVal objName##ClassExit(void) \
 		DEFiRet; \
 		obj##_t *pThis; \
 	 \
-		ASSERT(ppThis != NULL); \
+		assert(ppThis != NULL); \
 	 \
 		if((pThis = (obj##_t *)calloc(1, sizeof(obj##_t))) == NULL) { \
 			ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY); \
@@ -309,7 +306,7 @@ rsRetVal objName##ClassExit(void) \
 		OBJ##_t *pThis;
 
 #define CODESTARTobjDestruct(OBJ) \
-		ASSERT(ppThis != NULL); \
+		assert(ppThis != NULL); \
 		pThis = *ppThis; \
 		ISOBJ_TYPE_assert(pThis, OBJ);
 
@@ -349,7 +346,7 @@ rsRetVal objName##ClassExit(void) \
 		DEFiRet; \
 
 #define CODESTARTobjDebugPrint(obj) \
-		ASSERT(pThis != NULL); \
+		assert(pThis != NULL); \
 		ISOBJ_TYPE_assert(pThis, obj); \
 
 #define ENDobjDebugPrint(obj) \
@@ -384,7 +381,7 @@ rsRetVal objName##ClassExit(void) \
 		DEFiRet; \
 
 #define CODESTARTobjQueryInterface(obj) \
-		ASSERT(pIf != NULL);
+		assert(pIf != NULL);
 
 #define ENDobjQueryInterface(obj) \
 		RETiRet; \

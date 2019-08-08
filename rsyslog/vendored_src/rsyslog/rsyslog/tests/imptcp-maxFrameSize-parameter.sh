@@ -1,13 +1,13 @@
 #!/bin/bash
 # addd 2017-03-01 by RGerhards, released under ASL 2.0
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $MaxMessageSize 12800
 global(processInternalMessages="on")
 module(load="../plugins/imptcp/.libs/imptcp")
-input(type="imptcp" port="13514" maxframesize="100")
+input(type="imptcp" port="'$TCPFLOOD_PORT'" maxframesize="100")
 
 action(type="omfile" file=`echo $RSYSLOG_OUT_LOG`)
 

@@ -5,7 +5,7 @@
 # by checking that omprog re-sends to the external program the messages
 # it has failed to process.
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/omprog/.libs/omprog")
@@ -15,25 +15,24 @@ template(name="outfmt" type="string" string="%msg%\n")
 :msg, contains, "msgnum:" {
     action(
         type="omprog"
-        binary=`echo $srcdir/testsuites/omprog-feedback-bin.sh`
+        binary="'$srcdir'/testsuites/omprog-feedback-bin.sh"
         template="outfmt"
         name="omprog_action"
         queue.type="Direct"  # the default; facilitates sync with the child process
         confirmMessages="on"
-        useTransactions="off"
-        action.resumeRetryCount="10"
-        action.resumeInterval="1"
+        reportFailures="on"
+        action.resumeInterval="1"  # retry interval: 1 second
+#       action.resumeRetryCount="0" # the default; no need to increase since
+                                    # the action resumes immediately
     )
 }
 '
 startup
-. $srcdir/diag.sh wait-startup
-. $srcdir/diag.sh injectmsg 0 10
-. $srcdir/diag.sh wait-queueempty
+injectmsg 0 10
 shutdown_when_empty
 wait_shutdown
 
-expected_output="<= OK
+export EXPECTED="<= OK
 => msgnum:00000000:
 <= OK
 => msgnum:00000001:
@@ -63,11 +62,6 @@ expected_output="<= OK
 => msgnum:00000009:
 <= OK"
 
-written_output=$(<$RSYSLOG_OUT_LOG)
-if [[ "$expected_output" != "$written_output" ]]; then
-    echo unexpected omprog script output:
-    echo "$written_output"
-    error_exit 1
-fi
+cmp_exact $RSYSLOG_OUT_LOG
 
 exit_test

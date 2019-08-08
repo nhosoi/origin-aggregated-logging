@@ -3,13 +3,13 @@
 # This file is part of the rsyslog project, released  under ASL 2.0
 echo ===============================================================================
 echo \[stop-localvar.sh\]: testing stop statement together with local variables
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="string" string="%$.nbr%\n")
 
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 if $msg contains "msgnum:" then {
 	set $.nbr = field($msg, 58, 2);

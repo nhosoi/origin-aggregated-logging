@@ -5,7 +5,7 @@
 echo =====================================================================================
 echo \[execonlywhenprevsuspended-nonsusp\]: test execonly...suspended functionality with non-suspended action
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 main_queue(queue.workerthreads="1") 
@@ -24,13 +24,13 @@ template(name="outfmt" type="string" string="%msg:F,58:2%\n")
 }
 '
 startup
-. $srcdir/diag.sh injectmsg 0 1000
+injectmsg 0 1000
 shutdown_when_empty
 wait_shutdown
 seq_check 0 999
-if [ -e rsyslog2.out.log ]; then
+if [ -e ${RSYSLOG2_OUT_LOG} ]; then
     echo "error: \"suspended\" file exists, first 10 lines:"
-    $RS_HEADCMD rsyslog2.out.log
+    $RS_HEADCMD ${RSYSLOG2_OUT_LOG}
     exit 1
 fi
 exit_test

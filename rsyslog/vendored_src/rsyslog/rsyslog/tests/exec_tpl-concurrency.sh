@@ -6,16 +6,16 @@ echo ===========================================================================
 echo \[exec_tpl-concurrency.sh\]: testing concurrency of exec_template w variables
 
 uname
-if [ `uname` = "SunOS" ] ; then
+if [ $(uname) = "SunOS" ] ; then
    echo "This test currently does not work on all flavors of Solaris."
    exit 77
 fi
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 template(name="interim" type="string" string="%$!tree!here!nbr%")
 template(name="outfmt" type="string" string="%$!interim%\n")

@@ -5,7 +5,7 @@
 # from creating additional tests
 # requires faketime
 echo \[timegenerated-dateordinal\]: check valid dates with ordinal format
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 
 . $srcdir/faketime_common.sh
 
@@ -14,7 +14,7 @@ export TZ=UTC+00:00
 generate_conf
 add_conf '
 $ModLoad ../plugins/imtcp/.libs/imtcp
-$InputTCPServerRun 13514
+$InputTCPServerRun '$TCPFLOOD_PORT'
 
 template(name="outfmt" type="string"
 	 string="%timegenerated:::date-ordinal%\n")

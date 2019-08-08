@@ -8,7 +8,7 @@
 # should be covered by this test here.
 # rgerhards, 2009-06-26
 echo \[threadingmq.sh\]: main queue concurrency
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $MainMsgQueueTimeoutShutdown 1
@@ -25,7 +25,7 @@ $OMFileIOBufferSize 256k
 :msg, contains, "msgnum:" ?dynfile;outfmt
 '
 startup
-. $srcdir/diag.sh injectmsg 0 100000
+injectmsg 0 100000
 shutdown_when_empty # shut down rsyslogd when done processing messages
 # we give an extra seconds for things to settle, especially
 # important on slower test machines

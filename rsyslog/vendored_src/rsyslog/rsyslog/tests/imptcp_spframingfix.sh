@@ -2,11 +2,11 @@
 # This file is part of the rsyslog project, released  under ASL 2.0
 echo ====================================================================================
 echo TEST: \[imptcp_spframingfix.sh\]: test imptcp in regard to Cisco ASA framing fix
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imptcp/.libs/imptcp")
-input(type="imptcp" port="13514" ruleset="remote" framingfix.cisco.asa="on")
+input(type="imptcp" port="'$TCPFLOOD_PORT'" ruleset="remote" framingfix.cisco.asa="on")
 
 template(name="outfmt" type="string" string="%rawmsg:6:7%\n")
 ruleset(name="remote") {

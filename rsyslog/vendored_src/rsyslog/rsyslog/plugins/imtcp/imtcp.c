@@ -100,8 +100,10 @@ static struct configSettings_s {
 	int bDisableLFDelim;
 	int discardTruncatedMsg;
 	int bUseFlowControl;
+	int bPreserveCase;
 	uchar *gnutlsPriorityString;
 	uchar *pszStrmDrvrAuthMode;
+	uchar *pszStrmDrvrPermitExpiredCerts;
 	uchar *pszInputName;
 	uchar *pszBindRuleset;
 	uchar *lstnIP;			/* which IP we should listen on? */
@@ -109,6 +111,7 @@ static struct configSettings_s {
 
 struct instanceConf_s {
 	uchar *pszBindPort;		/* port to bind to */
+	uchar *pszLstnPortFileName;	/* file dynamic port is written to */
 	uchar *pszBindAddr;             /* IP to bind socket to */
 	uchar *pszBindRuleset;		/* name of ruleset to bind to */
 	ruleset_t *pBindRuleset;	/* ruleset to bind listener to (use system default if unspecified) */
@@ -142,8 +145,10 @@ struct modConfData_s {
 	uchar *gnutlsPriorityString;
 	uchar *pszStrmDrvrName; /* stream driver to use */
 	uchar *pszStrmDrvrAuthMode; /* authentication mode to use */
+	uchar *pszStrmDrvrPermitExpiredCerts; /* control how to handly expired certificates */
 	struct cnfarray *permittedPeers;
 	sbool configSetViaV2Method;
+	sbool bPreserveCase; /* preserve case of fromhost; true by default */
 };
 
 static modConfData_t *loadModConf = NULL;/* modConf ptr to use for the current load process */
@@ -163,13 +168,15 @@ static struct cnfparamdescr modpdescr[] = {
 	{ "maxlisteners", eCmdHdlrPositiveInt, 0 },
 	{ "streamdriver.mode", eCmdHdlrNonNegInt, 0 },
 	{ "streamdriver.authmode", eCmdHdlrString, 0 },
+	{ "streamdriver.permitexpiredcerts", eCmdHdlrString, 0 },
 	{ "streamdriver.name", eCmdHdlrString, 0 },
 	{ "permittedpeer", eCmdHdlrArray, 0 },
 	{ "keepalive", eCmdHdlrBinary, 0 },
 	{ "keepalive.probes", eCmdHdlrPositiveInt, 0 },
 	{ "keepalive.time", eCmdHdlrPositiveInt, 0 },
 	{ "keepalive.interval", eCmdHdlrPositiveInt, 0 },
-	{ "gnutlsprioritystring", eCmdHdlrString, 0 }
+	{ "gnutlsprioritystring", eCmdHdlrString, 0 },
+	{ "preservecase", eCmdHdlrBinary, 0 }
 };
 static struct cnfparamblk modpblk =
 	{ CNFPARAMBLK_VERSION,
@@ -180,6 +187,7 @@ static struct cnfparamblk modpblk =
 /* input instance parameters */
 static struct cnfparamdescr inppdescr[] = {
 	{ "port", eCmdHdlrString, CNFPARAM_REQUIRED }, /* legacy: InputTCPServerRun */
+	{ "listenportfilename", eCmdHdlrString, 0 },
 	{ "address", eCmdHdlrString, 0 },
 	{ "name", eCmdHdlrString, 0 },
 	{ "defaulttz", eCmdHdlrString, 0 },
@@ -274,7 +282,7 @@ createInstance(instanceConf_t **pinst)
 {
 	instanceConf_t *inst;
 	DEFiRet;
-	CHKmalloc(inst = MALLOC(sizeof(instanceConf_t)));
+	CHKmalloc(inst = malloc(sizeof(instanceConf_t)));
 	inst->next = NULL;
 	inst->pszBindRuleset = NULL;
 	inst->pszInputName = NULL;
@@ -284,6 +292,7 @@ createInstance(instanceConf_t **pinst)
 	inst->bSPFramingFix = 0;
 	inst->ratelimitInterval = 0;
 	inst->ratelimitBurst = 10000;
+	inst->pszLstnPortFileName = NULL;
 
 	/* node created, let's add to config */
 	if(loadModConf->tail == NULL) {
@@ -372,9 +381,13 @@ addListner(modConfData_t *modConf, instanceConf_t *inst)
 		if(modConf->pszStrmDrvrAuthMode != NULL) {
 			CHKiRet(tcpsrv.SetDrvrAuthMode(pOurTcpsrv, modConf->pszStrmDrvrAuthMode));
 		}
+		if(modConf->pszStrmDrvrPermitExpiredCerts != NULL) {
+			CHKiRet(tcpsrv.SetDrvrPermitExpiredCerts(pOurTcpsrv, modConf->pszStrmDrvrPermitExpiredCerts));
+		}
 		if(pPermPeersRoot != NULL) {
 			CHKiRet(tcpsrv.SetDrvrPermPeers(pOurTcpsrv, pPermPeersRoot));
 		}
+		CHKiRet(tcpsrv.SetPreserveCase(pOurTcpsrv, modConf->bPreserveCase));
 	}
 
 	/* initialized, now add socket and listener params */
@@ -386,6 +399,12 @@ addListner(modConfData_t *modConf, instanceConf_t *inst)
 	CHKiRet(tcpsrv.SetDfltTZ(pOurTcpsrv, (inst->dfltTZ == NULL) ? (uchar*)"" : inst->dfltTZ));
 	CHKiRet(tcpsrv.SetbSPFramingFix(pOurTcpsrv, inst->bSPFramingFix));
 	CHKiRet(tcpsrv.SetLinuxLikeRatelimiters(pOurTcpsrv, inst->ratelimitInterval, inst->ratelimitBurst));
+
+	CHKiRet(tcpsrv.SetLstnPortFileName(pOurTcpsrv, inst->pszLstnPortFileName));
+	if((ustrcmp(inst->pszBindPort, UCHAR_CONSTANT("0")) == 0 && inst->pszLstnPortFileName == NULL)
+			|| ustrcmp(inst->pszBindPort, UCHAR_CONSTANT("0")) < 0) {
+		CHKmalloc(inst->pszBindPort = (uchar*)strdup("514"));
+	}
 	tcpsrv.configureTCPListen(pOurTcpsrv, inst->pszBindPort, inst->bSuppOctetFram, inst->pszBindAddr);
 
 finalize_it:
@@ -438,6 +457,8 @@ CODESTARTnewInpInst
 			inst->ratelimitBurst = (int) pvals[i].val.d.n;
 		} else if(!strcmp(inppblk.descr[i].name, "ratelimit.interval")) {
 			inst->ratelimitInterval = (int) pvals[i].val.d.n;
+		} else if(!strcmp(inppblk.descr[i].name, "listenportfilename")) {
+			inst->pszLstnPortFileName = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else {
 			dbgprintf("imtcp: program error, non-handled "
 			  "param '%s'\n", inppblk.descr[i].name);
@@ -471,8 +492,10 @@ CODESTARTbeginCnfLoad
 	loadModConf->gnutlsPriorityString = NULL;
 	loadModConf->pszStrmDrvrName = NULL;
 	loadModConf->pszStrmDrvrAuthMode = NULL;
+	loadModConf->pszStrmDrvrPermitExpiredCerts = NULL;
 	loadModConf->permittedPeers = NULL;
 	loadModConf->configSetViaV2Method = 0;
+	loadModConf->bPreserveCase = 1; /* default to true */
 	bLegacyCnfModGlobalsPermitted = 1;
 	/* init legacy config variables */
 	cs.pszStrmDrvrAuthMode = NULL;
@@ -539,10 +562,14 @@ CODESTARTsetModCnf
 			loadModConf->iStrmDrvrMode = (int) pvals[i].val.d.n;
 		} else if(!strcmp(modpblk.descr[i].name, "streamdriver.authmode")) {
 			loadModConf->pszStrmDrvrAuthMode = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
+		} else if(!strcmp(modpblk.descr[i].name, "streamdriver.permitexpiredcerts")) {
+			loadModConf->pszStrmDrvrPermitExpiredCerts = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if(!strcmp(modpblk.descr[i].name, "streamdriver.name")) {
 			loadModConf->pszStrmDrvrName = (uchar*)es_str2cstr(pvals[i].val.d.estr, NULL);
 		} else if(!strcmp(modpblk.descr[i].name, "permittedpeer")) {
 			loadModConf->permittedPeers = cnfarrayDup(pvals[i].val.d.ar);
+		} else if(!strcmp(modpblk.descr[i].name, "preservecase")) {
+			loadModConf->bPreserveCase = (int) pvals[i].val.d.n;
 		} else {
 			dbgprintf("imtcp: program error, non-handled "
 			  "param '%s' in beginCnfLoad\n", modpblk.descr[i].name);
@@ -584,6 +611,7 @@ CODESTARTendCnfLoad
 			loadModConf->pszStrmDrvrAuthMode = cs.pszStrmDrvrAuthMode;
 			cs.pszStrmDrvrAuthMode = NULL;
 		}
+		pModConf->bPreserveCase = cs.bPreserveCase;
 	}
 	free(cs.pszStrmDrvrAuthMode);
 	cs.pszStrmDrvrAuthMode = NULL;
@@ -649,12 +677,14 @@ BEGINfreeCnf
 CODESTARTfreeCnf
 	free(pModConf->pszStrmDrvrName);
 	free(pModConf->pszStrmDrvrAuthMode);
+	free(pModConf->pszStrmDrvrPermitExpiredCerts);
 	if(pModConf->permittedPeers != NULL) {
 		cnfarrayContentDestruct(pModConf->permittedPeers);
 		free(pModConf->permittedPeers);
 	}
 	for(inst = pModConf->root ; inst != NULL ; ) {
 		free(inst->pszBindPort);
+		free(inst->pszLstnPortFileName);
 		free(inst->pszBindAddr);
 		free(inst->pszBindRuleset);
 		free(inst->pszInputName);
@@ -731,6 +761,7 @@ resetConfigVariables(uchar __attribute__((unused)) *pp, void __attribute__((unus
 	cs.pszInputName = NULL;
 	free(cs.pszStrmDrvrAuthMode);
 	cs.pszStrmDrvrAuthMode = NULL;
+	cs.bPreserveCase = 1;
 	return RS_RET_OK;
 }
 
@@ -797,7 +828,8 @@ CODEmodInit_QueryRegCFSLineHdlr
 			   NULL, &cs.bEmitMsgOnClose, STD_LOADABLE_MODULE_ID, &bLegacyCnfModGlobalsPermitted));
 	CHKiRet(regCfSysLineHdlr2(UCHAR_CONSTANT("inputtcpserverstreamdrivermode"), 0, eCmdHdlrInt,
 			   NULL, &cs.iStrmDrvrMode, STD_LOADABLE_MODULE_ID, &bLegacyCnfModGlobalsPermitted));
-
+	CHKiRet(regCfSysLineHdlr2(UCHAR_CONSTANT("inputtcpserverpreservecase"), 1, eCmdHdlrBinary,
+			   NULL, &cs.bPreserveCase, STD_LOADABLE_MODULE_ID, &bLegacyCnfModGlobalsPermitted));
 	CHKiRet(omsdRegCFSLineHdlr(UCHAR_CONSTANT("resetconfigvariables"), 1, eCmdHdlrCustomHandler,
 				   resetConfigVariables, NULL, STD_LOADABLE_MODULE_ID));
 ENDmodInit

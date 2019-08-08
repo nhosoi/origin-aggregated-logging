@@ -2,16 +2,16 @@
 # This file is part of the rsyslog project, released  under ASL 2.0
 
 uname
-if [ `uname` = "FreeBSD" ] ; then
+if [ $(uname) = "FreeBSD" ] ; then
    echo "This test currently does not work on FreeBSD."
    exit 77
 fi
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514")
+input(type="imtcp" port="'$TCPFLOOD_PORT'")
 
 template(name="outfmt" type="string"
 	 string="%msg:F,58:2%\n")
@@ -23,7 +23,7 @@ template(name="outfmt" type="string"
 '
 startup
 tcpflood -m2500 -P129
-. $srcdir/diag.sh wait-queueempty
+wait_queueempty
 gzip_seq_check 0 2499
 tcpflood -i2500 -m2500 -P129
 shutdown_when_empty

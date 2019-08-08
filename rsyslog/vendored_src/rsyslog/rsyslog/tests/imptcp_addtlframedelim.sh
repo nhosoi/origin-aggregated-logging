@@ -2,13 +2,13 @@
 # added 2010-08-11 by Rgerhards
 #
 # This file is part of the rsyslog project, released  under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $ModLoad ../plugins/imptcp/.libs/imptcp
 $MainMsgQueueTimeoutShutdown 10000
 $InputPTCPServerAddtlFrameDelimiter 0
-$InputPTCPServerRun 13514
+$InputPTCPServerRun '$TCPFLOOD_PORT'
 
 $template outfmt,"%msg:F,58:2%\n"
 $OMFileFlushOnTXEnd off

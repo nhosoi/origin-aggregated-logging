@@ -7,7 +7,7 @@
  * \date    2003-09-09
  *          Coding begun.
  *
- * Copyright 2003-2016 Rainer Gerhards and Adiscon GmbH.
+ * Copyright 2003-2018 Rainer Gerhards and Adiscon GmbH.
  *
  * This file is part of the rsyslog runtime library.
  *
@@ -29,7 +29,6 @@
  */
 #include "config.h"
 
-#include "rsyslog.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,9 +42,12 @@
 #include <ctype.h>
 #include <inttypes.h>
 #include <fcntl.h>
+
+#include "rsyslog.h"
 #include "srUtils.h"
 #include "obj.h"
 #include "errmsg.h"
+#include "glbl.h"
 
 #if _POSIX_TIMERS <= 0
 #include <sys/time.h>
@@ -94,6 +96,10 @@ syslogName_t	syslogFacNames[] = {
 	{"syslog",       LOG_SYSLOG},
 	{"user",         LOG_USER},
 	{"uucp",         LOG_UUCP},
+#if defined(_AIX)  /* AIXPORT : These are necessary for AIX */
+	{ "caa",         LOG_CAA },
+	{ "aso",         LOG_ASO },
+#endif
 #if defined(LOG_FTP)
 	{"ftp",          LOG_FTP},
 #endif
@@ -171,7 +177,7 @@ uchar *srUtilStrDup(uchar *pOld, size_t len)
 
 	assert(pOld != NULL);
 	
-	if((pNew = MALLOC(len + 1)) != NULL)
+	if((pNew = malloc(len + 1)) != NULL)
 		memcpy(pNew, pOld, len + 1);
 
 	return pNew;
@@ -211,7 +217,7 @@ static int real_makeFileParentDirs(const uchar *const szFile, const size_t lenFi
 	assert(lenFile > 0);
 
 	len = lenFile + 1; /* add one for '\0'-byte */
-	if((pszWork = MALLOC(len)) == NULL)
+	if((pszWork = malloc(len)) == NULL)
 		return -1;
 	memcpy(pszWork, szFile, len);
 	for(p = pszWork+1 ; *p ; p++)
@@ -285,17 +291,22 @@ int execProg(uchar *program, int bWait, uchar *arg)
 	}
 
 	if(pid) {       /* Parent */
-		if(bWait)
-			if(waitpid(pid, NULL, 0) == -1)
-				if(errno != ECHILD) {
-					/* we do not use logerror(), because
-					 * that might bring us into an endless
-					 * loop. At some time, we may
-					 * reconsider this behaviour.
-					 */
-					dbgprintf("could not wait on child after executing '%s'",
-					        (char*)program);
-				}
+		if(bWait) {
+			/* waitpid will fail with errno == ECHILD if the child process has already
+			   been reaped by the rsyslogd main loop (see rsyslogd.c) */
+			int status;
+			if(waitpid(pid, &status, 0) == pid) {
+				glblReportChildProcessExit(program, pid, status);
+			} else if(errno != ECHILD) {
+				/* we do not use logerror(), because
+				* that might bring us into an endless
+				* loop. At some time, we may
+				* reconsider this behaviour.
+				*/
+				dbgprintf("could not wait on child after executing '%s'",
+						(char*)program);
+			}
+		}
 		return pid;
 	}
 	/* Child */
@@ -317,6 +328,7 @@ int execProg(uchar *program, int bWait, uchar *arg)
 	 * system() way of doing things. rgerhards, 2007-07-20
 	 */
 	perror("exec");
+	fprintf(stderr, "exec program was '%s' with param '%s'\n", program, arg);
 	exit(1); /* not much we can do in this case */
 }
 
@@ -350,10 +362,8 @@ void skipWhiteSpace(uchar **pp)
  * to use as few space as possible.
  * rgerhards, 2008-01-03
  */
-#if !defined(_AIX)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-nonliteral"
-#endif
+PRAGMA_DIAGNOSTIC_PUSH
+PRAGMA_IGNORE_Wformat_nonliteral
 rsRetVal genFileName(uchar **ppName, uchar *pDirName, size_t lenDirName, uchar *pFName,
 		     size_t lenFName, int64_t lNum, int lNumDigits)
 {
@@ -377,7 +387,7 @@ rsRetVal genFileName(uchar **ppName, uchar *pDirName, size_t lenDirName, uchar *
 	}
 
 	lenName = lenDirName + 1 + lenFName + lenBuf + 1; /* last +1 for \0 char! */
-	if((pName = MALLOC(lenName)) == NULL)
+	if((pName = malloc(lenName)) == NULL)
 		ABORT_FINALIZE(RS_RET_OUT_OF_MEMORY);
 	
 	/* got memory, now construct string */
@@ -397,9 +407,7 @@ rsRetVal genFileName(uchar **ppName, uchar *pDirName, size_t lenDirName, uchar *
 finalize_it:
 	RETiRet;
 }
-#if !defined(_AIX)
-#pragma GCC diagnostic pop
-#endif
+PRAGMA_DIAGNOSTIC_POP
 
 /* get the number of digits required to represent a given number. We use an
  * iterative approach as we do not like to draw in the floating point
@@ -430,7 +438,6 @@ timeoutComp(struct timespec *pt, long iTimeout)
 	struct timeval tv;
 #	endif
 
-	BEGINfunc
 	assert(pt != NULL);
 	/* compute timeout */
 
@@ -448,7 +455,6 @@ timeoutComp(struct timespec *pt, long iTimeout)
 		pt->tv_nsec -= 1000000000;
 		++pt->tv_sec;
 	}
-	ENDfunc
 	return RS_RET_OK; /* so far, this is static... */
 }
 
@@ -486,7 +492,6 @@ timeoutVal(struct timespec *pt)
 	struct timeval tv;
 #	endif
 
-	BEGINfunc
 	assert(pt != NULL);
 	/* compute timeout */
 #	if _POSIX_TIMERS > 0
@@ -503,7 +508,6 @@ timeoutVal(struct timespec *pt)
 	if(iTimeout < 0)
 		iTimeout = 0;
 
-	ENDfunc
 	return iTimeout;
 }
 
@@ -514,10 +518,8 @@ timeoutVal(struct timespec *pt)
 void
 mutexCancelCleanup(void *arg)
 {
-	BEGINfunc
 	assert(arg != NULL);
 	d_pthread_mutex_unlock((pthread_mutex_t*) arg);
-	ENDfunc
 }
 
 
@@ -531,11 +533,9 @@ srSleep(int iSeconds, int iuSeconds)
 {
 	struct timeval tvSelectTimeout;
 
-	BEGINfunc
 	tvSelectTimeout.tv_sec = iSeconds;
 	tvSelectTimeout.tv_usec = iuSeconds; /* micro seconds */
 	select(0, NULL, NULL, NULL, &tvSelectTimeout);
-	ENDfunc
 }
 
 
@@ -581,8 +581,8 @@ int decodeSyslogName(uchar *name, syslogName_t *codetab)
 	register uchar *p;
 	uchar buf[80];
 
-	ASSERT(name != NULL);
-	ASSERT(codetab != NULL);
+	assert(name != NULL);
+	assert(codetab != NULL);
 
 	DBGPRINTF("symbolic name: %s", name);
 	if(isdigit((int) *name)) {

@@ -1,12 +1,12 @@
 #!/bin/bash
 # addd 2018-01-01 by RGerhards, released under ASL 2.0
 
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 template(name="outfmt" type="string" string="empty-%$!%-\n")
 module(load="../plugins/imtcp/.libs/imtcp")
-input(type="imtcp" port="13514" ruleset="rs")
+input(type="imtcp" port="'$TCPFLOOD_PORT'" ruleset="rs")
 
 ruleset(name="rs") {
 	set $. = $!;
@@ -19,7 +19,7 @@ startup
 tcpflood -m1
 shutdown_when_empty
 wait_shutdown
-EXPECTED='empty--'
+export EXPECTED='empty--'
 echo "$EXPECTED" | cmp - $RSYSLOG_OUT_LOG
 if [ ! $? -eq 0 ]; then
 	echo "FAIL:  $RSYSLOG_OUT_LOG content invalid:"

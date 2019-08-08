@@ -1020,33 +1020,46 @@ cache_entry_free_raw(void *cache_entry_void)
 static struct cache_s *
 cacheNew(instanceData *pData)
 {
+	DEFiRet;
 	struct cache_s *cache = NULL;
 	time_t now;
+	int need_mutex_destroy = 0;
 
-	if ((cache = calloc(1, sizeof(struct cache_s))) == NULL) {
-		FINALIZE;
-	}
-	cache->kbUrl = pData->kubernetesUrl;
-	cache->mdHt = create_hashtable(100, hash_from_string,
-		key_equals_string, cache_entry_free_raw);
-	cache->nsHt = create_hashtable(100, hash_from_string,
-		key_equals_string, cache_entry_free_raw);
+	CHKmalloc(cache = (struct cache_s *)calloc(1, sizeof(struct cache_s)));
+	CHKmalloc(cache->cacheMtx = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t)));
+	CHKmalloc(cache->mdHt = create_hashtable(100, hash_from_string,
+		key_equals_string, cache_entry_free_raw));
+	CHKmalloc(cache->nsHt = create_hashtable(100, hash_from_string,
+		key_equals_string, cache_entry_free_raw));
+	CHKiConcCtrl(pthread_mutex_init(cache->cacheMtx, NULL));
+	need_mutex_destroy = 1;
 	datetime.GetTime(&now);
+	cache->kbUrl = pData->kubernetesUrl;
 	cache->expirationTime = 0;
 	if (pData->cacheExpireInterval > -1)
 		cache->expirationTime = pData->cacheExpireInterval + pData->cacheEntryTTL + now;
 	cache->lastBusyTime = 0;
 	dbgprintf("mmkubernetes: created cache mdht [%p] nsht [%p]\n",
 			cache->mdHt, cache->nsHt);
-	cache->cacheMtx = malloc(sizeof(pthread_mutex_t));
-	if (!cache->mdHt || !cache->nsHt || !cache->cacheMtx) {
-		free (cache);
-		cache = NULL;
-		FINALIZE;
-	}
-	pthread_mutex_init(cache->cacheMtx, NULL);
 
 finalize_it:
+	if (iRet != RS_RET_OK) {
+	        LogError(errno, iRet, "mmkubernetes: cacheNew: unable to create metadata cache for %s",
+	                 pData->kubernetesUrl);
+		if (cache) {
+			if (cache->mdHt)
+				hashtable_destroy(cache->mdHt, 1);
+			if (cache->nsHt)
+				hashtable_destroy(cache->nsHt, 1);
+			if (cache->cacheMtx) {
+				if (need_mutex_destroy)
+					pthread_mutex_destroy(cache->cacheMtx);
+				free(cache->cacheMtx);
+			}
+			free(cache);
+			cache = NULL;
+		}
+	}
 	return cache;
 }
 
@@ -1279,7 +1292,7 @@ CODESTARTnewActInst
 		} else if(!strcmp(actpblk.descr[i].name, "srcmetadatapath")) {
 			msgPropDescrDestruct(pData->srcMetadataDescr);
 			free(pData->srcMetadataDescr);
-			CHKmalloc(pData->srcMetadataDescr = MALLOC(sizeof(msgPropDescr_t)));
+			CHKmalloc(pData->srcMetadataDescr = malloc(sizeof(msgPropDescr_t)));
 			srcMetadataPath = es_str2cstr(pvals[i].val.d.estr, NULL);
 			CHKiRet(msgPropDescrFill(pData->srcMetadataDescr, (uchar *)srcMetadataPath,
 				strlen(srcMetadataPath)));
@@ -1455,7 +1468,7 @@ CODESTARTnewActInst
 		}
 	}
 	if(pData->srcMetadataDescr == NULL) {
-		CHKmalloc(pData->srcMetadataDescr = MALLOC(sizeof(msgPropDescr_t)));
+		CHKmalloc(pData->srcMetadataDescr = malloc(sizeof(msgPropDescr_t)));
 		CHKiRet(msgPropDescrFill(pData->srcMetadataDescr, loadModConf->srcMetadataPath,
 			strlen((char *)loadModConf->srcMetadataPath)));
 	}
@@ -1479,10 +1492,10 @@ CODESTARTnewActInst
 	if(pData->de_dot_separator)
 		pData->de_dot_separator_len = strlen((const char *)pData->de_dot_separator);
 
-	CHKmalloc(pData->contNameDescr = MALLOC(sizeof(msgPropDescr_t)));
+	CHKmalloc(pData->contNameDescr = malloc(sizeof(msgPropDescr_t)));
 	CHKiRet(msgPropDescrFill(pData->contNameDescr, (uchar*) DFLT_CONTAINER_NAME,
 			strlen(DFLT_CONTAINER_NAME)));
-	CHKmalloc(pData->contIdFullDescr = MALLOC(sizeof(msgPropDescr_t)));
+	CHKmalloc(pData->contIdFullDescr = malloc(sizeof(msgPropDescr_t)));
 	CHKiRet(msgPropDescrFill(pData->contIdFullDescr, (uchar*) DFLT_CONTAINER_ID_FULL,
 			strlen(DFLT_CONTAINER_NAME)));
 

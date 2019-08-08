@@ -5,7 +5,7 @@
 # rgerhards, 2010-06-23
 echo =====================================================================================
 echo \[execonlywhenprevsuspended.sh\]: test execonly...suspended functionality simple case
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 main_queue(queue.workerthreads="1") 
@@ -18,10 +18,10 @@ $template outfmt,"%msg:F,58:2%\n"
 
 :msg, contains, "msgnum:" :omtesting:fail 2 0
 $ActionExecOnlyWhenPreviousIsSuspended on
-&			   ./rsyslog.out.log;outfmt
+&			   ./'"${RSYSLOG_OUT_LOG}"';outfmt
 '
 startup
-. $srcdir/diag.sh injectmsg 0 1000
+injectmsg 0 1000
 shutdown_when_empty # shut down rsyslogd when done processing messages
 wait_shutdown
 seq_check 1 999

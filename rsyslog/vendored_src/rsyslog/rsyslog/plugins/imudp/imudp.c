@@ -152,6 +152,7 @@ struct modConfData_s {
 	int batchSize;			/* max nbr of input batch --> also recvmmsg() max count */
 	int8_t wrkrMax;			/* max nbr of worker threads */
 	sbool configSetViaV2Method;
+	sbool bPreserveCase;	/* preserves the case of fromhost; "off" by default */
 };
 static modConfData_t *loadModConf = NULL;/* modConf ptr to use for the current load process */
 static modConfData_t *runModConf = NULL;/* modConf ptr to use for the current load process */
@@ -162,7 +163,8 @@ static struct cnfparamdescr modpdescr[] = {
 	{ "schedulingpriority", eCmdHdlrInt, 0 },
 	{ "batchsize", eCmdHdlrInt, 0 },
 	{ "threads", eCmdHdlrPositiveInt, 0 },
-	{ "timerequery", eCmdHdlrInt, 0 }
+	{ "timerequery", eCmdHdlrInt, 0 },
+	{ "preservecase", eCmdHdlrBinary, 0 }
 };
 static struct cnfparamblk modpblk =
 	{ CNFPARAMBLK_VERSION,
@@ -203,7 +205,7 @@ createInstance(instanceConf_t **pinst)
 {
 	instanceConf_t *inst;
 	DEFiRet;
-	CHKmalloc(inst = MALLOC(sizeof(instanceConf_t)));
+	CHKmalloc(inst = malloc(sizeof(instanceConf_t)));
 	inst->next = NULL;
 	inst->pBindRuleset = NULL;
 
@@ -447,8 +449,12 @@ processPacket(struct lstn_s *lstn, struct sockaddr_storage *frominetPrev, int *p
 		if(lstn->dfltTZ != NULL)
 			MsgSetDfltTZ(pMsg, (char*) lstn->dfltTZ);
 		pMsg->msgFlags  = NEEDS_PARSING | PARSE_HOSTNAME | NEEDS_DNSRESOL;
-		if(*pbIsPermitted == 2)
-			pMsg->msgFlags  |= NEEDS_ACLCHK_U; /* request ACL check after resolution */
+		if(*pbIsPermitted == 2) {
+			pMsg->msgFlags |= NEEDS_ACLCHK_U; /* request ACL check after resolution */
+		}
+		if(runModConf->bPreserveCase) {
+			pMsg->msgFlags |= PRESERVE_CASE; /* preserve case of fromhost */
+		}
 		CHKiRet(msgSetFromSockinfo(pMsg, frominet));
 		CHKiRet(ratelimitAddMsg(lstn->ratelimiter, multiSub, pMsg));
 		STATSCOUNTER_INC(lstn->ctrSubmit, lstn->mutCtrSubmit);
@@ -893,13 +899,15 @@ rcvMainLoop(struct wrkrInfo_s *const __restrict__ pWrkr)
 		i = 0;
 		for(lstn = lcnfRoot ; nfds && lstn != NULL ; lstn = lstn->next) {
 			assert(i < nfd);
-			if(glbl.GetGlobalInputTermState() == 1)
-				ABORT_FINALIZE(RS_RET_FORCE_TERM); /* terminate input! */
-			if(pollfds[i].revents & POLLIN) {
-		       		processSocket(pWrkr, lstn, &frominetPrev, &bIsPermitted);
-				--nfds;
+			if(lstn->sock != -1) {
+				if(glbl.GetGlobalInputTermState() == 1)
+					ABORT_FINALIZE(RS_RET_FORCE_TERM); /* terminate input! */
+				if(pollfds[i].revents & POLLIN) {
+					processSocket(pWrkr, lstn, &frominetPrev, &bIsPermitted);
+					--nfds;
+				}
+				++i;
 			}
-			++i;
 	       }
 	       /* end of a run, back to loop for next recv() */
 	}
@@ -1030,6 +1038,7 @@ CODESTARTbeginCnfLoad
 	loadModConf->iTimeRequery = TIME_REQUERY_DFLT;
 	loadModConf->iSchedPrio = SCHED_PRIO_UNSET;
 	loadModConf->pszSchedPolicy = NULL;
+	loadModConf->bPreserveCase = 0; /* off */
 	bLegacyCnfModGlobalsPermitted = 1;
 	/* init legacy config vars */
 	cs.pszBindRuleset = NULL;
@@ -1079,6 +1088,8 @@ CODESTARTsetModCnf
 			} else {
 				loadModConf->wrkrMax = wrkrMax;
 			}
+		} else if(!strcmp(modpblk.descr[i].name, "preservecase")) {
+			loadModConf->bPreserveCase = (int) pvals[i].val.d.n;
 		} else {
 			dbgprintf("imudp: program error, non-handled "
 			  "param '%s' in beginCnfLoad\n", modpblk.descr[i].name);
@@ -1163,11 +1174,11 @@ CODESTARTactivateCnf
 	DBGPRINTF("imudp: config params iMaxLine %d, lenRcvBuf %d\n", iMaxLine, lenRcvBuf);
 	for(i = 0 ; i < runModConf->wrkrMax ; ++i) {
 #		ifdef HAVE_RECVMMSG
-		CHKmalloc(wrkrInfo[i].recvmsg_iov = MALLOC(runModConf->batchSize * sizeof(struct iovec)));
-		CHKmalloc(wrkrInfo[i].recvmsg_mmh = MALLOC(runModConf->batchSize * sizeof(struct mmsghdr)));
-		CHKmalloc(wrkrInfo[i].frominet = MALLOC(runModConf->batchSize * sizeof(struct sockaddr_storage)));
+		CHKmalloc(wrkrInfo[i].recvmsg_iov = malloc(runModConf->batchSize * sizeof(struct iovec)));
+		CHKmalloc(wrkrInfo[i].recvmsg_mmh = malloc(runModConf->batchSize * sizeof(struct mmsghdr)));
+		CHKmalloc(wrkrInfo[i].frominet = malloc(runModConf->batchSize * sizeof(struct sockaddr_storage)));
 #		endif
-		CHKmalloc(wrkrInfo[i].pRcvBuf = MALLOC(lenRcvBuf));
+		CHKmalloc(wrkrInfo[i].pRcvBuf = malloc(lenRcvBuf));
 		wrkrInfo[i].id = i;
 	}
 finalize_it:

@@ -2,12 +2,12 @@
 # Test for fixedArray queue mode
 # added 2009-05-20 by rgerhards
 # This file is part of the rsyslog project, released  under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 $ModLoad ../plugins/imtcp/.libs/imtcp
 $MainMsgQueueTimeoutShutdown 10000
-$InputTCPServerRun 13514
+$InputTCPServerRun '$TCPFLOOD_PORT'
 
 # set spool locations and switch queue to disk-only mode
 $MainMsgQueueType FixedArray
@@ -19,7 +19,7 @@ template(name="dynfile" type="string" string=`echo $RSYSLOG_OUT_LOG`) # trick to
 startup
 
 # 40000 messages should be enough
-. $srcdir/diag.sh injectmsg  0 40000
+injectmsg  0 40000
 shutdown_when_empty
 wait_shutdown 
 seq_check 0 39999

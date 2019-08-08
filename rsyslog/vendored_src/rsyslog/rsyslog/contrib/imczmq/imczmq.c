@@ -117,7 +117,7 @@ static void setDefaults(instanceConf_t* iconf) {
 static rsRetVal createInstance(instanceConf_t** pinst) {
 	DEFiRet;
 	instanceConf_t* inst;
-	CHKmalloc(inst = MALLOC(sizeof(instanceConf_t)));
+	CHKmalloc(inst = malloc(sizeof(instanceConf_t)));
 	
 	setDefaults(inst);
 	
@@ -138,7 +138,7 @@ static rsRetVal addListener(instanceConf_t* iconf){
 	
 	DBGPRINTF("imczmq: addListener called..\n");
 	struct listener_t* pData = NULL;
-	CHKmalloc(pData=(struct listener_t*)MALLOC(sizeof(struct listener_t)));
+	CHKmalloc(pData=(struct listener_t*)malloc(sizeof(struct listener_t)));
 	pData->ruleset = iconf->pBindRuleset;
 
 	pData->sock = zsock_new(iconf->sockType);
@@ -316,7 +316,6 @@ static rsRetVal rcvData(void){
 		pData = zlist_next(listenerList);
 	}
 
-	zframe_t *frame;
 	zsock_t *which = (zsock_t *)zpoller_wait(poller, -1);
 	while(which) {
 		if (zpoller_terminated(poller)) {
@@ -331,8 +330,13 @@ static rsRetVal rcvData(void){
 			DBGPRINTF("imczmq: found matching socket\n");
 		}
 
-		frame = zframe_recv(which);
-		char *buf = zframe_strdup(frame);
+		zframe_t *frame = zframe_recv(which);
+		char *buf = NULL;
+
+		if (frame != NULL)
+			buf = zframe_strdup(frame);
+
+		zframe_destroy(&frame);
 
 		if(buf == NULL) {
 			DBGPRINTF("imczmq: null buffer\n");
@@ -356,7 +360,6 @@ static rsRetVal rcvData(void){
 		which = (zsock_t *)zpoller_wait(poller, -1);
 	}
 finalize_it:
-	zframe_destroy(&frame);
 	zpoller_destroy(&poller);
 	pData = zlist_first(listenerList);
 	while(pData) {

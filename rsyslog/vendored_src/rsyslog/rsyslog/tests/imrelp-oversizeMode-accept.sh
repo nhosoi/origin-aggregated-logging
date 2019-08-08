@@ -1,6 +1,6 @@
 #!/bin/bash
 # add 2018-04-25 by PascalWithopf, released under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 ./have_relpSrvSetOversizeMode
 if [ $? -eq 1 ]; then
   echo "imrelp parameter oversizeMode not available. Test stopped"
@@ -9,14 +9,14 @@ fi;
 generate_conf
 add_conf '
 module(load="../plugins/imrelp/.libs/imrelp")
-input(type="imrelp" port="13514" maxdatasize="200" oversizeMode="accept")
+input(type="imrelp" port="'$TCPFLOOD_PORT'" maxdatasize="200" oversizeMode="accept")
 
 template(name="outfmt" type="string" string="%msg%\n")
 :msg, contains, "msgnum:" action(type="omfile" template="outfmt"
 				 file=`echo $RSYSLOG_OUT_LOG`)
 '
 startup
-tcpflood -Trelp-plain -p13514 -m1 -d 240
+tcpflood -Trelp-plain -p'$TCPFLOOD_PORT' -m1 -d 240
 shutdown_when_empty # shut down rsyslogd when done processing messages
 wait_shutdown
 

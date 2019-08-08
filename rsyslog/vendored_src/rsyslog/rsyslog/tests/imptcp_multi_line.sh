@@ -1,10 +1,10 @@
 #!/bin/bash
 # This file is part of the rsyslog project, released  under ASL 2.0
-. $srcdir/diag.sh init
+. ${srcdir:=.}/diag.sh init
 generate_conf
 add_conf '
 module(load="../plugins/imptcp/.libs/imptcp")
-input(type="imptcp" port="13514" ruleset="remote" multiline="on")
+input(type="imptcp" port="'$TCPFLOOD_PORT'" ruleset="remote" multiline="on")
 
 template(name="outfmt" type="string" string="NEWMSG: %rawmsg%\n")
 ruleset(name="remote") {

@@ -73,6 +73,7 @@ struct rsksictx_s {
 	uint8_t bKeepTreeHashes;
 	uint64_t blockLevelLimit;
 	uint32_t blockTimeLimit;
+	uint32_t effectiveBlockLevelLimit; /* level limit adjusted by gateway settings */
 	uint8_t syncMode;
 	uid_t	fileUID;	/* IDs for creation */
 	uid_t	dirUID;
@@ -83,6 +84,8 @@ struct rsksictx_s {
 	char* aggregatorUri;
 	char* aggregatorId;
 	char* aggregatorKey;
+	char* aggregatorEndpoints[KSI_CTX_HA_MAX_SUBSERVICES];
+	int aggregatorEndpointCount;
 	char* random_source;
 	pthread_mutex_t module_lock;
 	pthread_t signer_thread;
@@ -90,7 +93,9 @@ struct rsksictx_s {
 	bool thread_started;
 	uint8_t disabled; /* permits to disable the plugin --> set to 1 */
 	ksifile ksi;
-	bool debug;
+	char *debugFileName;
+	int debugLevel;
+	FILE *debugFile;
 	uint64_t max_requests;
 	void (*errFunc)(void *, unsigned char*);
 	void (*logFunc)(void *, unsigned char*);
@@ -170,7 +175,7 @@ struct rsksistatefile {
 #define RSGTE_INTERNAL 27 /* Internal error */
 
 #define getIVLenKSI(bh) (hashOutputLengthOctetsKSI((bh)->hashID))
-#define rsksiSetBlockLevelLimit(ctx, limit) ((ctx)->blockLevelLimit = limit)
+#define rsksiSetBlockLevelLimit(ctx, limit) ((ctx)->blockLevelLimit = (ctx)->effectiveBlockLevelLimit = limit)
 #define rsksiSetBlockTimeLimit(ctx, limit) ((ctx)->blockTimeLimit = limit)
 #define rsksiSetKeepRecordHashes(ctx, val) ((ctx)->bKeepRecordHashes = val)
 #define rsksiSetKeepTreeHashes(ctx, val) ((ctx)->bKeepTreeHashes = val)
@@ -183,8 +188,10 @@ struct rsksistatefile {
 #define rsksiSetDirGID(ctx, val) ((ctx)->dirGID = val)
 #define rsksiSetCreateMode(ctx, val) ((ctx)->fCreateMode= val)
 #define rsksiSetDirCreateMode(ctx, val) ((ctx)->fDirCreateMode = val)
-#define rsksiSetDebug(ctx, val) ((ctx)->debug = val)
+#define rsksiSetDebugLevel(ctx, val) ((ctx)->debugLevel = val)
 
+
+int rsksiSetDebugFile(rsksictx ctx, char *val);
 int rsksiSetAggregator(rsksictx ctx, char *uri, char *loginid, char *key);
 int rsksiSetHashFunction(rsksictx ctx, char *algName);
 int rsksiSetHmacFunction(rsksictx ctx, char *algName);
