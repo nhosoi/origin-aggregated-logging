@@ -1,9 +1,12 @@
 #!/bin/bash
 
+here=$( pwd )
+
 set -euxo pipefail
 
 # must be listed in dependency order
-packages="librelp libestr libfastjson liblognorm librdkafka rsyslog"
+#packages="librelp libestr libfastjson liblognorm librdkafka rsyslog"
+packages="rsyslog"
 
 contents=$( mktemp )
 trap "rm -f $contents" EXIT
@@ -19,19 +22,19 @@ for pkg in $packages ; do
         --define "_rpmdir $rpmtopdir/BUILDRPMS" --define "_sourcedir $(pwd)" $pkg.spec
     cd ..
     # install devel rpms for next round of dependencies
-    yum -y install BUILDRPMS/*/*.rpm
+    sudo yum -y install BUILDRPMS/*/*.rpm
     # move runtime rpms to runtime dir
-    if [ ! -d /RPMS ] ; then
-        mkdir -p /RPMS
+    if [ ! -d $here/RPMS ] ; then
+        mkdir -p $here/RPMS
     fi
     find BUILDRPMS -type f -print | while read rpmfile ; do
         case $rpmfile in
         ${pkg}-devel-*.rpm) continue ;;
         ${pkg}-doc-*.rpm) continue ;;
         *.src.rpm) continue ;;
-        *) mv $rpmfile /RPMS/ ;;
+        *) mv $rpmfile $here/RPMS/ ;;
         esac
     done
-    rm -rf BUILDRPMS/*
+#rm -rf BUILDRPMS/*
 done
-sort $contents > /contents
+sort $contents > /tmp/contents

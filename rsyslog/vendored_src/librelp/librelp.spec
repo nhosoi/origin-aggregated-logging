@@ -23,14 +23,12 @@ BuildRequires: autoconf
 BuildRequires: automake
 BuildRequires: libtool
 
+%debug_package
+
 %description devel
 Librelp is an easy to use library for the RELP protocol. The
 librelp-devel package contains the header files and libraries needed
 to develop applications using librelp.
-
-%prep
-%setup -q
-%patch0 -p1
 
 %build
 autoreconf -ivf

@@ -5,8 +5,8 @@
 
 Summary: Enhanced system logging and kernel message trapping daemon
 Name: rsyslog
-Version: 8.37.0
-Release: 9%{?dist}
+Version: 8.39.0
+Release: 1%{?dist}
 License: (GPLv3+ and ASL 2.0)
 Group: System Environment/Daemons
 ExcludeArch: i686
@@ -136,6 +136,8 @@ Group: System Environment/Daemons
 Requires: %name = %version-%release
 BuildRequires: net-snmp-devel
 
+%debug_package
+
 %description
 Rsyslog is an enhanced, multi-threaded syslog daemon. It supports MySQL,
 syslog/TCP, RFC 3195, permitted sender lists, filtering on any message part,
@@ -203,28 +205,6 @@ protocol.
 %description snmp
 The rsyslog-snmp package contains the rsyslog plugin that provides the
 ability to send syslog messages as SNMPv1 and SNMPv2c traps.
-
-%prep
-# set up rsyslog-doc sources
-%setup -q -a 1 -T -c
-
-#regenerate the docs
-
-#mv build/searchindex.js searchindex_backup.js
-#sphinx-build -b html source build
-#clean up
-#mv searchindex_backup.js build/searchindex.js
-
-rm -r LICENSE README.md source build/objects.inv
-mv build doc
-
-# set up rsyslog sources
-%setup -q -D
-
-%patch0 -p1 -b .service
-%patch1 -p1 -b .default-tag
-%patch2 -p1 -b .imfile-symlink
-%patch3 -p1 -b .mmkubernetes-404
 
 %build
 %ifarch sparc64
@@ -295,7 +275,7 @@ install -p -m 644 plugins/ommysql/createDB.sql %{buildroot}%{rsyslog_docdir}/mys
 install -p -m 644 plugins/ompgsql/createDB.sql %{buildroot}%{rsyslog_docdir}/pgsql-createDB.sql
 install -p -m 644 contrib/mmkubernetes/*.rulebase %{buildroot}%{rsyslog_docdir}
 # extract documentation
-cp -r doc/* %{buildroot}%{rsyslog_docdir}/html
+# cp -r doc/* %{buildroot}%{rsyslog_docdir}/html
 # get rid of libtool libraries
 rm -f %{buildroot}%{_libdir}/rsyslog/*.la
 # get rid of socket activation by default

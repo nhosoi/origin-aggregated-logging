@@ -18,12 +18,11 @@ used by the Rsyslog daemon.
 Summary:        Development files for %{name}
 Requires:       %{name}%{?_isa} = %{version}-%{release}
 
+%debug_package
+
 %description    devel
 The package contains libraries and header files for
 developing applications that use libestr.
-
-%prep
-%setup -q
 
 %build
 autoreconf -if
