@@ -245,8 +245,9 @@ fi
 
 #      title: "build an openshift-ansible release"
 #      repository: "openshift-ansible"
-runfile=`mktemp`
-trap "rm -f $runfile" ERR EXIT INT TERM
+#runfile=`mktemp`
+runfile="/tmp/nya_script0"
+# trap "rm -f $runfile" ERR EXIT INT TERM
 cat > $runfile <<EOF
 set -euxo pipefail
 cd $OS_O_A_DIR
@@ -278,6 +279,7 @@ scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
 #      title: "enable ansible 2.6 repo"
+runfile="/tmp/nya_script1"
 cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
@@ -315,6 +317,7 @@ ssh -n openshiftdevel "bash $runfile"
 
 #      title: "install the openshift-ansible release"
 #      repository: "openshift-ansible"
+runfile="/tmp/nya_script2"
 cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
@@ -379,6 +382,7 @@ ssh -n openshiftdevel "bash $runfile"
 
 #      title: "install Ansible plugins"
 #      repository: "origin"
+runfile="/tmp/nya_script3"
 cat > $runfile <<EOF
 set -euxo pipefail
 cd $OS_ROOT
@@ -398,6 +402,7 @@ ssh -n openshiftdevel "bash $runfile"
 
 #      title: "determine the release commit for origin images and version for rpms"
 #      repository: "origin"
+runfile="/tmp/nya_script4"
 cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
@@ -534,6 +539,7 @@ scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
 # make etcd use a ramdisk
+runfile="/tmp/nya_script5"
 cat <<SCRIPT > $runfile
 set -euxo pipefail
 #!/bin/bash
@@ -552,6 +558,7 @@ scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
 # pull and tag service catalog image with build tag
+runfile="/tmp/nya_script6"
 cat <<SCRIPT > $runfile
 set -euxo pipefail
 pushd $OS_A_C_J_DIR > /dev/null
@@ -570,9 +577,9 @@ SCRIPT
 scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash $runfile"
 
-if [ "$USE_CRIO" = true ] ; then
-    #      title: "enable repo with crio"
-    cat > $runfile <<EOF
+#      title: "enable repo with crio"
+runfile="/tmp/nya_script7"
+cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
     local aver="\$1"
@@ -607,14 +614,14 @@ REPO
     done
 fi
 EOF
-    scp $runfile openshiftdevel:/tmp
+scp $runfile openshiftdevel:/tmp
+if [ "$USE_CRIO" = true ] ; then
     ssh -n openshiftdevel "bash $runfile"
-
-
 fi
 
 #      title: "install origin"
 #      repository: "aos-cd-jobs"
+runfile="/tmp/nya_script8"
 cat > $runfile <<EOF
 set -euxo pipefail
 cd $OS_A_C_J_DIR
@@ -692,6 +699,7 @@ scp $runfile openshiftdevel:/tmp
 ssh -n openshiftdevel "bash -x $runfile"
 
 #  title: "expose the kubeconfig"
+runfile="/tmp/nya_script9"
 cat > $runfile <<EOF
 set -euxo pipefail
 sudo chmod a+x /etc/ /etc/origin/ /etc/origin/master/
@@ -707,6 +715,7 @@ ssh -n openshiftdevel "bash $runfile"
 if [ "${USE_LOGGING:-true}" = true ] ; then
     # HACK - create mux pvc
     if [ "${MUX_FILE_BUFFER_STORAGE_TYPE:-}" = pvc ] ; then
+        runfile="/tmp/nya_script10"
         cat > $runfile <<EOF
 apiVersion: "v1"
 kind: "PersistentVolume"
@@ -727,8 +736,8 @@ fi
 
 #      title: "install origin-aggregated-logging"
 #      repository: "aos-cd-jobs"
-if [ "${USE_LOGGING:-true}" = true ] ; then
-    cat > $runfile <<EOF
+runfile="/tmp/nya_script11"
+cat > $runfile <<EOF
 set -euxo pipefail
 compare_versions() {
     local aver="\$1"
@@ -790,8 +799,8 @@ ANSIBLE_LOG_PATH=/tmp/ansible-logging.log ansible-playbook -vvv --become \
   --skip-tags=update_master_config
 EOF
 #  -e openshift_logging_install_eventrouter=True \
-    cat $runfile
-    scp $runfile openshiftdevel:/tmp
+scp $runfile openshiftdevel:/tmp
+if [ "${USE_LOGGING:-true}" = true ] ; then
     ssh -n openshiftdevel "bash $runfile"
 fi
 
@@ -804,15 +813,16 @@ fi
 
 #      title: "run logging tests"
 #      repository: "origin-aggregated-logging"
-if [ "${USE_LOGGING:-true}" = true ] ; then
-    cat > $runfile <<EOF
+runfile="/tmp/nya_script12"
+cat > $runfile <<EOF
 sudo wget -O /usr/local/bin/stern https://github.com/wercker/stern/releases/download/1.5.1/stern_linux_amd64 && sudo chmod +x /usr/local/bin/stern
 cd $OS_O_A_L_DIR
 ${EXTRA_ENV:-}
 KUBECONFIG=/etc/origin/master/admin.kubeconfig TEST_ONLY=${TEST_ONLY:-true} \
   SKIP_TEARDOWN=true JUNIT_REPORT=true make test
 EOF
-    scp $runfile openshiftdevel:/tmp
+scp $runfile openshiftdevel:/tmp
+if [ "${USE_LOGGING:-true}" = true ] ; then
     ssh -n openshiftdevel "bash $runfile"
 fi
 
