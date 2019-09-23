@@ -66,4 +66,7 @@ oc -n openshift-operator-lifecycle-manager scale --replicas=1 deploy/olm-operato
 wait_func() { oc -n openshift-operator-lifecycle-manager get pods | grep -q '^olm-operator-.*Running' ; }
 wait_for_condition wait_func 600 10
 
-oc label nodes --all logging-ci-test- logging-infra-fluentd- logging-infra-rsyslog- || :
+########################################################## RSYSLOG ###########################################################
+# oc label nodes --all logging-ci-test- logging-infra-fluentd- logging-infra-rsyslog- || :
+########################################################## RSYSLOG ###########################################################
+oc label nodes --all logging-ci-test- logging-infra-fluentd- || :

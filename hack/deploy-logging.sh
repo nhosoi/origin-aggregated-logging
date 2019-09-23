@@ -207,13 +207,15 @@ update_images_in_clo_yaml() {
     local c_img=$( construct_image_name logging-curator5 $version )
     local f_img=$( construct_image_name logging-fluentd $version )
     local op_img=$( construct_image_name oauth-proxy $version )
-    local r_img=$( construct_image_name logging-rsyslog $version )
+########################################################## RSYSLOG ###########################################################
+#   local r_img=$( construct_image_name logging-rsyslog $version )
+#       -e "/name: RSYSLOG_IMAGE/,/value:/s,value:.*\$,value: ${r_img}," \
+########################################################## RSYSLOG ###########################################################
     sed -e "/name: ELASTICSEARCH_IMAGE/,/value:/s,value:.*\$,value: ${es_img}," \
         -e "/name: KIBANA_IMAGE/,/value:/s,value:.*\$,value: ${k_img}," \
         -e "/name: CURATOR_IMAGE/,/value:/s,value:.*\$,value: ${c_img}," \
         -e "/name: FLUENTD_IMAGE/,/value:/s,value:.*\$,value: ${f_img}," \
         -e "/name: OAUTH_PROXY_IMAGE/,/value:/s,value:.*\$,value: ${op_img}," \
-        -e "/name: RSYSLOG_IMAGE/,/value:/s,value:.*\$,value: ${r_img}," \
         -e "s, image:.*cluster-logging-operator.*\$, image: ${clo_img}," \
         -e "s, containerImage:.*cluster-logging-operator.*\$, containerImage: ${clo_img}," \
         $filearg
@@ -223,11 +225,15 @@ wait_for_logging_is_running() {
     # we expect a fluentd or rsyslog running on each node
     expectedcollectors=$( oc get nodes | grep -c " Ready " )
     if [ "${LOGGING_DEPLOY_MODE:-install}" = install ] ; then
-        if grep -q 'type:.*rsyslog' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} ; then
-            collector=rsyslog
-        else
+########################################################## RSYSLOG ###########################################################
+#       if grep -q 'type:.*rsyslog' ${CLUSTERLOGGING_CR_FILE:-$TEST_OBJ_DIR/cr.yaml} ; then
+#           collector=rsyslog
+#       else
+########################################################## RSYSLOG ###########################################################
             collector=fluentd
-        fi
+########################################################## RSYSLOG ###########################################################
+#       fi
+########################################################## RSYSLOG ###########################################################
     else
         collector=$( oc get clusterlogging instance -o jsonpath='{.spec.collection.logs.type}' )
     fi

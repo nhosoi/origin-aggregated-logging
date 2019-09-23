@@ -170,10 +170,12 @@ oc get pods -o wide
 kibnode=$( oc get pods -l component=kibana -o jsonpath='{.items[0].spec.nodeName}' )
 oc label node $kibnode --overwrite logging-ci-test=true
 
+########################################################## RSYSLOG ###########################################################
+#   {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-ci-test":"true"}},
+########################################################## RSYSLOG ###########################################################
 # make sure nodeSelectors are set correctly if restarted later by CLO
 oc patch clusterlogging instance --type=json --patch '[
     {"op":"add","path":"/spec/collection/logs/fluentd/nodeSelector","value":{"logging-ci-test":"true"}},
-    {"op":"add","path":"/spec/collection/logs/rsyslog/nodeSelector","value":{"logging-ci-test":"true"}},
     {"op":"add","path":"/spec/visualization/kibana/nodeSelector","value":{"logging-ci-test":"true"}}]'
 
 if [ -n "${OPENSHIFT_BUILD_NAMESPACE:-}" -a -n "${IMAGE_FORMAT:-}" ] ; then
