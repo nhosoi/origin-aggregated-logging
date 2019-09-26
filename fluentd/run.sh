@@ -178,6 +178,10 @@ if [ -z $BUFFER_QUEUE_LIMIT -o $BUFFER_QUEUE_LIMIT -eq 0 ]; then
 fi
 export BUFFER_QUEUE_LIMIT BUFFER_SIZE_LIMIT
 
+export HTTP_PROXY=${HTTP_PROXY:-""}
+export HTTPS_PROXY=${HTTPS_PROXY:-""}
+export NO_PROXY=${NO_PROXY:-""}
+
 # http://docs.fluentd.org/v0.12/articles/monitoring
 if [ "${ENABLE_MONITOR_AGENT:-}" = true ] ; then
     cp $CFG_DIR/input-pre-monitor.conf $CFG_DIR/openshift
